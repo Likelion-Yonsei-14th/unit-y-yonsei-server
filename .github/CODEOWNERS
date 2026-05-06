@@ -1,0 +1,40 @@
+# CODEOWNERS — 자동 리뷰어 라우팅
+#
+# Linear 워크스페이스의 팀 분담을 GitHub PR 리뷰어로 자동 매핑한다.
+# PR 생성 시 변경된 파일 경로에 매칭되는 owner 가 자동으로 리뷰 요청 대상이 된다.
+#
+# 우선순위 규칙:
+#   - 아래 줄(더 구체적인 패턴)이 위 줄(덜 구체적)을 override 한다.
+#   - 따라서 fallback 인 `*` 을 가장 위에 두고, 도메인별 룰을 아래에 둔다.
+#
+# 팀 분담 (README "팀 구성" 섹션 기준):
+#   Team A (부스·예약)             — 고선태 @KoSeontae
+#   Team B (공연·정보·지도)         — 이수정 @soo-sweetpotato
+#   Team C (인증·홈·공통 플랫폼)    — 백세빈 @sebinbaek0918
+#   Lead   (크로스 설계·공통 모듈)  — 우태호 @wooxogh
+
+# ===== Fallback (가장 위) =====
+# 더 구체적인 룰에 매칭되지 않는 모든 파일은 Lead 가 검토.
+*                                                                    @wooxogh
+
+# ===== Team A: 부스 + 예약 =====
+/src/main/java/com/likelion/yonsei/daedongje/domain/booth/           @KoSeontae
+/src/main/java/com/likelion/yonsei/daedongje/domain/reservation/     @KoSeontae
+
+# ===== Team B: 공연 + 정보 + 지도 =====
+/src/main/java/com/likelion/yonsei/daedongje/domain/performance/     @soo-sweetpotato
+/src/main/java/com/likelion/yonsei/daedongje/domain/info/            @soo-sweetpotato
+/src/main/java/com/likelion/yonsei/daedongje/domain/map/             @soo-sweetpotato
+
+# ===== Team C: 인증 + 홈 =====
+/src/main/java/com/likelion/yonsei/daedongje/domain/auth/            @sebinbaek0918
+/src/main/java/com/likelion/yonsei/daedongje/domain/home/            @sebinbaek0918
+
+# ===== 공통 인프라 — Lead 필수 =====
+/src/main/java/com/likelion/yonsei/daedongje/common/                 @wooxogh
+/src/main/resources/db/migration/                                    @wooxogh
+/src/main/resources/application*.yaml                                @wooxogh
+/.github/                                                            @wooxogh
+/CLAUDE.md                                                           @wooxogh
+/build.gradle                                                        @wooxogh
+/docker-compose.yml                                                  @wooxogh
