@@ -42,3 +42,7 @@ out/
 ._*
 .Spotlight-V100
 .Trashes
+
+### Claude Code (개인 설정만 무시. CLAUDE.md / .claude/settings.json 은 팀 공유) ###
+CLAUDE.local.md
+.claude/settings.local.json
