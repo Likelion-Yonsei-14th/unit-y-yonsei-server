@@ -134,3 +134,116 @@ test: 예약 동시성 테스트 추가
 
 커밋에 이슈 키(`BACK-XX`)를 포함하면 Linear에서 해당 이슈에 커밋 히스토리가 자동 표시됩니다.
 
+---
+
+## 로컬 개발 시작하기
+
+### 사전 요구사항
+
+- **JDK 17** (Temurin 권장) — `java -version`으로 확인
+- **Docker Desktop** — [docker.com/products/docker-desktop](https://www.docker.com/products/docker-desktop/) (학생 무료)
+
+### 1. 로컬 MySQL 띄우기
+
+```bash
+# 백그라운드로 컨테이너 기동
+docker compose up -d
+
+# 컨테이너 상태 확인 (Up + healthy 면 OK)
+docker compose ps
+
+# 종료 (데이터는 보존)
+docker compose down
+
+# 데이터까지 완전 초기화
+docker compose down -v
+```
+
+기본 접속 정보 (`docker-compose.yml`에 정의):
+
+| 항목 | 값 |
+| --- | --- |
+| Host | `localhost` |
+| Port | `3306` |
+| Database | `daedongje` |
+| Username | `daedongje` |
+| Password | `daedongje` |
+
+### 2. 애플리케이션 실행
+
+`application.yaml`의 datasource는 위 docker-compose 기본값을 그대로 사용한다 — **별도 환경변수 설정 없이 바로 실행 가능**.
+
+```bash
+./gradlew bootRun
+```
+
+운영(RDS) 등 다른 DB 사용 시 환경변수로 오버라이드:
+
+```bash
+DB_URL=jdbc:mysql://my-rds-endpoint:3306/daedongje \
+DB_USERNAME=produser \
+DB_PASSWORD=secret \
+./gradlew bootRun
+```
+
+### 3. Swagger UI 확인
+
+앱 기동 후 [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html) 접속.
+
+---
+
+## 데이터베이스 마이그레이션 (Flyway)
+
+스키마 변경은 코드와 함께 버전 관리된다. JPA `ddl-auto`는 `validate`로만 동작 — 직접 테이블을 만들거나 변경하지 않는다.
+
+### 마이그레이션 파일 위치
+
+```
+src/main/resources/db/migration/
+├── V1__init.sql                     ← 베이스라인 (빈 파일)
+├── V2__create_booth_table.sql       ← 도메인 PR 에서 추가될 예시
+├── V3__create_reservation_table.sql
+└── ...
+```
+
+### 새 마이그레이션 추가 절차
+
+1. 다음 버전 번호 확인 (현재 디렉토리에서 가장 큰 V 번호 + 1)
+2. 파일 생성: `V{번호}__{스네이크_케이스_설명}.sql`
+   - 예: `V2__create_booth_table.sql`
+3. SQL 작성 (DDL/DML 모두 가능)
+4. 앱 기동 — Flyway 가 자동으로 미적용 파일을 순서대로 실행
+5. 적용 확인: `flyway_schema_history` 테이블 조회
+
+### 절대 하지 말 것
+
+- ❌ **이미 머지된 V 파일을 수정** — 적용된 환경에서 다시 실행되지 않아 환경 간 불일치 발생. 변경이 필요하면 새 V 파일 추가 (예: `V5__alter_booth_add_email.sql`).
+- ❌ **버전 번호 건너뛰기** — Flyway 는 순차 적용. V2 다음에 V4 만들면 환경에 따라 동작 다름.
+- ❌ **로컬에서 테이블 직접 만들기** — 다른 팀원과 스키마 불일치 발생.
+
+### 작성 예시
+
+```sql
+-- V2__create_booth_table.sql
+CREATE TABLE booth (
+    id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+    name        VARCHAR(100) NOT NULL,
+    location    VARCHAR(200),
+    created_at  DATETIME(6) NOT NULL,
+    updated_at  DATETIME(6) NOT NULL,
+    INDEX idx_booth_location (location)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+```
+
+---
+
+## 테스트 실행
+
+```bash
+./gradlew test
+```
+
+- 테스트는 H2 인메모리 DB (`MODE=MySQL`)를 사용 — Docker MySQL 안 띄워도 즉시 실행 가능
+- JPA `ddl-auto=create-drop` 으로 엔티티 정의에서 스키마 자동 생성
+- Flyway 는 테스트에서 비활성화 (운영 마이그레이션 흐름 검증은 추후 Testcontainers 통합 테스트로)
+
