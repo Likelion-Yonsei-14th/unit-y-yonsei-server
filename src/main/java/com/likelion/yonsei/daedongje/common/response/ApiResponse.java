@@ -25,7 +25,14 @@ public record ApiResponse<T>(
         return new ApiResponse<>(true, data, null);
     }
 
-    public static ApiResponse<Void> success() {
+    /**
+     * 본문이 필요 없는 성공 응답 (예: 삭제·로그아웃 등 데이터 없는 200/204).
+     *
+     * <p>참고: 메서드명이 {@code success()} 가 아닌 {@code successEmpty()} 인 이유는,
+     * 자바 record 가 컴포넌트({@code boolean success})와 같은 이름의 메서드를
+     * static 이라도 accessor 재선언으로 간주해 컴파일 오류를 내기 때문이다.
+     */
+    public static ApiResponse<Void> successEmpty() {
         return new ApiResponse<>(true, null, null);
     }
 
