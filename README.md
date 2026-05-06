@@ -200,7 +200,7 @@ DB_PASSWORD=secret \
 
 ```
 src/main/resources/db/migration/
-├── V1__init.sql                     ← 베이스라인 (빈 파일)
+├── V1__init.sql                     ← 베이스라인 (실질적으로 비어있음 — `SELECT 1` placeholder만 포함)
 ├── V2__create_booth_table.sql       ← 도메인 PR 에서 추가될 예시
 ├── V3__create_reservation_table.sql
 └── ...
