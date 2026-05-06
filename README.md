@@ -237,6 +237,50 @@ CREATE TABLE booth (
 
 ---
 
+## 도메인 엔티티 작성 가이드
+
+모든 JPA 엔티티는 `BaseEntity` 를 상속하여 `createdAt` / `updatedAt` 자동 관리를 받는다.
+
+```java
+import com.likelion.yonsei.daedongje.common.entity.BaseEntity;
+import jakarta.persistence.*;
+
+@Entity
+@Table(name = "booth")
+public class Booth extends BaseEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false, length = 100)
+    private String name;
+
+    @Column(length = 200)
+    private String location;
+
+    // 기본 생성자 (JPA 요구) + 비즈니스 생성자/getter 작성
+}
+```
+
+### BaseEntity 가 자동 관리하는 컬럼
+
+| 필드 | 타입 | 동작 |
+| --- | --- | --- |
+| `createdAt` | `LocalDateTime` | 엔티티 최초 저장 시 자동 채워지고 이후 변경 안 됨 |
+| `updatedAt` | `LocalDateTime` | 매 저장(update) 마다 자동 갱신 |
+
+### Flyway 마이그레이션에서의 대응
+
+엔티티 작성 시 마이그레이션 SQL 에 `created_at`, `updated_at` `DATETIME(6) NOT NULL` 컬럼을 반드시 함께 정의한다 (위 "작성 예시" SQL 참고). JPA `ddl-auto=validate` 가 컬럼 부재를 즉시 잡아내어 앱이 기동되지 않는다.
+
+### 의도적으로 미포함된 항목
+
+- **`createdBy` / `updatedBy` (수정자 추적)** — 인증 도메인 머지 후 별도 PR 로 추가 예정 (SecurityContext 의존)
+- **soft delete (`deletedAt`)** — 모든 엔티티가 필요한 게 아니므로 도메인별로 별도 인터페이스/믹스인으로 추가
+
+---
+
 ## 테스트 실행
 
 ```bash
