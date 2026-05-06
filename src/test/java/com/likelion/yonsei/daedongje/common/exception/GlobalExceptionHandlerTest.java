@@ -2,12 +2,11 @@ package com.likelion.yonsei.daedongje.common.exception;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -22,15 +21,29 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * {@link GlobalExceptionHandler} 슬라이스 테스트.
  *
- * <p>각 예외 케이스에서 응답이 {@code ApiResponse} 형태로 일관되게 반환되는지,
- * HTTP status 와 error.code 매핑이 의도대로 동작하는지 검증한다.
+ * <p>Spring 컨텍스트를 로드하지 않고 {@link MockMvcBuilders#standaloneSetup} 으로 핸들러와
+ * 테스트 컨트롤러만 직접 와이어링한다. {@code @WebMvcTest} 슬라이스는 내부 정적 컨트롤러를
+ * 안정적으로 등록하지 못해 정적 리소스 핸들러로 라우팅되는 문제가 있어서 이 방식을 채택.
+ *
+ * <p>테스트 항목:
+ * <ul>
+ *   <li>{@link BusinessException} → ErrorCode 의 status/code 매핑</li>
+ *   <li>Bean Validation 실패 → COMMON-001 (400)</li>
+ *   <li>지원되지 않는 HTTP 메서드 → COMMON-005 (405)</li>
+ *   <li>예상치 못한 예외 → COMMON-500 (500)</li>
+ * </ul>
  */
-@WebMvcTest(controllers = GlobalExceptionHandlerTest.TestController.class)
-@Import(GlobalExceptionHandler.class)
 class GlobalExceptionHandlerTest {
 
-    @Autowired
     private MockMvc mockMvc;
+
+    @BeforeEach
+    void setUp() {
+        mockMvc = MockMvcBuilders
+                .standaloneSetup(new TestController())
+                .setControllerAdvice(new GlobalExceptionHandler())
+                .build();
+    }
 
     @Test
     void businessException_은_ErrorCode_의_status_와_code_로_응답된다() throws Exception {
