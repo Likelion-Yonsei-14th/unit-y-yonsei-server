@@ -1,0 +1,20 @@
+# 테스트 전용 설정 — main 의 application.yaml 을 자동으로 오버라이드한다.
+# H2 인메모리 DB로 빠른 테스트 실행. 실제 MySQL과 차이로 인한 이슈가 발생하면
+# 추후 Testcontainers 기반 통합 테스트 PR로 보강할 예정.
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb;MODE=MySQL;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      # 테스트는 엔티티 정의에서 스키마를 즉시 생성/삭제. (Flyway 비활성화와 짝)
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+  flyway:
+    # 프로덕션 흐름 검증은 통합 테스트(Testcontainers)에서 별도로 다룬다.
+    # 여기서는 빠른 슬라이스/단위 테스트를 우선시.
+    enabled: false
