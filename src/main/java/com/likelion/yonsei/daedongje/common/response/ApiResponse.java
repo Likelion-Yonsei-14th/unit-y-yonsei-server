@@ -18,7 +18,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 public record ApiResponse<T>(
         boolean success,
         T data,
-        Error error
+        ApiError error
 ) {
 
     public static <T> ApiResponse<T> success(T data) {
@@ -37,9 +37,15 @@ public record ApiResponse<T>(
     }
 
     public static ApiResponse<Void> error(String code, String message) {
-        return new ApiResponse<>(false, null, new Error(code, message));
+        return new ApiResponse<>(false, null, new ApiError(code, message));
     }
 
-    public record Error(String code, String message) {
+    /**
+     * 에러 응답의 body 부분.
+     *
+     * <p>내부 클래스명을 {@code Error} 가 아닌 {@code ApiError} 로 둔 이유는
+     * {@link java.lang.Error} 와 단순 이름 충돌 시 다른 패키지에서 import 혼동을 줄이기 위함.
+     */
+    public record ApiError(String code, String message) {
     }
 }

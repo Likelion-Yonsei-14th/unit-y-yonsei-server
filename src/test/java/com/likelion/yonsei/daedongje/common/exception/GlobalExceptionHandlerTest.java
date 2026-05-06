@@ -11,8 +11,10 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -55,14 +57,34 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
-    void bean_validation_실패는_INVALID_INPUT_으로_변환된다() throws Exception {
+    void bean_validation_실패는_INVALID_INPUT_으로_변환되며_필드명을_포함한다() throws Exception {
         mockMvc.perform(post("/_test/validate")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\":\"\"}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.error.code").value("COMMON-001"))
-                .andExpect(jsonPath("$.error.message").exists());
+                // 메시지가 단순히 존재하는 것뿐 아니라 위반된 필드명이 포함되는지까지 검증
+                .andExpect(jsonPath("$.error.message").value(containsString("name")));
+    }
+
+    @Test
+    void 본문_파싱_실패는_INVALID_INPUT_으로_변환된다() throws Exception {
+        mockMvc.perform(post("/_test/validate")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{not-valid-json"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("COMMON-001"));
+    }
+
+    @Test
+    void 필수_파라미터_누락은_INVALID_INPUT_으로_변환되며_파라미터명을_포함한다() throws Exception {
+        mockMvc.perform(get("/_test/required-param"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("COMMON-001"))
+                .andExpect(jsonPath("$.error.message").value(containsString("foo")));
     }
 
     @Test
@@ -98,6 +120,11 @@ class GlobalExceptionHandlerTest {
         @GetMapping("/unexpected")
         public void throwUnexpected() {
             throw new IllegalStateException("intentional");
+        }
+
+        @GetMapping("/required-param")
+        public void requiredParam(@RequestParam String foo) {
+            // foo 가 query string 에 없으면 MissingServletRequestParameterException 발생
         }
 
         record Payload(@NotBlank String name) {
