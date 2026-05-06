@@ -281,6 +281,22 @@ public class Booth extends BaseEntity {
 
 ---
 
+## Spring 프로파일
+
+환경별 설정은 Spring 프로파일로 분리한다.
+
+| 프로파일 | 활성화 방법 | 적용되는 yaml | 용도 |
+| --- | --- | --- | --- |
+| (default) | `./gradlew bootRun` | `application.yaml` 만 | 로컬 개발 — 환경변수 디폴트(docker-compose MySQL) 사용 |
+| `dev` | `./gradlew bootRun --args='--spring.profiles.active=dev'` | + `application-dev.yaml` | 스테이징 (현재 빈 스텁) |
+| `prod` | `SPRING_PROFILES_ACTIVE=prod ./gradlew bootRun` | + `application-prod.yaml` | 프로덕션 — Swagger UI 비활성화 등 |
+
+적용 순서: `application.yaml` (공통) → `application-{프로파일}.yaml` (오버라이드).
+
+DB 연결 같은 환경 의존 값은 yaml 에 직접 박지 않고 `${DB_URL}` 같은 환경변수 참조로 작성하므로, 보통 프로파일별 yaml 은 비어있거나 매우 가볍다. 환경변수만 잘 설정하면 한 jar 가 모든 환경에서 동작한다.
+
+---
+
 ## 테스트 실행
 
 ```bash
