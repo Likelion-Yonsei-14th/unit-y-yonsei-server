@@ -17,7 +17,7 @@ services:
       MYSQL_PASSWORD: daedongje
       TZ: Asia/Seoul
     ports:
-      - "3306:3306"
+      - "3307:3306"
     volumes:
       - daedongje-mysql-data:/var/lib/mysql
     command:
