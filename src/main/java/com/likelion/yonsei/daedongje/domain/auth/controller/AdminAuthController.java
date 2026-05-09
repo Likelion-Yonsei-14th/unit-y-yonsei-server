@@ -1,0 +1,51 @@
+package com.likelion.yonsei.daedongje.domain.auth.controller;
+
+import com.likelion.yonsei.daedongje.common.response.ApiResponse;
+import com.likelion.yonsei.daedongje.domain.auth.dto.AdminLoginRequest;
+import com.likelion.yonsei.daedongje.domain.auth.dto.AdminLoginResponse;
+import com.likelion.yonsei.daedongje.domain.auth.dto.CurrentAdminUserResponse;
+import com.likelion.yonsei.daedongje.domain.auth.service.AdminAuthService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+@Tag(name = "Admin Auth", description = "어드민 로그인/인증 API")
+@RestController
+@RequestMapping("/api/admin/auth")
+@RequiredArgsConstructor
+public class AdminAuthController {
+
+    private final AdminAuthService adminAuthService;
+
+    @Operation(
+            summary = "어드민 로그인",
+            description = "생성된 어드민 계정의 로그인 아이디와 비밀번호로 로그인합니다. 로그인 성공 시 Redis 기반 세션이 생성되고 세션 쿠키가 발급됩니다."
+    )
+    @PostMapping("/login")
+    public ResponseEntity<ApiResponse<AdminLoginResponse>> login(
+            @Valid @RequestBody AdminLoginRequest request,
+            @Parameter(hidden = true) HttpServletRequest httpRequest
+    ) {
+        AdminLoginResponse response = adminAuthService.login(request, httpRequest);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @Operation(
+            summary = "현재 로그인한 어드민 조회",
+            description = "세션 쿠키를 기반으로 현재 로그인한 어드민 계정 정보를 조회합니다."
+    )
+    @GetMapping("/me")
+    public ResponseEntity<ApiResponse<CurrentAdminUserResponse>> getCurrentAdminUser(
+            @Parameter(hidden = true) HttpServletRequest httpRequest
+    ) {
+        HttpSession session = httpRequest.getSession(false);
+        CurrentAdminUserResponse response = adminAuthService.getCurrentAdminUser(session);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+}
