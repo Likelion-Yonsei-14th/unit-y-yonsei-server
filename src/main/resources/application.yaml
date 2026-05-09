@@ -3,8 +3,6 @@ spring:
     name: daedongje
 
   # ===== DataSource =====
-  # 환경변수 미지정 시 로컬 docker-compose MySQL 기본값 사용.
-  # 운영(RDS) 등에선 DB_URL/DB_USERNAME/DB_PASSWORD 환경변수로 오버라이드.
   datasource:
     url: ${DB_URL:jdbc:mysql://localhost:3307/daedongje?useSSL=false&characterEncoding=UTF-8&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=true}
     username: ${DB_USERNAME:daedongje}
@@ -18,22 +16,34 @@ spring:
   # ===== JPA =====
   jpa:
     hibernate:
-      # 스키마 변경은 Flyway가 담당. JPA는 엔티티-스키마 일치성만 검증.
       ddl-auto: validate
     properties:
       hibernate:
         dialect: org.hibernate.dialect.MySQLDialect
         format_sql: true
-    open-in-view: false       # 트랜잭션 누수 방지 (커넥션이 view 렌더 시점까지 유지되는 것 차단)
+    open-in-view: false
     show-sql: ${JPA_SHOW_SQL:false}
 
   # ===== Flyway =====
   flyway:
     enabled: true
     locations: classpath:db/migration
-    baseline-on-migrate: true   # 기존 DB에 처음 적용 시 베이스라인 자동 생성
+    baseline-on-migrate: true
     baseline-version: 0
-    validate-on-migrate: true   # 적용된 마이그레이션 체크섬 검증
+    validate-on-migrate: true
+
+  # ===== Redis =====
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+  # ===== Session =====
+  session:
+    store-type: redis
+    timeout: 86400s
+    redis:
+      namespace: daedongje:session
 
 springdoc:
   swagger-ui:
@@ -42,3 +52,13 @@ springdoc:
     operations-sorter: alpha
   api-docs:
     path: /v3/api-docs
+
+# ===== Server =====
+server:
+  servlet:
+    session:
+      cookie:
+        name: DDJ_ADMIN_SESSION
+        http-only: true
+        secure: false
+        same-site: lax
