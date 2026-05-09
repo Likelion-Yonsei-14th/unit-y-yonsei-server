@@ -2,9 +2,11 @@ package com.likelion.yonsei.daedongje.domain.booth.entity;
 
 import com.likelion.yonsei.daedongje.common.entity.BaseEntity;
 import jakarta.persistence.*;
+import lombok.Getter;
 
 import java.time.LocalTime;
 
+@Getter
 @Entity
 @Table(name = "booths")
 public class Booth extends BaseEntity {
@@ -34,14 +36,17 @@ public class Booth extends BaseEntity {
     @Column(name = "close_time", nullable = false)
     private LocalTime closeTime;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 10)
-    private String sector;
+    private BoothSector sector;
 
+    // 각 섹터별 부스 배치 번호
     @Column(nullable = false)
     private Integer location;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 10)
-    private String status;
+    private BoothStatus status;
 
     @Column(name = "is_food", nullable = false)
     private Boolean isFood;
@@ -55,6 +60,7 @@ public class Booth extends BaseEntity {
     @Column(columnDefinition = "TEXT")
     private String account;
 
+    // 지도 위치 엔티티 참조 ID (FK 제약은 해당 테이블 완성 후 별도 마이그레이션 예정)
     @Column(name = "location_id")
     private Long locationId;
 
@@ -62,7 +68,7 @@ public class Booth extends BaseEntity {
 
     private Booth(Long adminId, String name, String organization, String description,
                   Integer date, LocalTime openTime, LocalTime closeTime,
-                  String sector, Integer location, String status,
+                  BoothSector sector, Integer location, BoothStatus status,
                   Boolean isFood, String instagram, Boolean isReservable,
                   String account, Long locationId) {
         this.adminId = adminId;
@@ -84,7 +90,7 @@ public class Booth extends BaseEntity {
 
     public static Booth create(Long adminId, String name, String organization, String description,
                                Integer date, LocalTime openTime, LocalTime closeTime,
-                               String sector, Integer location, String status,
+                               BoothSector sector, Integer location, BoothStatus status,
                                Boolean isFood, String instagram, Boolean isReservable,
                                String account, Long locationId) {
         return new Booth(adminId, name, organization, description, date, openTime, closeTime,
@@ -93,7 +99,7 @@ public class Booth extends BaseEntity {
 
     public void update(String name, String organization, String description,
                        Integer date, LocalTime openTime, LocalTime closeTime,
-                       String sector, Integer location, String status,
+                       BoothSector sector, Integer location, BoothStatus status,
                        Boolean isFood, String instagram, Boolean isReservable,
                        String account, Long locationId) {
         this.name = name;
@@ -111,21 +117,4 @@ public class Booth extends BaseEntity {
         this.account = account;
         this.locationId = locationId;
     }
-
-    public Long getId() { return id; }
-    public Long getAdminId() { return adminId; }
-    public String getName() { return name; }
-    public String getOrganization() { return organization; }
-    public String getDescription() { return description; }
-    public Integer getDate() { return date; }
-    public LocalTime getOpenTime() { return openTime; }
-    public LocalTime getCloseTime() { return closeTime; }
-    public String getSector() { return sector; }
-    public Integer getLocation() { return location; }
-    public String getStatus() { return status; }
-    public Boolean getIsFood() { return isFood; }
-    public String getInstagram() { return instagram; }
-    public Boolean getIsReservable() { return isReservable; }
-    public String getAccount() { return account; }
-    public Long getLocationId() { return locationId; }
 }
