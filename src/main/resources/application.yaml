@@ -43,10 +43,10 @@ spring:
 
   # ===== Session =====
   session:
-    store-type: redis
+    store-type: ${SPRING_SESSION_STORE_TYPE:redis}
     timeout: 86400s
     redis:
-      namespace: daedongje:session
+      namespace: ${SPRING_SESSION_REDIS_NAMESPACE:daedongje:session}
 
 server:
   servlet:
@@ -54,7 +54,7 @@ server:
       cookie:
         name: DDJ_ADMIN_SESSION
         http-only: true
-        secure: false
+        secure: ${SESSION_COOKIE_SECURE:false}
         same-site: lax
 
 
