@@ -5,8 +5,10 @@ import com.likelion.yonsei.daedongje.domain.booth.dto.BoothCreateRequest;
 import com.likelion.yonsei.daedongje.domain.booth.dto.BoothResponse;
 import com.likelion.yonsei.daedongje.domain.booth.dto.BoothUpdateRequest;
 import com.likelion.yonsei.daedongje.domain.booth.entity.Booth;
+import com.likelion.yonsei.daedongje.domain.booth.entity.BoothSector;
 import com.likelion.yonsei.daedongje.domain.booth.exception.BoothErrorCode;
 import com.likelion.yonsei.daedongje.domain.booth.repository.BoothRepository;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -51,7 +53,11 @@ public class BoothService {
                 request.locationId()
         );
 
-        return BoothResponse.from(boothRepository.save(booth));
+        try {
+            return BoothResponse.from(boothRepository.save(booth));
+        } catch (DataIntegrityViolationException e) {
+            throw new BusinessException(BoothErrorCode.DUPLICATE_BOOTH_NAME);
+        }
     }
 
     // 부스 단건 조회
@@ -61,12 +67,18 @@ public class BoothService {
         return BoothResponse.from(booth);
     }
 
-    // 부스 전체 조회 (필터: 날짜, 구역, 음식 여부)
-    public List<BoothResponse> getList(Integer date, String sector, Boolean isFood) {
+    // 부스 전체 조회 (필터: 날짜, 구역, 음식 여부 — 모든 AND 조합 지원)
+    public List<BoothResponse> getList(Integer date, BoothSector sector, Boolean isFood) {
         List<Booth> booths;
 
-        if (date != null && sector != null) {
+        if (date != null && sector != null && isFood != null) {
+            booths = boothRepository.findAllByDateAndSectorAndIsFood(date, sector, isFood);
+        } else if (date != null && sector != null) {
             booths = boothRepository.findAllByDateAndSector(date, sector);
+        } else if (date != null && isFood != null) {
+            booths = boothRepository.findAllByDateAndIsFood(date, isFood);
+        } else if (sector != null && isFood != null) {
+            booths = boothRepository.findAllBySectorAndIsFood(sector, isFood);
         } else if (date != null) {
             booths = boothRepository.findAllByDate(date);
         } else if (sector != null) {
@@ -97,24 +109,27 @@ public class BoothService {
             throw new BusinessException(BoothErrorCode.INVALID_BOOTH_TIME);
         }
 
-        booth.update(
-                request.name(),
-                request.organization(),
-                request.description(),
-                request.date(),
-                request.openTime(),
-                request.closeTime(),
-                request.sector(),
-                request.location(),
-                request.status(),
-                request.isFood(),
-                request.instagram(),
-                request.isReservable(),
-                request.account(),
-                request.locationId()
-        );
-
-        return BoothResponse.from(booth);
+        try {
+            booth.update(
+                    request.name(),
+                    request.organization(),
+                    request.description(),
+                    request.date(),
+                    request.openTime(),
+                    request.closeTime(),
+                    request.sector(),
+                    request.location(),
+                    request.status(),
+                    request.isFood(),
+                    request.instagram(),
+                    request.isReservable(),
+                    request.account(),
+                    request.locationId()
+            );
+            return BoothResponse.from(booth);
+        } catch (DataIntegrityViolationException e) {
+            throw new BusinessException(BoothErrorCode.DUPLICATE_BOOTH_NAME);
+        }
     }
 
     // 부스 삭제
