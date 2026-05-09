@@ -8,7 +8,7 @@ CREATE TABLE admin_users (
                              representative_phone VARCHAR(30) NOT NULL,
                              created_at DATETIME(6) NOT NULL,
                              updated_at DATETIME(6) NOT NULL,
-                             status VARCHAR(20) NOT NULL,
+                             status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
                              last_login_at DATETIME(6),
                              memo VARCHAR(500),
 

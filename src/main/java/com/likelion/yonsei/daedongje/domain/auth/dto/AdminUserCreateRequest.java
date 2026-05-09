@@ -1,4 +1,5 @@
 package com.likelion.yonsei.daedongje.domain.auth.dto;
+
 import com.likelion.yonsei.daedongje.domain.auth.entity.AdminRole;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -15,7 +16,7 @@ public class AdminUserCreateRequest {
     private String loginId;
 
     @NotBlank(message = "비밀번호는 필수입니다.")
-    @Size(min = 8, max = 100, message = "비밀번호는 8자 이상 100자 이하로 입력해주세요.")
+    @Size(min = 8, max = 72, message = "비밀번호는 8자 이상 72자 이하로 입력해주세요.")
     private String password;
 
     @NotBlank(message = "소속은 필수입니다.")
