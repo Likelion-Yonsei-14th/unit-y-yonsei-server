@@ -1,10 +1,8 @@
 package com.likelion.yonsei.daedongje.domain.auth.controller;
 
-import com.likelion.yonsei.daedongje.common.auth.RequireAdminRole;
 import com.likelion.yonsei.daedongje.common.response.ApiResponse;
 import com.likelion.yonsei.daedongje.domain.auth.dto.AdminUserCreateRequest;
 import com.likelion.yonsei.daedongje.domain.auth.dto.AdminUserCreateResponse;
-import com.likelion.yonsei.daedongje.domain.auth.entity.AdminRole;
 import com.likelion.yonsei.daedongje.domain.auth.service.AdminUserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
