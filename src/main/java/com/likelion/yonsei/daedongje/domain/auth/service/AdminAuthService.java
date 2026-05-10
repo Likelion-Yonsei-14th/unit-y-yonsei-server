@@ -1,7 +1,7 @@
 package com.likelion.yonsei.daedongje.domain.auth.service;
 
 import com.likelion.yonsei.daedongje.common.exception.BusinessException;
-import com.likelion.yonsei.daedongje.common.session.AdminSessionConst;
+import com.likelion.yonsei.daedongje.domain.auth.session.AdminSessionConst;
 import com.likelion.yonsei.daedongje.domain.auth.dto.AdminLoginRequest;
 import com.likelion.yonsei.daedongje.domain.auth.dto.AdminLoginResponse;
 import com.likelion.yonsei.daedongje.domain.auth.dto.CurrentAdminUserResponse;

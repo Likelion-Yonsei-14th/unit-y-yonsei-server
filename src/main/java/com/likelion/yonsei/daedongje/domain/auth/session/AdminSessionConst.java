@@ -1,4 +1,4 @@
-package com.likelion.yonsei.daedongje.common.session;
+package com.likelion.yonsei.daedongje.domain.auth.session;
 
 public final class AdminSessionConst {
 

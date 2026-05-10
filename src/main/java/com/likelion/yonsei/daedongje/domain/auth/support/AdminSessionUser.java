@@ -1,4 +1,4 @@
-package com.likelion.yonsei.daedongje.common.auth;
+package com.likelion.yonsei.daedongje.domain.auth.support;
 
 import com.likelion.yonsei.daedongje.domain.auth.entity.AdminRole;
 import com.likelion.yonsei.daedongje.domain.auth.entity.AdminUser;

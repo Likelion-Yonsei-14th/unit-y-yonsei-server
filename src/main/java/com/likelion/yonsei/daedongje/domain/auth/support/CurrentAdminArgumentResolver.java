@@ -1,6 +1,6 @@
-package com.likelion.yonsei.daedongje.common.auth;
+package com.likelion.yonsei.daedongje.domain.auth.support;
 
-import com.likelion.yonsei.daedongje.common.session.AdminSessionConst;
+import com.likelion.yonsei.daedongje.domain.auth.session.AdminSessionConst;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.MethodParameter;

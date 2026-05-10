@@ -1,7 +1,7 @@
 package com.likelion.yonsei.daedongje.config;
 
-import com.likelion.yonsei.daedongje.common.auth.AdminRoleInterceptor;
-import com.likelion.yonsei.daedongje.common.auth.CurrentAdminArgumentResolver;
+import com.likelion.yonsei.daedongje.domain.auth.support.AdminRoleInterceptor;
+import com.likelion.yonsei.daedongje.domain.auth.support.CurrentAdminArgumentResolver;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.method.support.HandlerMethodArgumentResolver;
