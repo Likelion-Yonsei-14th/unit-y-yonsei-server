@@ -9,9 +9,12 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -47,5 +50,29 @@ public class AdminAuthController {
         HttpSession session = httpRequest.getSession(false);
         CurrentAdminUserResponse response = adminAuthService.getCurrentAdminUser(session);
         return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @Operation(
+            summary = "어드민 로그아웃",
+            description = "현재 요청의 세션을 무효화하고 세션 쿠키를 만료 처리합니다."
+    )
+    @PostMapping("/logout")
+    public ResponseEntity<ApiResponse<Void>> logout(
+            @Parameter(hidden = true) HttpServletRequest httpRequest,
+            @Parameter(hidden = true) HttpServletResponse httpResponse
+    ) {
+        adminAuthService.logout(httpRequest);
+
+        ResponseCookie expiredCookie = ResponseCookie.from("DDJ_ADMIN_SESSION", "")
+                .path("/")
+                .maxAge(0)
+                .httpOnly(true)
+                .secure(false)
+                .sameSite("Lax")
+                .build();
+
+        httpResponse.addHeader(HttpHeaders.SET_COOKIE, expiredCookie.toString());
+
+        return ResponseEntity.ok(ApiResponse.successEmpty());
     }
 }
