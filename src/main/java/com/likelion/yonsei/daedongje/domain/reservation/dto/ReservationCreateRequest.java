@@ -1,10 +1,8 @@
 package com.likelion.yonsei.daedongje.domain.reservation.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.*;
+
 
 @Schema(description = "예약 생성 요청")
 public record ReservationCreateRequest(
@@ -22,5 +20,9 @@ public record ReservationCreateRequest(
         @Schema(description = "인원 수", example = "2")
         @NotNull
         @Min(1)
-        Integer partySize
+        Integer partySize,
+
+        @Schema(description = "예약 조회용 비밀번호 4자리 (선택)", example = "1234")
+        @Pattern(regexp = "^[0-9]{4}$", message = "비밀번호는 숫자 4자리여야 합니다.")
+        String pin
 ) {}

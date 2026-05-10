@@ -45,7 +45,8 @@ public class ReservationService {
                 nextNumber,
                 request.bookerName(),
                 request.phoneNumber(),
-                request.partySize()
+                request.partySize(),
+                request.pin()
         );
 
         return ReservationResponse.from(reservationRepository.save(reservation));
@@ -67,6 +68,33 @@ public class ReservationService {
         return reservations.stream()
                 .map(ReservationResponse::from)
                 .toList();
+    }
+
+    // 사용자 예약 목록 조회 (이름 + 연락처 + 선택적 PIN + 선택적 상태 필터)
+    public List<ReservationResponse> getListByBooker(String bookerName, String phoneNumber,
+                                                     String pin, ReservationStatus status) {
+        List<Reservation> reservations =
+                reservationRepository.findAllByBookerNameAndPhoneNumber(bookerName, phoneNumber);
+
+        return reservations.stream()
+                .filter(r -> r.matchesPin(pin))
+                .filter(r -> status == null || r.getStatus() == status)
+                .map(ReservationResponse::from)
+                .toList();
+    }
+
+    // 예약 입장 처리 (PENDING → CONFIRMED)
+    @Transactional
+    public ReservationResponse confirm(Long id) {
+        Reservation reservation = reservationRepository.findById(id)
+                .orElseThrow(() -> new BusinessException(ReservationErrorCode.RESERVATION_NOT_FOUND));
+
+        if (reservation.getStatus() == ReservationStatus.CANCELLED) {
+            throw new BusinessException(ReservationErrorCode.CANNOT_CONFIRM_CANCELLED);
+        }
+
+        reservation.confirm();
+        return ReservationResponse.from(reservation);
     }
 
     // 예약 취소

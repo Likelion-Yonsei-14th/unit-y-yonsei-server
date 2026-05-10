@@ -18,4 +18,7 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
     List<Reservation> findAllByBoothId(Long boothId);
 
     List<Reservation> findAllByBoothIdAndStatus(Long boothId, ReservationStatus status);
+
+    // 사용자 예약 목록 조회 (이름 + 연락처 기준)
+    List<Reservation> findAllByBookerNameAndPhoneNumber(String bookerName, String phoneNumber);
 }

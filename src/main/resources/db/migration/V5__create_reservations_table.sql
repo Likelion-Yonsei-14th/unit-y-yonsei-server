@@ -11,6 +11,7 @@ CREATE TABLE reservations
     booker_name        VARCHAR(20) NOT NULL,
     phone_number       VARCHAR(20) NOT NULL,
     party_size         INT         NOT NULL,
+    pin                VARCHAR(4),
     status             VARCHAR(20) NOT NULL,
     cancel_reason      TEXT,
     created_at         DATETIME(6) NOT NULL,
