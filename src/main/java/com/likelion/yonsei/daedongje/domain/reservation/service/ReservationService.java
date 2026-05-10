@@ -4,9 +4,11 @@ import com.likelion.yonsei.daedongje.common.exception.BusinessException;
 import com.likelion.yonsei.daedongje.domain.booth.entity.Booth;
 import com.likelion.yonsei.daedongje.domain.booth.exception.BoothErrorCode;
 import com.likelion.yonsei.daedongje.domain.booth.repository.BoothRepository;
+import com.likelion.yonsei.daedongje.domain.reservation.dto.ReservationAdminStatusRequest;
 import com.likelion.yonsei.daedongje.domain.reservation.dto.ReservationCancelRequest;
 import com.likelion.yonsei.daedongje.domain.reservation.dto.ReservationCreateRequest;
 import com.likelion.yonsei.daedongje.domain.reservation.dto.ReservationResponse;
+import com.likelion.yonsei.daedongje.domain.reservation.dto.ReservationUserCancelRequest;
 import com.likelion.yonsei.daedongje.domain.reservation.entity.Reservation;
 import com.likelion.yonsei.daedongje.domain.reservation.entity.ReservationStatus;
 import com.likelion.yonsei.daedongje.domain.reservation.exception.ReservationErrorCode;
@@ -83,25 +85,43 @@ public class ReservationService {
                 .toList();
     }
 
-    // 예약 입장 처리 (PENDING → CONFIRMED)
+    // 어드민 예약 상태 변경 (CONFIRMED: 입장 처리 / CANCELLED: 취소)
     @Transactional
-    public ReservationResponse confirm(Long id) {
+    public ReservationResponse updateStatusByAdmin(Long id, ReservationAdminStatusRequest request) {
         Reservation reservation = reservationRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(ReservationErrorCode.RESERVATION_NOT_FOUND));
 
-        if (reservation.getStatus() == ReservationStatus.CANCELLED) {
-            throw new BusinessException(ReservationErrorCode.CANNOT_CONFIRM_CANCELLED);
+        switch (request.status()) {
+            case CONFIRMED -> {
+                if (reservation.getStatus() == ReservationStatus.CANCELLED) {
+                    throw new BusinessException(ReservationErrorCode.CANNOT_CONFIRM_CANCELLED);
+                }
+                reservation.confirm();
+            }
+            case CANCELLED -> {
+                if (reservation.getStatus() == ReservationStatus.CANCELLED) {
+                    throw new BusinessException(ReservationErrorCode.ALREADY_CANCELLED);
+                }
+                reservation.cancel(request.cancelReason());
+            }
+            default -> throw new BusinessException(ReservationErrorCode.INVALID_STATUS_TRANSITION);
         }
 
-        reservation.confirm();
         return ReservationResponse.from(reservation);
     }
 
-    // 예약 취소
+    // 사용자 본인 예약 취소 (이름 + 연락처 + PIN으로 소유권 확인)
     @Transactional
-    public ReservationResponse cancel(Long id, ReservationCancelRequest request) {
+    public ReservationResponse cancelByBooker(Long id, ReservationUserCancelRequest request) {
         Reservation reservation = reservationRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(ReservationErrorCode.RESERVATION_NOT_FOUND));
+
+        // 소유권 확인 (보안상 예약 미존재와 동일한 에러 반환)
+        if (!reservation.getBookerName().equals(request.bookerName()) ||
+                !reservation.getPhoneNumber().equals(request.phoneNumber()) ||
+                !reservation.matchesPin(request.pin())) {
+            throw new BusinessException(ReservationErrorCode.RESERVATION_NOT_FOUND);
+        }
 
         if (reservation.getStatus() == ReservationStatus.CANCELLED) {
             throw new BusinessException(ReservationErrorCode.ALREADY_CANCELLED);

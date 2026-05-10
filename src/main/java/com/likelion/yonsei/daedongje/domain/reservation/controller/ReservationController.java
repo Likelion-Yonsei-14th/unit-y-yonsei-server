@@ -3,6 +3,7 @@ package com.likelion.yonsei.daedongje.domain.reservation.controller;
 import com.likelion.yonsei.daedongje.common.response.ApiResponse;
 import com.likelion.yonsei.daedongje.domain.reservation.dto.ReservationCreateRequest;
 import com.likelion.yonsei.daedongje.domain.reservation.dto.ReservationResponse;
+import com.likelion.yonsei.daedongje.domain.reservation.dto.ReservationUserCancelRequest;
 import com.likelion.yonsei.daedongje.domain.reservation.entity.ReservationStatus;
 import com.likelion.yonsei.daedongje.domain.reservation.service.ReservationService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -61,5 +62,24 @@ public class ReservationController {
     @GetMapping("/{id}")
     public ApiResponse<ReservationResponse> getById(@PathVariable Long id) {
         return ApiResponse.success(reservationService.getById(id));
+    }
+
+    @Operation(
+            summary = "사용자 예약 취소",
+            description = """
+                    예약자 본인이 이름·연락처·PIN으로 소유권을 확인한 뒤 예약을 취소한다.
+                    - PIN을 설정한 예약은 PIN이 일치해야 취소 가능.
+                    - 소유권 불일치 시 보안상 존재하지 않는 예약과 동일한 404 반환.
+                    """
+    )
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "취소 성공")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "이미 취소된 예약 (R-003)")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "존재하지 않는 예약 또는 소유권 불일치 (R-001)")
+    @PatchMapping("/{id}/status")
+    public ApiResponse<ReservationResponse> updateStatus(
+            @PathVariable Long id,
+            @RequestBody @Valid ReservationUserCancelRequest request
+    ) {
+        return ApiResponse.success(reservationService.cancelByBooker(id, request));
     }
 }

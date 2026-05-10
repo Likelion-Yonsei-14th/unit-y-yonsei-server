@@ -3,13 +3,16 @@ package com.likelion.yonsei.daedongje.domain.reservation.controller;
 import com.likelion.yonsei.daedongje.common.response.ApiResponse;
 import com.likelion.yonsei.daedongje.domain.auth.entity.AdminRole;
 import com.likelion.yonsei.daedongje.domain.auth.support.RequireAdminRole;
-import com.likelion.yonsei.daedongje.domain.reservation.dto.ReservationCancelRequest;
+import com.likelion.yonsei.daedongje.domain.reservation.dto.ReservationAdminStatusRequest;
 import com.likelion.yonsei.daedongje.domain.reservation.dto.ReservationResponse;
 import com.likelion.yonsei.daedongje.domain.reservation.entity.ReservationStatus;
 import com.likelion.yonsei.daedongje.domain.reservation.service.ReservationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -35,24 +38,23 @@ public class ReservationAdminController {
         return ApiResponse.success(reservationService.getListByBooth(boothId, status));
     }
 
-    @Operation(summary = "예약 입장 처리", description = "예약자가 현장에 도착해 입장할 때 CONFIRMED 처리한다.")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "입장 처리 성공")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "취소된 예약 (R-004)")
+    @Operation(
+            summary = "예약 상태 변경",
+            description = """
+                    예약 상태를 변경한다.
+                    - `CONFIRMED`: 예약자가 현장에 도착해 입장 처리. 이미 취소된 예약에는 적용 불가 (R-004).
+                    - `CANCELLED`: 예약 취소. cancelReason 함께 전달 가능. 이미 취소된 예약에는 적용 불가 (R-003).
+                    """
+    )
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "상태 변경 성공")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "유효하지 않은 상태 변경 (R-003, R-004, R-005)",
+            content = @Content(schema = @Schema(example = "{\"success\":false,\"error\":{\"code\":\"R-003\",\"message\":\"이미 취소된 예약입니다.\"}}")))
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "존재하지 않는 예약 (R-001)")
-    @PatchMapping("/{id}/confirm")
-    public ApiResponse<ReservationResponse> confirm(@PathVariable Long id) {
-        return ApiResponse.success(reservationService.confirm(id));
-    }
-
-    @Operation(summary = "예약 취소")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "취소 성공")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "이미 취소된 예약 (R-003)")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "존재하지 않는 예약 (R-001)")
-    @PatchMapping("/{id}/cancel")
-    public ApiResponse<ReservationResponse> cancel(
+    @PatchMapping("/{id}/status")
+    public ApiResponse<ReservationResponse> updateStatus(
             @PathVariable Long id,
-            @RequestBody ReservationCancelRequest request
+            @RequestBody @Valid ReservationAdminStatusRequest request
     ) {
-        return ApiResponse.success(reservationService.cancel(id, request));
+        return ApiResponse.success(reservationService.updateStatusByAdmin(id, request));
     }
 }
