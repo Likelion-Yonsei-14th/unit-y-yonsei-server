@@ -3,7 +3,9 @@ package com.likelion.yonsei.daedongje.domain.auth.controller;
 import com.likelion.yonsei.daedongje.common.response.ApiResponse;
 import com.likelion.yonsei.daedongje.domain.auth.dto.AdminUserCreateRequest;
 import com.likelion.yonsei.daedongje.domain.auth.dto.AdminUserCreateResponse;
+import com.likelion.yonsei.daedongje.domain.auth.entity.AdminRole;
 import com.likelion.yonsei.daedongje.domain.auth.service.AdminUserService;
+import com.likelion.yonsei.daedongje.domain.auth.support.RequireAdminRole;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -25,6 +27,7 @@ public class AdminUserController {
             summary = "어드민 계정 생성",
             description = "Super Admin이 부스, 공연, 총학생회 담당자의 어드민 계정을 생성합니다."
     )
+    @RequireAdminRole(AdminRole.SUPER)
     @PostMapping
     public ResponseEntity<ApiResponse<AdminUserCreateResponse>> createAdminUser(
             @Valid @RequestBody AdminUserCreateRequest request
