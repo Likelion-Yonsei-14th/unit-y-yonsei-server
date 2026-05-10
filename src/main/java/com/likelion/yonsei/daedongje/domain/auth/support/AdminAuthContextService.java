@@ -21,11 +21,11 @@ public class AdminAuthContextService {
 
     public AdminSessionUser getCurrentAdmin(HttpServletRequest request) {
         HttpSession session = request.getSession(false);
-        AdminUser adminUser = getCurrentAdminUser(session);
+        AdminUser adminUser = getCurrentAdminUserEntity(session);
         return AdminSessionUser.from(adminUser);
     }
 
-    public AdminUser getCurrentAdminUser(HttpSession session) {
+    public AdminUser getCurrentAdminUserEntity(HttpSession session) {
         if (session == null) {
             throw new BusinessException(AuthErrorCode.UNAUTHORIZED);
         }

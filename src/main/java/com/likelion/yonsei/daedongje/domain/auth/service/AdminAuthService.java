@@ -9,6 +9,7 @@ import com.likelion.yonsei.daedongje.domain.auth.entity.AdminUser;
 import com.likelion.yonsei.daedongje.domain.auth.entity.AdminStatus;
 import com.likelion.yonsei.daedongje.domain.auth.exception.AuthErrorCode;
 import com.likelion.yonsei.daedongje.domain.auth.repository.AdminUserRepository;
+import com.likelion.yonsei.daedongje.domain.auth.support.AdminAuthContextService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +25,7 @@ public class AdminAuthService {
 
     private final AdminUserRepository adminUserRepository;
     private final PasswordEncoder passwordEncoder;
+    private final AdminAuthContextService adminAuthContextService;
 
     @Transactional
     public AdminLoginResponse login(AdminLoginRequest request, HttpServletRequest httpRequest) {
@@ -49,21 +51,7 @@ public class AdminAuthService {
 
     @Transactional(readOnly = true)
     public CurrentAdminUserResponse getCurrentAdminUser(HttpSession session) {
-        if (session == null) {
-            throw new BusinessException(AuthErrorCode.UNAUTHORIZED);
-        }
-
-        Long adminUserId = (Long) session.getAttribute(AdminSessionConst.ADMIN_USER_ID);
-
-        if (adminUserId == null) {
-            throw new BusinessException(AuthErrorCode.UNAUTHORIZED);
-        }
-
-        AdminUser adminUser = adminUserRepository.findById(adminUserId)
-                .orElseThrow(() -> new BusinessException(AuthErrorCode.INVALID_SESSION));
-
-        validateActiveStatus(adminUser);
-
+        AdminUser adminUser = adminAuthContextService.getCurrentAdminUserEntity(session);
         return CurrentAdminUserResponse.from(adminUser);
     }
 
