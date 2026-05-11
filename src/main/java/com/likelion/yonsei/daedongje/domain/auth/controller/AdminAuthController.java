@@ -9,9 +9,13 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -22,6 +26,18 @@ import org.springframework.web.bind.annotation.*;
 public class AdminAuthController {
 
     private final AdminAuthService adminAuthService;
+
+    @Value("${server.servlet.session.cookie.name:DDJ_ADMIN_SESSION}")
+    private String sessionCookieName;
+
+    @Value("${server.servlet.session.cookie.secure:false}")
+    private boolean sessionCookieSecure;
+
+    @Value("${server.servlet.session.cookie.same-site:lax}")
+    private String sessionCookieSameSite;
+
+    @Value("${server.servlet.session.cookie.http-only:true}")
+    private boolean sessionCookieHttpOnly;
 
     @Operation(
             summary = "어드민 로그인",
@@ -47,5 +63,29 @@ public class AdminAuthController {
         HttpSession session = httpRequest.getSession(false);
         CurrentAdminUserResponse response = adminAuthService.getCurrentAdminUser(session);
         return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @Operation(
+            summary = "어드민 로그아웃",
+            description = "현재 요청의 세션을 무효화하고 세션 쿠키를 만료 처리합니다."
+    )
+    @PostMapping("/logout")
+    public ResponseEntity<ApiResponse<Void>> logout(
+            @Parameter(hidden = true) HttpServletRequest httpRequest,
+            @Parameter(hidden = true) HttpServletResponse httpResponse
+    ) {
+        adminAuthService.logout(httpRequest);
+
+        ResponseCookie expiredCookie = ResponseCookie.from(sessionCookieName, "")
+                .path("/")
+                .maxAge(0)
+                .httpOnly(sessionCookieHttpOnly)
+                .secure(sessionCookieSecure)
+                .sameSite(sessionCookieSameSite)
+                .build();
+
+        httpResponse.addHeader(HttpHeaders.SET_COOKIE, expiredCookie.toString());
+
+        return ResponseEntity.ok(ApiResponse.successEmpty());
     }
 }

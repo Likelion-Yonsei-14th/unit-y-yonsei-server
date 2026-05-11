@@ -49,6 +49,14 @@ public class AdminAuthService {
         return AdminLoginResponse.from(adminUser);
     }
 
+    public void logout(HttpServletRequest httpRequest) {
+        HttpSession session = httpRequest.getSession(false);
+
+        if (session != null) {
+            session.invalidate();
+        }
+    }
+
     @Transactional(readOnly = true)
     public CurrentAdminUserResponse getCurrentAdminUser(HttpSession session) {
         AdminUser adminUser = adminAuthContextService.getCurrentAdminUserEntity(session);
