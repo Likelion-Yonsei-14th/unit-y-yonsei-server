@@ -123,7 +123,7 @@ public class Booth extends BaseEntity {
      * organization, date, openTime, closeTime, sector, location 이 모두 채워진 경우 true.
      */
     public boolean isProfileComplete() {
-        return organization != null
+        return organization != null && !organization.isBlank()
                 && date != null
                 && openTime != null
                 && closeTime != null
