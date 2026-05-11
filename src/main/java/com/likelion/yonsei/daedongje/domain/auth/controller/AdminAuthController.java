@@ -27,7 +27,7 @@ public class AdminAuthController {
 
     private final AdminAuthService adminAuthService;
 
-    @Value("${server.servlet.session.cookie.name}")
+    @Value("${server.servlet.session.cookie.name:DDJ_ADMIN_SESSION}")
     private String sessionCookieName;
 
     @Value("${server.servlet.session.cookie.secure:false}")
