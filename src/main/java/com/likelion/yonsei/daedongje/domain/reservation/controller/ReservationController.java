@@ -56,14 +56,6 @@ public class ReservationController {
                 reservationService.getListByBooker(bookerName, phoneNumber, pin, status));
     }
 
-    @Operation(summary = "예약 단건 조회")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "존재하지 않는 예약 (R-001)")
-    @GetMapping("/{id}")
-    public ApiResponse<ReservationResponse> getById(@PathVariable Long id) {
-        return ApiResponse.success(reservationService.getById(id));
-    }
-
     @Operation(
             summary = "사용자 예약 취소",
             description = """
