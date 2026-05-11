@@ -29,16 +29,16 @@ public class Menu extends BaseEntity {
     @JoinColumn(name = "booth_id", nullable = false)
     private Booth booth;
 
-    @Column(nullable = false, length = 100)
+    @Column(nullable = false, length = 255)
     private String name;
 
-    @Column(length = 500)
+    @Column(length = 255)
     private String description;
 
     @Column(nullable = false)
     private Integer price;
 
-    @Column(name = "image_url")
+    @Column(name = "image_url", columnDefinition = "TEXT")
     private String imageUrl;
 
     @Column(name = "is_sold_out", nullable = false)
@@ -61,11 +61,11 @@ public class Menu extends BaseEntity {
         this.description = description;
         this.price = price;
         this.imageUrl = imageUrl;
-        this.isSoldOut = isSoldOut;
+        this.isSoldOut = isSoldOut != null ? isSoldOut : false;
         this.displayOrder = displayOrder;
     }
 
     public void updateSoldOut(Boolean isSoldOut) {
-        this.isSoldOut = isSoldOut;
+        this.isSoldOut = isSoldOut != null ? isSoldOut : false;
     }
 }
