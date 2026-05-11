@@ -2,12 +2,11 @@ package com.likelion.yonsei.daedongje.domain.reservation.controller;
 
 import com.likelion.yonsei.daedongje.common.response.ApiResponse;
 import com.likelion.yonsei.daedongje.domain.reservation.dto.ReservationCreateRequest;
+import com.likelion.yonsei.daedongje.domain.reservation.dto.ReservationMyRequest;
 import com.likelion.yonsei.daedongje.domain.reservation.dto.ReservationResponse;
 import com.likelion.yonsei.daedongje.domain.reservation.dto.ReservationUserCancelRequest;
-import com.likelion.yonsei.daedongje.domain.reservation.entity.ReservationStatus;
 import com.likelion.yonsei.daedongje.domain.reservation.service.ReservationService;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -38,22 +37,28 @@ public class ReservationController {
                 .body(ApiResponse.success(reservationService.create(boothId, request)));
     }
 
-    @Operation(summary = "내 예약 목록 조회",
-            description = "이름 + 연락처로 본인의 예약 내역을 조회한다. PIN을 설정한 경우 PIN이 일치해야 조회된다. status로 상태 필터링 가능.")
+    @Operation(
+            summary = "내 예약 목록 조회",
+            description = """
+                    이름·연락처·PIN으로 본인의 예약 내역을 조회한다.
+
+                    **왜 POST인가?**
+                    전화번호·PIN은 민감한 개인 정보다. GET 방식으로 쿼리 파라미터에 실으면
+                    서버 액세스 로그, 브라우저 히스토리, Referer 헤더에 평문으로 노출될 수 있다.
+                    이를 방지하기 위해 POST + Request Body 방식을 사용한다.
+
+                    - PIN을 설정하지 않고 예약한 경우 `pin` 생략 가능.
+                    - `status`로 상태 필터링 가능 (생략 시 전체 조회).
+                    """
+    )
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공")
-    @GetMapping
-    public ApiResponse<List<ReservationResponse>> getListByBooker(
-            @Parameter(description = "예약자 명", example = "홍길동")
-            @RequestParam String bookerName,
-            @Parameter(description = "연락처", example = "010-1234-5678")
-            @RequestParam String phoneNumber,
-            @Parameter(description = "예약 조회용 비밀번호 4자리 (PIN 설정 시 필수)", example = "1234")
-            @RequestParam(required = false) String pin,
-            @Parameter(description = "예약 상태 필터 (PENDING / CONFIRMED / CANCELLED). 생략 시 전체 조회", example = "PENDING")
-            @RequestParam(required = false) ReservationStatus status
+    @PostMapping("/my")
+    public ApiResponse<List<ReservationResponse>> getMyList(
+            @RequestBody @Valid ReservationMyRequest request
     ) {
         return ApiResponse.success(
-                reservationService.getListByBooker(bookerName, phoneNumber, pin, status));
+                reservationService.getListByBooker(
+                        request.bookerName(), request.phoneNumber(), request.pin(), request.status()));
     }
 
     @Operation(
