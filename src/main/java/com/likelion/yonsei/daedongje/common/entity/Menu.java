@@ -1,3 +1,16 @@
+package com.likelion.yonsei.daedongje.common.entity;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import lombok.AccessLevel;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+
 @Entity
 @Table(name = "menus")
 @Getter
@@ -8,9 +21,11 @@ public class Menu extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "booth_id", nullable = false)
-    private Booth booth;
+    // Booth 엔티티가 아직 dev 브랜치에 merge되지 않아
+    // 임시로 FK(Long) 기반으로 구현.
+    // 추후 Booth 엔티티 merge 이후 @ManyToOne 연관관계로 변경 예정.
+    @Column(name = "booth_id", nullable = false)
+    private Long boothId;
 
     @Column(nullable = false, length = 100)
     private String name;
@@ -32,19 +47,19 @@ public class Menu extends BaseEntity {
 
     @Builder
     public Menu(
-            Booth booth,
+            Long boothId,
             String name,
             String description,
             Integer price,
             String imageUrl,
             Boolean isSoldOut,
             Integer displayOrder) {
-        this.booth = booth;
+        this.boothId = boothId;
         this.name = name;
         this.description = description;
         this.price = price;
         this.imageUrl = imageUrl;
-        this.isSoldOut = isSoldOut;
+        this.isSoldOut = isSoldOut != null ? isSoldOut : false;
         this.displayOrder = displayOrder;
     }
 
