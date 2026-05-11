@@ -49,7 +49,6 @@ public class AdminAuthService {
         return AdminLoginResponse.from(adminUser);
     }
 
-    @Transactional
     public void logout(HttpServletRequest httpRequest) {
         HttpSession session = httpRequest.getSession(false);
 
