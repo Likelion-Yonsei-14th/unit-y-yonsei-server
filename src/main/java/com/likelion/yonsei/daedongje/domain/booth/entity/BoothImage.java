@@ -16,7 +16,7 @@ public class BoothImage extends BaseEntity {
     @Column(name = "booth_id", nullable = false)
     private Long boothId;
 
-    @Column(name = "image_url", nullable = false, length = 255)
+    @Column(name = "image_url", nullable = false, columnDefinition = "TEXT")
     private String imageUrl;
 
     @Column(name = "display_order", nullable = false)

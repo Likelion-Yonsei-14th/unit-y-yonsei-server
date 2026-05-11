@@ -6,13 +6,16 @@ CREATE TABLE booth_images
 (
     id             BIGINT        NOT NULL AUTO_INCREMENT,
     booth_id       BIGINT        NOT NULL,
-    image_url      VARCHAR(255)  NOT NULL,
+    image_url      TEXT          NOT NULL,
     display_order  INT           NOT NULL,
     created_at     DATETIME(6)   NOT NULL,
     updated_at     DATETIME(6)   NOT NULL,
     PRIMARY KEY (id),
+    CONSTRAINT uq_booth_images_booth_display_order
+        UNIQUE (booth_id, display_order),
     CONSTRAINT fk_booth_images_booth
         FOREIGN KEY (booth_id) REFERENCES booths (id)
+        ON DELETE CASCADE
 )
     DEFAULT CHARSET = utf8mb4
     COLLATE = utf8mb4_unicode_ci;
