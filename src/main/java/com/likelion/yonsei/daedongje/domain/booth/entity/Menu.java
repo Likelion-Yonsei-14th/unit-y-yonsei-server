@@ -61,7 +61,7 @@ public class Menu extends BaseEntity {
         this.description = description;
         this.price = price;
         this.imageUrl = imageUrl;
-        this.isSoldOut = isSoldOut != null ? isSoldOut : false;
+        this.isSoldOut = isSoldOut;
         this.displayOrder = displayOrder;
     }
 
