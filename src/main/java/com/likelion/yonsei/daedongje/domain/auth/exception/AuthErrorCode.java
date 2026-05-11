@@ -13,7 +13,8 @@ public enum AuthErrorCode implements ErrorCode {
     INACTIVE_ADMIN_ACCOUNT(HttpStatus.FORBIDDEN, "A-006", "비활성화된 관리자 계정입니다."),
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "A-007", "로그인이 필요합니다."),
     INVALID_SESSION(HttpStatus.UNAUTHORIZED, "A-008", "로그인 정보가 유효하지 않습니다."),
-    FORBIDDEN(HttpStatus.FORBIDDEN, "A-009", "접근 권한이 없습니다.");
+    FORBIDDEN(HttpStatus.FORBIDDEN, "A-009", "접근 권한이 없습니다."),
+    ADMIN_USER_NOT_FOUND(HttpStatus.NOT_FOUND, "A-010", "존재하지 않는 관리자 계정입니다.");
 
 
     private final HttpStatus status;
