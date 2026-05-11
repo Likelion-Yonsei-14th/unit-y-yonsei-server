@@ -12,6 +12,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalTime;
 import java.util.List;
 
 @Service
@@ -30,10 +31,7 @@ public class BoothService {
         if (boothRepository.existsByName(request.name())) {
             throw new BusinessException(BoothErrorCode.DUPLICATE_BOOTH_NAME);
         }
-        if (request.closeTime().isBefore(request.openTime()) ||
-                request.closeTime().equals(request.openTime())) {
-            throw new BusinessException(BoothErrorCode.INVALID_BOOTH_TIME);
-        }
+        validateBoothTime(request.openTime(), request.closeTime());
 
         Booth booth = Booth.create(
                 request.adminId(),
@@ -104,10 +102,7 @@ public class BoothService {
                 boothRepository.existsByName(request.name())) {
             throw new BusinessException(BoothErrorCode.DUPLICATE_BOOTH_NAME);
         }
-        if (request.closeTime().isBefore(request.openTime()) ||
-                request.closeTime().equals(request.openTime())) {
-            throw new BusinessException(BoothErrorCode.INVALID_BOOTH_TIME);
-        }
+        validateBoothTime(request.openTime(), request.closeTime());
 
         try {
             booth.update(
@@ -138,5 +133,21 @@ public class BoothService {
         Booth booth = boothRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(BoothErrorCode.BOOTH_NOT_FOUND));
         boothRepository.delete(booth);
+    }
+
+    /**
+     * 운영 시간 유효성 검사.
+     * - openTime, closeTime 둘 중 하나만 입력된 경우 예외 (둘 다 null이거나 둘 다 non-null이어야 함)
+     * - 둘 다 입력된 경우 closeTime > openTime이어야 함
+     */
+    private void validateBoothTime(LocalTime openTime, LocalTime closeTime) {
+        boolean openProvided = openTime != null;
+        boolean closeProvided = closeTime != null;
+        if (openProvided != closeProvided) {
+            throw new BusinessException(BoothErrorCode.INVALID_BOOTH_TIME);
+        }
+        if (openProvided && (closeTime.isBefore(openTime) || closeTime.equals(openTime))) {
+            throw new BusinessException(BoothErrorCode.INVALID_BOOTH_TIME);
+        }
     }
 }

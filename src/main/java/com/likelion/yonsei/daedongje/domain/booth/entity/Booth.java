@@ -21,27 +21,27 @@ public class Booth extends BaseEntity {
     @Column(nullable = false, length = 50)
     private String name;
 
-    @Column(nullable = false, length = 100)
+    @Column(length = 100)
     private String organization;
 
     @Column(columnDefinition = "TEXT")
     private String description;
 
-    @Column(nullable = false)
+    @Column
     private Integer date;
 
-    @Column(name = "open_time", nullable = false)
+    @Column(name = "open_time")
     private LocalTime openTime;
 
-    @Column(name = "close_time", nullable = false)
+    @Column(name = "close_time")
     private LocalTime closeTime;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 10)
+    @Column(length = 10)
     private BoothSector sector;
 
     // 각 섹터별 부스 배치 번호
-    @Column(nullable = false)
+    @Column
     private Integer location;
 
     @Enumerated(EnumType.STRING)
@@ -116,5 +116,18 @@ public class Booth extends BaseEntity {
         this.isReservable = isReservable;
         this.account = account;
         this.locationId = locationId;
+    }
+
+    /**
+     * 부스 프로필 작성 완료 여부를 반환한다.
+     * organization, date, openTime, closeTime, sector, location 이 모두 채워진 경우 true.
+     */
+    public boolean isProfileComplete() {
+        return organization != null && !organization.isBlank()
+                && date != null
+                && openTime != null
+                && closeTime != null
+                && sector != null
+                && location != null;
     }
 }

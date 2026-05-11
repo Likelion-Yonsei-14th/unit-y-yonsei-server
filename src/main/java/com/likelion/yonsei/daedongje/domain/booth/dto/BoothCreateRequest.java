@@ -19,33 +19,27 @@ public record BoothCreateRequest(
         @Size(max = 50)
         String name,
 
-        @Schema(description = "운영 단체명", example = "멋쟁이사자처럼 연세대")
-        @NotBlank
+        @Schema(description = "운영 단체명. 생략 가능 (나중에 수정 가능)", example = "멋쟁이사자처럼 연세대", nullable = true)
         @Size(max = 100)
         String organization,
 
         @Schema(description = "부스 소개", example = "맛있는 핫도그를 판매합니다.")
         String description,
 
-        @Schema(description = "축제 일차 (1=1일차 ~ 4=4일차)", example = "1")
-        @NotNull
+        @Schema(description = "축제 일차 (1=1일차 ~ 4=4일차). 생략 가능 (나중에 수정 가능)", example = "1", nullable = true)
         @Min(1) @Max(4)
         Integer date,
 
-        @Schema(description = "운영 시작 시간", example = "11:00")
-        @NotNull
+        @Schema(description = "운영 시작 시간. 생략 가능 (나중에 수정 가능)", example = "11:00", nullable = true)
         LocalTime openTime,
 
-        @Schema(description = "운영 종료 시간", example = "20:00")
-        @NotNull
+        @Schema(description = "운영 종료 시간. 생략 가능 (나중에 수정 가능)", example = "20:00", nullable = true)
         LocalTime closeTime,
 
-        @Schema(description = "구역", example = "한글탑", allowableValues = {"한글탑", "백양로", "송도"})
-        @NotNull
+        @Schema(description = "구역. 생략 가능 (나중에 수정 가능)", example = "한글탑", allowableValues = {"한글탑", "백양로", "송도"}, nullable = true)
         BoothSector sector,
 
-        @Schema(description = "섹터 내 부스 배치 번호 (예: 한글탑 1~20번 중 하나)", example = "3")
-        @NotNull
+        @Schema(description = "섹터 내 부스 배치 번호 (예: 한글탑 1~20번 중 하나). 생략 가능 (나중에 수정 가능)", example = "3", nullable = true)
         Integer location,
 
         @Schema(description = "운영 상태", example = "OPEN", allowableValues = {"OPEN", "CLOSED", "PREPARING"})
