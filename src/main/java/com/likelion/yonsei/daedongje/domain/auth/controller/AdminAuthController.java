@@ -13,6 +13,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
@@ -25,6 +26,18 @@ import org.springframework.web.bind.annotation.*;
 public class AdminAuthController {
 
     private final AdminAuthService adminAuthService;
+
+    @Value("${server.servlet.session.cookie.name}")
+    private String sessionCookieName;
+
+    @Value("${server.servlet.session.cookie.secure:false}")
+    private boolean sessionCookieSecure;
+
+    @Value("${server.servlet.session.cookie.same-site:lax}")
+    private String sessionCookieSameSite;
+
+    @Value("${server.servlet.session.cookie.http-only:true}")
+    private boolean sessionCookieHttpOnly;
 
     @Operation(
             summary = "어드민 로그인",
@@ -63,12 +76,12 @@ public class AdminAuthController {
     ) {
         adminAuthService.logout(httpRequest);
 
-        ResponseCookie expiredCookie = ResponseCookie.from("DDJ_ADMIN_SESSION", "")
+        ResponseCookie expiredCookie = ResponseCookie.from(sessionCookieName, "")
                 .path("/")
                 .maxAge(0)
-                .httpOnly(true)
-                .secure(false)
-                .sameSite("Lax")
+                .httpOnly(sessionCookieHttpOnly)
+                .secure(sessionCookieSecure)
+                .sameSite(sessionCookieSameSite)
                 .build();
 
         httpResponse.addHeader(HttpHeaders.SET_COOKIE, expiredCookie.toString());
