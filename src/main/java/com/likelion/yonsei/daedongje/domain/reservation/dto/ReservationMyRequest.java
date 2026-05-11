@@ -4,6 +4,7 @@ import com.likelion.yonsei.daedongje.domain.reservation.entity.ReservationStatus
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 
 @Schema(description = """
         본인 예약 조회 요청.
@@ -14,10 +15,12 @@ public record ReservationMyRequest(
 
         @Schema(description = "예약자 이름", example = "홍길동")
         @NotBlank
+        @Size(max = 20)
         String bookerName,
 
         @Schema(description = "연락처", example = "010-1234-5678")
         @NotBlank
+        @Size(max = 20)
         String phoneNumber,
 
         @Schema(
