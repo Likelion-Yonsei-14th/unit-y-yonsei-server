@@ -62,6 +62,9 @@ public class BoothResponse {
     @Schema(description = "지도 위치 엔티티 ID", example = "10")
     private Long locationId;
 
+    @Schema(description = "부스 프로필 작성 완료 여부. organization·date·openTime·closeTime·sector·location 이 모두 입력된 경우 true.", example = "false")
+    private boolean profileComplete;
+
     public static BoothResponse from(Booth booth) {
         return BoothResponse.builder()
                 .id(booth.getId())
@@ -80,6 +83,7 @@ public class BoothResponse {
                 .isReservable(booth.getIsReservable())
                 .account(booth.getAccount())
                 .locationId(booth.getLocationId())
+                .profileComplete(booth.isProfileComplete())
                 .build();
     }
 }

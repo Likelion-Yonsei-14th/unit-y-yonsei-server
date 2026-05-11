@@ -30,8 +30,9 @@ public class BoothService {
         if (boothRepository.existsByName(request.name())) {
             throw new BusinessException(BoothErrorCode.DUPLICATE_BOOTH_NAME);
         }
-        if (request.closeTime().isBefore(request.openTime()) ||
-                request.closeTime().equals(request.openTime())) {
+        if (request.openTime() != null && request.closeTime() != null &&
+                (request.closeTime().isBefore(request.openTime()) ||
+                        request.closeTime().equals(request.openTime()))) {
             throw new BusinessException(BoothErrorCode.INVALID_BOOTH_TIME);
         }
 
@@ -104,8 +105,9 @@ public class BoothService {
                 boothRepository.existsByName(request.name())) {
             throw new BusinessException(BoothErrorCode.DUPLICATE_BOOTH_NAME);
         }
-        if (request.closeTime().isBefore(request.openTime()) ||
-                request.closeTime().equals(request.openTime())) {
+        if (request.openTime() != null && request.closeTime() != null &&
+                (request.closeTime().isBefore(request.openTime()) ||
+                        request.closeTime().equals(request.openTime()))) {
             throw new BusinessException(BoothErrorCode.INVALID_BOOTH_TIME);
         }
 
