@@ -1,6 +1,7 @@
 package com.likelion.yonsei.daedongje.domain.reservation.service;
 
 import com.likelion.yonsei.daedongje.common.exception.BusinessException;
+import com.likelion.yonsei.daedongje.domain.auth.entity.AdminRole;
 import com.likelion.yonsei.daedongje.domain.auth.exception.AuthErrorCode;
 import com.likelion.yonsei.daedongje.domain.auth.support.AdminSessionUser;
 import com.likelion.yonsei.daedongje.domain.booth.entity.Booth;
@@ -62,7 +63,7 @@ public class ReservationService {
     // SUPER: 모든 부스 조회 가능 / BOOTH: 본인 담당 부스만 조회 가능
     public List<ReservationResponse> getListByBooth(Long boothId, ReservationStatus status,
                                                     AdminSessionUser currentAdmin) {
-        if (!currentAdmin.isSuper()) {
+        if (currentAdmin.hasRole(AdminRole.BOOTH)) {
             verifyBoothOwnership(boothId, currentAdmin);
         }
 
@@ -81,7 +82,7 @@ public class ReservationService {
         Reservation reservation = reservationRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(ReservationErrorCode.RESERVATION_NOT_FOUND));
 
-        if (!currentAdmin.isSuper()) {
+        if (currentAdmin.hasRole(AdminRole.BOOTH)) {
             verifyBoothOwnership(reservation.getBooth().getId(), currentAdmin);
         }
 
@@ -108,7 +109,7 @@ public class ReservationService {
         Reservation reservation = reservationRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(ReservationErrorCode.RESERVATION_NOT_FOUND));
 
-        if (!currentAdmin.isSuper()) {
+        if (currentAdmin.hasRole(AdminRole.BOOTH)) {
             verifyBoothOwnership(reservation.getBooth().getId(), currentAdmin);
         }
 
