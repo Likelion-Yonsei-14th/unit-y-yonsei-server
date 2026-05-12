@@ -15,17 +15,17 @@ public class AdminUserListResponse {
     private String role;
     private String status;
     private String representativeName;
-    private String infoCompleted;
+//    private boolean infoCompleted;
 
-    public static AdminUserListResponse from(AdminUser adminUser, String infoCompleted) {
+    public static AdminUserListResponse from(AdminUser adminUser) {
         return new AdminUserListResponse(
                 adminUser.getId(),
                 adminUser.getLoginId(),
                 adminUser.getOrganization(),
                 adminUser.getRole().name(),
                 adminUser.getStatus().name(),
-                adminUser.getRepresentativeName(),
-                infoCompleted
+                adminUser.getRepresentativeName()
+//                infoCompleted
         );
     }
 }

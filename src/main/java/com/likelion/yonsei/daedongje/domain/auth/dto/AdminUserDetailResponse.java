@@ -20,9 +20,9 @@ public class AdminUserDetailResponse {
     private String representativeName;
     private String representativePhone;
     private String memo;
-    private String infoCompleted;
+//    private boolean infoCompleted;
 
-    public static AdminUserDetailResponse fromDefault(AdminUser adminUser, String infoCompleted) {
+    public static AdminUserDetailResponse fromDefault(AdminUser adminUser) {
         return new AdminUserDetailResponse(
                 adminUser.getId(),
                 adminUser.getLoginId(),
@@ -31,8 +31,8 @@ public class AdminUserDetailResponse {
                 adminUser.getStatus().name(),
                 adminUser.getRepresentativeName(),
                 adminUser.getRepresentativePhone(),
-                adminUser.getMemo(),
-                infoCompleted
+                adminUser.getMemo()
+//                infoCompleted
         );
     }
 }
