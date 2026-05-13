@@ -19,6 +19,8 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
 
     List<Reservation> findAllByBoothIdAndStatus(Long boothId, ReservationStatus status);
 
+    int countByBoothIdAndStatus(Long boothId, ReservationStatus status);
+
     // 사용자 예약 목록 조회 (이름 + 연락처 + 선택적 상태 기준)
     // PIN 일치 여부는 BCrypt 비교가 필요하므로 서비스 레이어에서 필터링
     @Query("""

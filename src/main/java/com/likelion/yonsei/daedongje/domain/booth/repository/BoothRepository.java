@@ -33,4 +33,6 @@ public interface BoothRepository extends JpaRepository<Booth, Long> {
     List<Booth> findAllBySectorAndIsFood(BoothSector sector, Boolean isFood);
 
     List<Booth> findAllByDateAndSectorAndIsFood(Integer date, BoothSector sector, Boolean isFood);
+
+    List<Booth> findAllByIsReservable(Boolean isReservable);
 }

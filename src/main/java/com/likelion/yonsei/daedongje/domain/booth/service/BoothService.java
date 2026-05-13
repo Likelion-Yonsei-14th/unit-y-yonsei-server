@@ -4,10 +4,13 @@ import com.likelion.yonsei.daedongje.common.exception.BusinessException;
 import com.likelion.yonsei.daedongje.domain.booth.dto.BoothCreateRequest;
 import com.likelion.yonsei.daedongje.domain.booth.dto.BoothResponse;
 import com.likelion.yonsei.daedongje.domain.booth.dto.BoothUpdateRequest;
+import com.likelion.yonsei.daedongje.domain.booth.dto.ReservableBoothResponse;
 import com.likelion.yonsei.daedongje.domain.booth.entity.Booth;
 import com.likelion.yonsei.daedongje.domain.booth.entity.BoothSector;
 import com.likelion.yonsei.daedongje.domain.booth.exception.BoothErrorCode;
 import com.likelion.yonsei.daedongje.domain.booth.repository.BoothRepository;
+import com.likelion.yonsei.daedongje.domain.reservation.entity.ReservationStatus;
+import com.likelion.yonsei.daedongje.domain.reservation.repository.ReservationRepository;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,9 +23,11 @@ import java.util.List;
 public class BoothService {
 
     private final BoothRepository boothRepository;
+    private final ReservationRepository reservationRepository;
 
-    public BoothService(BoothRepository boothRepository) {
+    public BoothService(BoothRepository boothRepository, ReservationRepository reservationRepository) {
         this.boothRepository = boothRepository;
+        this.reservationRepository = reservationRepository;
     }
 
     // 부스 생성
@@ -89,6 +94,16 @@ public class BoothService {
 
         return booths.stream()
                 .map(BoothResponse::from)
+                .toList();
+    }
+
+    // 예약 가능 부스 목록 조회 (대기 팀 수 포함)
+    public List<ReservableBoothResponse> getReservableList() {
+        return boothRepository.findAllByIsReservable(true).stream()
+                .map(booth -> ReservableBoothResponse.of(
+                        booth,
+                        reservationRepository.countByBoothIdAndStatus(booth.getId(), ReservationStatus.PENDING)
+                ))
                 .toList();
     }
 
