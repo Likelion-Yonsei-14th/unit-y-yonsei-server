@@ -6,6 +6,7 @@ import com.likelion.yonsei.daedongje.domain.booth.dto.BoothResponse;
 import com.likelion.yonsei.daedongje.domain.booth.dto.BoothUpdateRequest;
 import com.likelion.yonsei.daedongje.domain.booth.entity.Booth;
 import com.likelion.yonsei.daedongje.domain.booth.entity.BoothSector;
+import com.likelion.yonsei.daedongje.domain.booth.entity.BoothStatus;
 import com.likelion.yonsei.daedongje.domain.booth.exception.BoothErrorCode;
 import com.likelion.yonsei.daedongje.domain.booth.repository.BoothRepository;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -125,6 +126,15 @@ public class BoothService {
         } catch (DataIntegrityViolationException e) {
             throw new BusinessException(BoothErrorCode.DUPLICATE_BOOTH_NAME);
         }
+    }
+
+    // 부스 운영 상태 변경
+    @Transactional
+    public BoothResponse updateStatus(Long id, BoothStatus status) {
+        Booth booth = boothRepository.findById(id)
+                .orElseThrow(() -> new BusinessException(BoothErrorCode.BOOTH_NOT_FOUND));
+        booth.updateStatus(status);
+        return BoothResponse.from(booth);
     }
 
     // 부스 삭제

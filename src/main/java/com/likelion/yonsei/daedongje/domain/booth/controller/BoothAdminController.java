@@ -5,6 +5,7 @@ import com.likelion.yonsei.daedongje.domain.auth.entity.AdminRole;
 import com.likelion.yonsei.daedongje.domain.auth.support.RequireAdminRole;
 import com.likelion.yonsei.daedongje.domain.booth.dto.BoothCreateRequest;
 import com.likelion.yonsei.daedongje.domain.booth.dto.BoothResponse;
+import com.likelion.yonsei.daedongje.domain.booth.dto.BoothStatusUpdateRequest;
 import com.likelion.yonsei.daedongje.domain.booth.dto.BoothUpdateRequest;
 import com.likelion.yonsei.daedongje.domain.booth.service.BoothService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -43,6 +44,17 @@ public class BoothAdminController {
             @RequestBody @Valid BoothUpdateRequest request
     ) {
         return ApiResponse.success(boothService.update(id, request));
+    }
+
+    @Operation(summary = "부스 운영 상태 변경", description = "부스 운영 여부를 OPEN / CLOSED / PREPARING 중 하나로 변경한다.")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "변경 성공")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "존재하지 않는 부스 (B-001)")
+    @PatchMapping("/{id}/status")
+    public ApiResponse<BoothResponse> updateStatus(
+            @PathVariable Long id,
+            @RequestBody @Valid BoothStatusUpdateRequest request
+    ) {
+        return ApiResponse.success(boothService.updateStatus(id, request.status()));
     }
 
     @Operation(summary = "부스 삭제")
