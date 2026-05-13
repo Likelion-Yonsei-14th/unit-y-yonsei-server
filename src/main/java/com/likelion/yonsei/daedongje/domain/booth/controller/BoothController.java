@@ -20,6 +20,13 @@ public class BoothController {
 
     private final BoothService boothService;
 
+    @Operation(summary = "현재 축제 일차 조회", description = "서버 현재 시간(KST) 기준으로 부스 필터에 적용할 축제 일차를 반환한다.\n\n- 2 = 5월 27일\n- 3 = 5월 28일\n- 4 = 5월 29일\n\n부스 운영 기간 이전이면 2, 이후면 4로 클램핑된다.")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공")
+    @GetMapping("/festival-day")
+    public ApiResponse<Integer> getCurrentFestivalDay() {
+        return ApiResponse.success(boothService.getCurrentFestivalDay());
+    }
+
     @Operation(summary = "부스 단건 조회")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "존재하지 않는 부스 (B-001)")

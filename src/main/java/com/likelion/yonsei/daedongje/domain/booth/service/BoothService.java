@@ -12,7 +12,9 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.List;
 
 @Service
@@ -125,6 +127,20 @@ public class BoothService {
         } catch (DataIntegrityViolationException e) {
             throw new BusinessException(BoothErrorCode.DUPLICATE_BOOTH_NAME);
         }
+    }
+
+    // 현재 날짜 기준 축제 일차 반환 (부스 운영일: date=2~4, 5/27~5/29)
+    // 기간 이전이면 2, 이후면 4로 클램핑
+    public int getCurrentFestivalDay() {
+        LocalDate today = LocalDate.now(ZoneId.of("Asia/Seoul"));
+        LocalDate day2 = LocalDate.of(2025, 5, 27);
+        LocalDate day3 = LocalDate.of(2025, 5, 28);
+        LocalDate day4 = LocalDate.of(2025, 5, 29);
+
+        if (!today.isAfter(day2)) return 2;
+        if (!today.isAfter(day3)) return 3;
+        if (!today.isAfter(day4)) return 4;
+        return 4;
     }
 
     // 부스 삭제
