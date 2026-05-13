@@ -127,6 +127,15 @@ public class BoothService {
         }
     }
 
+    // 예약 접수 On/Off
+    @Transactional
+    public BoothResponse updateIsReservable(Long id, Boolean isReservable) {
+        Booth booth = boothRepository.findById(id)
+                .orElseThrow(() -> new BusinessException(BoothErrorCode.BOOTH_NOT_FOUND));
+        booth.updateIsReservable(isReservable);
+        return BoothResponse.from(booth);
+    }
+
     // 부스 삭제
     @Transactional
     public void delete(Long id) {
