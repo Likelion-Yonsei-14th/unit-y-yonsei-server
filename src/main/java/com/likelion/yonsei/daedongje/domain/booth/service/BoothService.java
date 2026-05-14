@@ -1,6 +1,8 @@
 package com.likelion.yonsei.daedongje.domain.booth.service;
 
 import com.likelion.yonsei.daedongje.common.exception.BusinessException;
+import com.likelion.yonsei.daedongje.domain.auth.exception.AuthErrorCode;
+import com.likelion.yonsei.daedongje.domain.auth.support.AdminSessionUser;
 import com.likelion.yonsei.daedongje.domain.booth.dto.BoothCreateRequest;
 import com.likelion.yonsei.daedongje.domain.booth.dto.BoothResponse;
 import com.likelion.yonsei.daedongje.domain.booth.dto.BoothUpdateRequest;
@@ -127,11 +129,16 @@ public class BoothService {
         }
     }
 
-    // 예약 접수 On/Off
+    // 예약 접수 On/Off (BOOTH 역할은 본인 담당 부스만 변경 가능)
     @Transactional
-    public BoothResponse updateIsReservable(Long id, Boolean isReservable) {
+    public BoothResponse updateIsReservable(Long id, boolean isReservable, AdminSessionUser currentAdmin) {
         Booth booth = boothRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(BoothErrorCode.BOOTH_NOT_FOUND));
+
+        if (!currentAdmin.isSuper() && !booth.getAdminId().equals(currentAdmin.getId())) {
+            throw new BusinessException(AuthErrorCode.FORBIDDEN);
+        }
+
         booth.updateIsReservable(isReservable);
         return BoothResponse.from(booth);
     }
