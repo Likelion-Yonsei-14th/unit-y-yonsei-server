@@ -48,9 +48,9 @@ public class ReservableBoothResponse {
     private Boolean isFood;
 
     @Schema(description = "현재 대기 팀 수", example = "5")
-    private int waitingCount;
+    private long waitingCount;
 
-    public static ReservableBoothResponse of(Booth booth, int waitingCount) {
+    public static ReservableBoothResponse of(Booth booth, long waitingCount) {
         return ReservableBoothResponse.builder()
                 .id(booth.getId())
                 .name(booth.getName())

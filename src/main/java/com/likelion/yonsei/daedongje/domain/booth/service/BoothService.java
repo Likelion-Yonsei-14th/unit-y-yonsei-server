@@ -7,6 +7,7 @@ import com.likelion.yonsei.daedongje.domain.booth.dto.BoothUpdateRequest;
 import com.likelion.yonsei.daedongje.domain.booth.dto.ReservableBoothResponse;
 import com.likelion.yonsei.daedongje.domain.booth.entity.Booth;
 import com.likelion.yonsei.daedongje.domain.booth.entity.BoothSector;
+import com.likelion.yonsei.daedongje.domain.booth.entity.BoothStatus;
 import com.likelion.yonsei.daedongje.domain.booth.exception.BoothErrorCode;
 import com.likelion.yonsei.daedongje.domain.booth.repository.BoothRepository;
 import com.likelion.yonsei.daedongje.domain.reservation.entity.ReservationStatus;
@@ -17,6 +18,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional(readOnly = true)
@@ -97,13 +100,22 @@ public class BoothService {
                 .toList();
     }
 
-    // 예약 가능 부스 목록 조회 (대기 팀 수 포함)
+    // 예약 가능 부스 목록 조회 (isReservable=true AND status=OPEN, 대기 팀 수 포함)
     public List<ReservableBoothResponse> getReservableList() {
-        return boothRepository.findAllByIsReservable(true).stream()
-                .map(booth -> ReservableBoothResponse.of(
-                        booth,
-                        reservationRepository.countByBoothIdAndStatus(booth.getId(), ReservationStatus.PENDING)
-                ))
+        List<Booth> booths = boothRepository.findAllByIsReservableAndStatus(true, BoothStatus.OPEN);
+        if (booths.isEmpty()) return List.of();
+
+        List<Long> boothIds = booths.stream().map(Booth::getId).toList();
+        Map<Long, Long> waitingCountMap = reservationRepository
+                .countByBoothIdsAndStatus(boothIds, ReservationStatus.PENDING)
+                .stream()
+                .collect(Collectors.toMap(
+                        row -> (Long) row[0],
+                        row -> (Long) row[1]
+                ));
+
+        return booths.stream()
+                .map(booth -> ReservableBoothResponse.of(booth, waitingCountMap.getOrDefault(booth.getId(), 0L)))
                 .toList();
     }
 
