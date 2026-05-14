@@ -2,6 +2,7 @@ package com.likelion.yonsei.daedongje.domain.booth.repository;
 
 import com.likelion.yonsei.daedongje.domain.booth.entity.Booth;
 import com.likelion.yonsei.daedongje.domain.booth.entity.BoothSector;
+import com.likelion.yonsei.daedongje.domain.booth.entity.BoothStatus;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
@@ -33,4 +34,8 @@ public interface BoothRepository extends JpaRepository<Booth, Long> {
     List<Booth> findAllBySectorAndIsFood(BoothSector sector, Boolean isFood);
 
     List<Booth> findAllByDateAndSectorAndIsFood(Integer date, BoothSector sector, Boolean isFood);
+
+    List<Booth> findAllByIsReservable(Boolean isReservable);
+
+    List<Booth> findAllByIsReservableAndStatus(Boolean isReservable, BoothStatus status);
 }

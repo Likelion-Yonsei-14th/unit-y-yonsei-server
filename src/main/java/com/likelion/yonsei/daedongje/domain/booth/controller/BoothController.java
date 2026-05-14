@@ -3,6 +3,7 @@ package com.likelion.yonsei.daedongje.domain.booth.controller;
 import com.likelion.yonsei.daedongje.common.festival.FestivalDayService;
 import com.likelion.yonsei.daedongje.common.response.ApiResponse;
 import com.likelion.yonsei.daedongje.domain.booth.dto.BoothResponse;
+import com.likelion.yonsei.daedongje.domain.booth.dto.ReservableBoothResponse;
 import com.likelion.yonsei.daedongje.domain.booth.entity.BoothSector;
 import com.likelion.yonsei.daedongje.domain.booth.service.BoothService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -27,6 +28,13 @@ public class BoothController {
     @GetMapping("/festival-day")
     public ApiResponse<Integer> getCurrentFestivalDay() {
         return ApiResponse.success(festivalDayService.getCurrentFestivalDay());
+    }
+
+    @Operation(summary = "예약 가능 부스 목록 조회", description = "예약 접수 중인 부스 목록과 각 부스의 현재 대기 팀 수를 반환한다.")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공")
+    @GetMapping("/reservable")
+    public ApiResponse<List<ReservableBoothResponse>> getReservableList() {
+        return ApiResponse.success(boothService.getReservableList());
     }
 
     @Operation(summary = "부스 단건 조회")
