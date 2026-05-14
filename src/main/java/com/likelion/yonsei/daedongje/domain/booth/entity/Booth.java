@@ -118,6 +118,10 @@ public class Booth extends BaseEntity {
         this.locationId = locationId;
     }
 
+    public void updateStatus(BoothStatus status) {
+        this.status = status;
+    }
+
     public void updateIsReservable(boolean isReservable) {
         this.isReservable = isReservable;
     }
