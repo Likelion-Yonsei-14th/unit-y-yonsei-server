@@ -92,6 +92,13 @@ public class BoothService {
                 .toList();
     }
 
+    // 부스명·단체명 키워드 검색
+    public List<BoothResponse> search(String keyword) {
+        return boothRepository.searchByKeyword(keyword).stream()
+                .map(BoothResponse::from)
+                .toList();
+    }
+
     // 부스 수정
     @Transactional
     public BoothResponse update(Long id, BoothUpdateRequest request) {
