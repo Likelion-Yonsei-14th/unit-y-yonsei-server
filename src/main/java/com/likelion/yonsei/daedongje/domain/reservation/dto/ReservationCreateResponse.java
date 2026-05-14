@@ -37,13 +37,13 @@ public class ReservationCreateResponse {
     @Schema(description = "예약 상태", example = "PENDING")
     private ReservationStatus status;
 
-    @Schema(description = "현재 대기 팀 수 (본인 포함)", example = "5")
-    private int waitingCount;
+    @Schema(description = "내 앞 대기 팀 수 (본인 제외)", example = "4")
+    private long aheadOfMe;
 
     @Schema(description = "예약 생성 시간")
     private LocalDateTime createdAt;
 
-    public static ReservationCreateResponse of(Reservation reservation, int waitingCount) {
+    public static ReservationCreateResponse of(Reservation reservation, long aheadOfMe) {
         return ReservationCreateResponse.builder()
                 .id(reservation.getId())
                 .boothId(reservation.getBooth().getId())
@@ -53,7 +53,7 @@ public class ReservationCreateResponse {
                 .phoneNumber(reservation.getPhoneNumber())
                 .partySize(reservation.getPartySize())
                 .status(reservation.getStatus())
-                .waitingCount(waitingCount)
+                .aheadOfMe(aheadOfMe)
                 .createdAt(reservation.getCreatedAt())
                 .build();
     }

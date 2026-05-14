@@ -57,8 +57,8 @@ public class ReservationService {
         );
 
         Reservation saved = reservationRepository.save(reservation);
-        int waitingCount = reservationRepository.countByBoothIdAndStatus(boothId, ReservationStatus.PENDING);
-        return ReservationCreateResponse.of(saved, waitingCount);
+        long aheadOfMe = reservationRepository.countByBoothIdAndStatus(boothId, ReservationStatus.PENDING) - 1;
+        return ReservationCreateResponse.of(saved, aheadOfMe);
     }
 
     // 부스별 예약 목록 조회 (status 파라미터로 상태 필터링)
