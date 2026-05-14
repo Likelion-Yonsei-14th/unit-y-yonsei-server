@@ -34,16 +34,16 @@ class BarrierFreeInfoControllerTest {
     @Test
     void getBarrierFreeInfos_returnsOrderedList() throws Exception {
         barrierFreeInfoRepository.save(BarrierFreeInfo.create(
-                "휠체어 이동 동선",
-                "정문에서 본부석까지 이동 가능한 동선입니다.",
+                "Route info",
+                "Accessible route guidance",
                 "https://example.com/map-2.png",
                 "ROUTE",
                 2,
                 20L
         ));
         barrierFreeInfoRepository.save(BarrierFreeInfo.create(
-                "장애인 화장실 안내",
-                "학생회관 1층 화장실을 이용해주세요.",
+                "Toilet info",
+                "Accessible toilet guidance",
                 "https://example.com/map-1.png",
                 "TOILET",
                 1,
@@ -54,25 +54,25 @@ class BarrierFreeInfoControllerTest {
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data[0].title").value("장애인 화장실 안내"))
-                .andExpect(jsonPath("$.data[0].facility_type").value("TOILET"))
-                .andExpect(jsonPath("$.data[0].map_location_id").value(10))
-                .andExpect(jsonPath("$.data[1].title").value("휠체어 이동 동선"));
+                .andExpect(jsonPath("$.data[0].title").value("Toilet info"))
+                .andExpect(jsonPath("$.data[0].facilityType").value("TOILET"))
+                .andExpect(jsonPath("$.data[0].mapLocationId").value(10))
+                .andExpect(jsonPath("$.data[1].title").value("Route info"));
     }
 
     @Test
     void getBarrierFreeInfos_filtersByFacilityType() throws Exception {
         barrierFreeInfoRepository.save(BarrierFreeInfo.create(
-                "장애인 화장실 안내",
-                "학생회관 1층 화장실을 이용해주세요.",
+                "Toilet info",
+                "Accessible toilet guidance",
                 null,
                 "TOILET",
                 1,
                 10L
         ));
         barrierFreeInfoRepository.save(BarrierFreeInfo.create(
-                "휠체어 이동 동선",
-                "정문에서 본부석까지 이동 가능한 동선입니다.",
+                "Route info",
+                "Accessible route guidance",
                 null,
                 "ROUTE",
                 2,
@@ -80,19 +80,19 @@ class BarrierFreeInfoControllerTest {
         ));
 
         mockMvc.perform(get("/api/barrier-free-infos")
-                        .param("facility_type", "TOILET")
+                        .param("facilityType", "TOILET")
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.length()").value(1))
-                .andExpect(jsonPath("$.data[0].facility_type").value("TOILET"));
+                .andExpect(jsonPath("$.data[0].facilityType").value("TOILET"));
     }
 
     @Test
     void getBarrierFreeInfo_returnsSingleItem() throws Exception {
         BarrierFreeInfo barrierFreeInfo = barrierFreeInfoRepository.save(BarrierFreeInfo.create(
-                "배리어프리 안내 맵",
-                "무장애 경로를 확인할 수 있습니다.",
+                "Guide map",
+                "Barrier-free map guidance",
                 "https://example.com/map.png",
                 "MAP",
                 1,
@@ -104,6 +104,6 @@ class BarrierFreeInfoControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.id").value(barrierFreeInfo.getId()))
-                .andExpect(jsonPath("$.data.guide_map_image_url").value("https://example.com/map.png"));
+                .andExpect(jsonPath("$.data.guideMapImageUrl").value("https://example.com/map.png"));
     }
 }

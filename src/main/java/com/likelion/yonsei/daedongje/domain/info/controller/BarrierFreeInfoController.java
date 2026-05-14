@@ -24,7 +24,7 @@ public class BarrierFreeInfoController {
     @GetMapping
     public ApiResponse<List<BarrierFreeInfoResponse>> getBarrierFreeInfos(
             @Parameter(description = "시설 구분", example = "TOILET")
-            @RequestParam(required = false, name = "facility_type") String facilityType
+            @RequestParam(required = false) String facilityType
     ) {
         return ApiResponse.success(barrierFreeInfoService.getBarrierFreeInfos(facilityType));
     }
