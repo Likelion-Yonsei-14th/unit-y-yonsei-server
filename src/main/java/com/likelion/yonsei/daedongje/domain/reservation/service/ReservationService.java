@@ -8,6 +8,7 @@ import com.likelion.yonsei.daedongje.domain.booth.exception.BoothErrorCode;
 import com.likelion.yonsei.daedongje.domain.booth.repository.BoothRepository;
 import com.likelion.yonsei.daedongje.domain.reservation.dto.ReservationAdminStatusRequest;
 import com.likelion.yonsei.daedongje.domain.reservation.dto.ReservationCreateRequest;
+import com.likelion.yonsei.daedongje.domain.reservation.dto.ReservationCreateResponse;
 import com.likelion.yonsei.daedongje.domain.reservation.dto.ReservationResponse;
 import com.likelion.yonsei.daedongje.domain.reservation.dto.ReservationUserCancelRequest;
 import com.likelion.yonsei.daedongje.domain.reservation.entity.Reservation;
@@ -33,7 +34,7 @@ public class ReservationService {
     // 예약 생성
     // 부스 행에 비관적 락을 걸어 부스별 예약 순번 중복을 방지한다.
     @Transactional
-    public ReservationResponse create(Long boothId, ReservationCreateRequest request) {
+    public ReservationCreateResponse create(Long boothId, ReservationCreateRequest request) {
         Booth booth = boothRepository.findByIdWithLock(boothId)
                 .orElseThrow(() -> new BusinessException(BoothErrorCode.BOOTH_NOT_FOUND));
 
@@ -55,7 +56,9 @@ public class ReservationService {
                 hashedPin
         );
 
-        return ReservationResponse.from(reservationRepository.save(reservation));
+        Reservation saved = reservationRepository.save(reservation);
+        long aheadOfMe = reservationRepository.countByBoothIdAndStatus(boothId, ReservationStatus.PENDING) - 1;
+        return ReservationCreateResponse.of(saved, aheadOfMe);
     }
 
     // 부스별 예약 목록 조회 (status 파라미터로 상태 필터링)

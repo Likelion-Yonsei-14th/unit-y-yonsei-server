@@ -24,5 +24,10 @@ public record ReservationCreateRequest(
 
         @Schema(description = "예약 조회용 비밀번호 4자리 (선택)", example = "1234")
         @Pattern(regexp = "^[0-9]{4}$", message = "비밀번호는 숫자 4자리여야 합니다.")
-        String pin
+        String pin,
+
+        @Schema(description = "개인정보 수집·이용 동의 여부 (반드시 true여야 예약 가능)", example = "true")
+        @NotNull
+        @AssertTrue(message = "개인정보 수집·이용에 동의해야 예약할 수 있습니다.")
+        Boolean privacyConsent
 ) {}

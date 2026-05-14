@@ -2,6 +2,7 @@ package com.likelion.yonsei.daedongje.domain.reservation.controller;
 
 import com.likelion.yonsei.daedongje.common.response.ApiResponse;
 import com.likelion.yonsei.daedongje.domain.reservation.dto.ReservationCreateRequest;
+import com.likelion.yonsei.daedongje.domain.reservation.dto.ReservationCreateResponse;
 import com.likelion.yonsei.daedongje.domain.reservation.dto.ReservationMyRequest;
 import com.likelion.yonsei.daedongje.domain.reservation.dto.ReservationResponse;
 import com.likelion.yonsei.daedongje.domain.reservation.dto.ReservationUserCancelRequest;
@@ -29,7 +30,7 @@ public class ReservationController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "유효성 검증 실패 / 예약 불가 부스 (R-002)")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "존재하지 않는 부스 (B-001)")
     @PostMapping("/booths/{boothId}")
-    public ResponseEntity<ApiResponse<ReservationResponse>> create(
+    public ResponseEntity<ApiResponse<ReservationCreateResponse>> create(
             @PathVariable Long boothId,
             @RequestBody @Valid ReservationCreateRequest request
     ) {
