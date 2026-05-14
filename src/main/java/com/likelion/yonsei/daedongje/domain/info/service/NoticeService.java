@@ -7,6 +7,7 @@ import com.likelion.yonsei.daedongje.domain.info.dto.NoticeUpdateRequest;
 import com.likelion.yonsei.daedongje.domain.info.entity.Notice;
 import com.likelion.yonsei.daedongje.domain.info.exception.NoticeErrorCode;
 import com.likelion.yonsei.daedongje.domain.info.repository.NoticeRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,13 +15,10 @@ import java.util.List;
 
 @Service
 @Transactional(readOnly = true)
+@RequiredArgsConstructor
 public class NoticeService {
 
     private final NoticeRepository noticeRepository;
-
-    public NoticeService(NoticeRepository noticeRepository) {
-        this.noticeRepository = noticeRepository;
-    }
 
     public List<NoticeResponse> getNotices() {
         return noticeRepository.findAllByOrderByPinnedDescCreatedAtDescIdDesc().stream()
@@ -50,7 +48,7 @@ public class NoticeService {
                 request.title(),
                 request.content(),
                 resolveImageUrl(request.imageUrl(), request.hasImage()),
-                Boolean.TRUE.equals(request.isPinned()),
+                request.isPinned(),
                 request.category(),
                 request.performanceId(),
                 request.boothId()
@@ -71,10 +69,9 @@ public class NoticeService {
 
     private String resolveImageUrl(String imageUrl, Boolean hasImage) {
         if (imageUrl != null && !imageUrl.trim().isEmpty()) {
-            return imageUrl;
+            return imageUrl.trim();
         }
 
-        // 프론트가 현재 has_image 플래그만 보내는 과도기 상황을 수용한다.
         if (Boolean.TRUE.equals(hasImage)) {
             return "pending-upload";
         }

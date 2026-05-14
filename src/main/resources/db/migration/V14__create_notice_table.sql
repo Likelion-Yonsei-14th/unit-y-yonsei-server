@@ -1,4 +1,3 @@
--- 해당 파일은 LLM을 사용하여 생성했습니다.
 CREATE TABLE notice (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     title VARCHAR(100) NOT NULL,
