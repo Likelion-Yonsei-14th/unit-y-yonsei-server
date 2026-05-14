@@ -1,6 +1,8 @@
 package com.likelion.yonsei.daedongje.domain.booth.service;
 
 import com.likelion.yonsei.daedongje.common.exception.BusinessException;
+import com.likelion.yonsei.daedongje.domain.auth.exception.AuthErrorCode;
+import com.likelion.yonsei.daedongje.domain.auth.support.AdminSessionUser;
 import com.likelion.yonsei.daedongje.domain.booth.dto.BoothCreateRequest;
 import com.likelion.yonsei.daedongje.domain.booth.dto.BoothResponse;
 import com.likelion.yonsei.daedongje.domain.booth.dto.BoothUpdateRequest;
@@ -128,11 +130,16 @@ public class BoothService {
         }
     }
 
-    // 부스 운영 상태 변경
+    // 부스 운영 상태 변경 (BOOTH 역할은 본인 담당 부스만 변경 가능)
     @Transactional
-    public BoothResponse updateStatus(Long id, BoothStatus status) {
+    public BoothResponse updateStatus(Long id, BoothStatus status, AdminSessionUser currentAdmin) {
         Booth booth = boothRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(BoothErrorCode.BOOTH_NOT_FOUND));
+
+        if (!currentAdmin.isSuper() && !booth.getAdminId().equals(currentAdmin.getId())) {
+            throw new BusinessException(AuthErrorCode.FORBIDDEN);
+        }
+
         booth.updateStatus(status);
         return BoothResponse.from(booth);
     }
