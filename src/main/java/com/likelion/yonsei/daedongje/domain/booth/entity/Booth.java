@@ -122,6 +122,10 @@ public class Booth extends BaseEntity {
         this.status = status;
     }
 
+    public void updateIsReservable(boolean isReservable) {
+        this.isReservable = isReservable;
+    }
+
     /**
      * 부스 프로필 작성 완료 여부를 반환한다.
      * organization, date, openTime, closeTime, sector, location 이 모두 채워진 경우 true.

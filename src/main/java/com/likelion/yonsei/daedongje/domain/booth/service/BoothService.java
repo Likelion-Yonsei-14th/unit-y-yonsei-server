@@ -144,6 +144,20 @@ public class BoothService {
         return BoothResponse.from(booth);
     }
 
+    // 예약 접수 On/Off (BOOTH 역할은 본인 담당 부스만 변경 가능)
+    @Transactional
+    public BoothResponse updateIsReservable(Long id, boolean isReservable, AdminSessionUser currentAdmin) {
+        Booth booth = boothRepository.findById(id)
+                .orElseThrow(() -> new BusinessException(BoothErrorCode.BOOTH_NOT_FOUND));
+
+        if (!currentAdmin.isSuper() && !booth.getAdminId().equals(currentAdmin.getId())) {
+            throw new BusinessException(AuthErrorCode.FORBIDDEN);
+        }
+
+        booth.updateIsReservable(isReservable);
+        return BoothResponse.from(booth);
+    }
+
     // 부스 삭제
     @Transactional
     public void delete(Long id) {
