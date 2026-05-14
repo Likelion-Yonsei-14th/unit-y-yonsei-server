@@ -5,6 +5,7 @@ import com.likelion.yonsei.daedongje.domain.auth.dto.AdminUserCreateRequest;
 import com.likelion.yonsei.daedongje.domain.auth.dto.AdminUserCreateResponse;
 import com.likelion.yonsei.daedongje.domain.auth.dto.AdminUserDetailResponse;
 import com.likelion.yonsei.daedongje.domain.auth.dto.AdminUserListResponse;
+import com.likelion.yonsei.daedongje.domain.auth.dto.AdminUserPasswordResetResponse;
 import com.likelion.yonsei.daedongje.domain.auth.entity.AdminRole;
 import com.likelion.yonsei.daedongje.domain.auth.entity.AdminUser;
 import com.likelion.yonsei.daedongje.domain.auth.exception.AuthErrorCode;
@@ -16,6 +17,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.security.SecureRandom;
 import java.util.List;
 import java.util.Locale;
 
@@ -23,6 +25,11 @@ import java.util.Locale;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class AdminUserService {
+
+    private static final int TEMP_PASSWORD_LENGTH = 12;
+    private static final String TEMP_PASSWORD_CHARSET =
+            "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private final AdminUserRepository adminUserRepository;
     private final PasswordEncoder passwordEncoder;
@@ -79,6 +86,17 @@ public class AdminUserService {
         return AdminUserDetailResponse.fromDefault(adminUser);
     }
 
+    @Transactional
+    public AdminUserPasswordResetResponse resetAdminUserPassword(Long id) {
+        AdminUser adminUser = adminUserRepository.findById(id)
+                .orElseThrow(() -> new BusinessException(AuthErrorCode.ADMIN_USER_NOT_FOUND));
+
+        String temporaryPassword = generateTemporaryPassword();
+        adminUser.changePassword(passwordEncoder.encode(temporaryPassword));
+
+        return AdminUserPasswordResetResponse.from(adminUser.getId(), temporaryPassword);
+    }
+
     // role이 null이거나 빈 문자열인 경우 null을 반환하여 필터링 없이 전체 조회하도록 함
     private AdminRole parseRoleOrNull(String role) {
         if (role == null || role.isBlank()) {
@@ -89,6 +107,15 @@ public class AdminUserService {
         } catch (IllegalArgumentException ex) {
             throw new BusinessException(AuthErrorCode.INVALID_ADMIN_ROLE);
         }
+    }
+
+    private String generateTemporaryPassword() {
+        StringBuilder builder = new StringBuilder(TEMP_PASSWORD_LENGTH);
+        for (int i = 0; i < TEMP_PASSWORD_LENGTH; i++) {
+            int index = SECURE_RANDOM.nextInt(TEMP_PASSWORD_CHARSET.length());
+            builder.append(TEMP_PASSWORD_CHARSET.charAt(index));
+        }
+        return builder.toString();
     }
 
 //    InfoComplete 추후 개발
