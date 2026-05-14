@@ -2,6 +2,7 @@ package com.likelion.yonsei.daedongje.domain.info.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.likelion.yonsei.daedongje.domain.info.entity.LostItem;
+import com.likelion.yonsei.daedongje.domain.info.entity.LostItemStatus;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 @Schema(description = "분실물 응답")
@@ -19,7 +20,7 @@ public record LostItemResponse(
         @JsonProperty("image_url")
         String imageUrl,
 
-        String status,
+        LostItemStatus status,
 
         @JsonProperty("found_location_id")
         Long foundLocationId,

@@ -7,6 +7,7 @@ import com.likelion.yonsei.daedongje.domain.info.dto.LostItemUpdateRequest;
 import com.likelion.yonsei.daedongje.domain.info.entity.LostItem;
 import com.likelion.yonsei.daedongje.domain.info.exception.LostItemErrorCode;
 import com.likelion.yonsei.daedongje.domain.info.repository.LostItemRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,13 +15,10 @@ import java.util.List;
 
 @Service
 @Transactional(readOnly = true)
+@RequiredArgsConstructor
 public class LostItemService {
 
     private final LostItemRepository lostItemRepository;
-
-    public LostItemService(LostItemRepository lostItemRepository) {
-        this.lostItemRepository = lostItemRepository;
-    }
 
     public List<LostItemResponse> getLostItems() {
         return lostItemRepository.findAllByOrderByCreatedAtDescIdDesc().stream()
@@ -34,7 +32,7 @@ public class LostItemService {
                 request.name(),
                 request.location(),
                 request.description(),
-                resolveImageUrl(request.imageUrl(), request.hasImage()),
+                resolveCreateImageUrl(request.imageUrl(), request.hasImage()),
                 request.status(),
                 request.foundLocationId(),
                 request.storageLocationId()
@@ -49,7 +47,7 @@ public class LostItemService {
                 request.name(),
                 request.location(),
                 request.description(),
-                resolveImageUrl(request.imageUrl(), request.hasImage()),
+                resolveUpdateImageUrl(lostItem, request.imageUrl(), request.hasImage()),
                 request.status(),
                 request.foundLocationId(),
                 request.storageLocationId()
@@ -68,7 +66,7 @@ public class LostItemService {
                 .orElseThrow(() -> new BusinessException(LostItemErrorCode.LOST_ITEM_NOT_FOUND));
     }
 
-    private String resolveImageUrl(String imageUrl, Boolean hasImage) {
+    private String resolveCreateImageUrl(String imageUrl, Boolean hasImage) {
         if (imageUrl != null && !imageUrl.trim().isEmpty()) {
             return imageUrl.trim();
         }
@@ -76,5 +74,18 @@ public class LostItemService {
             return "pending-upload";
         }
         return null;
+    }
+
+    private String resolveUpdateImageUrl(LostItem lostItem, String imageUrl, Boolean hasImage) {
+        if (imageUrl != null && !imageUrl.trim().isEmpty()) {
+            return imageUrl.trim();
+        }
+        if (Boolean.FALSE.equals(hasImage)) {
+            return null;
+        }
+        if (Boolean.TRUE.equals(hasImage)) {
+            return lostItem.getImageUrl();
+        }
+        return lostItem.getImageUrl();
     }
 }

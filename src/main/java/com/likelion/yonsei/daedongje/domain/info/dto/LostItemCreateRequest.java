@@ -1,6 +1,7 @@
 package com.likelion.yonsei.daedongje.domain.info.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.likelion.yonsei.daedongje.domain.info.entity.LostItemStatus;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
@@ -22,8 +23,7 @@ public record LostItemCreateRequest(
         @Size(max = 255, message = "image_url은 255자를 넘을 수 없습니다.")
         String imageUrl,
 
-        @Size(max = 30, message = "status는 30자를 넘을 수 없습니다.")
-        String status,
+        LostItemStatus status,
 
         @JsonProperty("found_location_id")
         Long foundLocationId,

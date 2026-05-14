@@ -1,18 +1,16 @@
 package com.likelion.yonsei.daedongje.domain.info.entity;
 
 import com.likelion.yonsei.daedongje.common.entity.BaseEntity;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
+import lombok.AccessLevel;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import org.springframework.util.StringUtils;
 
 @Getter
 @Entity
 @Table(name = "lost_items")
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class LostItem extends BaseEntity {
 
     @Id
@@ -31,8 +29,9 @@ public class LostItem extends BaseEntity {
     @Column(name = "image_url", length = 255)
     private String imageUrl;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
-    private String status;
+    private LostItemStatus status;
 
     @Column(name = "found_location_id")
     private Long foundLocationId;
@@ -40,15 +39,12 @@ public class LostItem extends BaseEntity {
     @Column(name = "storage_location_id")
     private Long storageLocationId;
 
-    protected LostItem() {
-    }
-
     private LostItem(
             String name,
             String location,
             String description,
             String imageUrl,
-            String status,
+            LostItemStatus status,
             Long foundLocationId,
             Long storageLocationId
     ) {
@@ -66,7 +62,7 @@ public class LostItem extends BaseEntity {
             String location,
             String description,
             String imageUrl,
-            String status,
+            LostItemStatus status,
             Long foundLocationId,
             Long storageLocationId
     ) {
@@ -86,7 +82,7 @@ public class LostItem extends BaseEntity {
             String location,
             String description,
             String imageUrl,
-            String status,
+            LostItemStatus status,
             Long foundLocationId,
             Long storageLocationId
     ) {
@@ -110,10 +106,7 @@ public class LostItem extends BaseEntity {
         return value.trim();
     }
 
-    private static String resolveStatus(String status) {
-        if (!StringUtils.hasText(status)) {
-            return "STORED";
-        }
-        return status.trim();
+    private static LostItemStatus resolveStatus(LostItemStatus status) {
+        return status == null ? LostItemStatus.STORED : status;
     }
 }
