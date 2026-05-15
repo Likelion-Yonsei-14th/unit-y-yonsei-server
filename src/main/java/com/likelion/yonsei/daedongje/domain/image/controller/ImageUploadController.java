@@ -2,6 +2,8 @@ package com.likelion.yonsei.daedongje.domain.image.controller;
 
 import com.likelion.yonsei.daedongje.common.response.ApiResponse;
 import com.likelion.yonsei.daedongje.domain.auth.entity.AdminRole;
+import com.likelion.yonsei.daedongje.domain.auth.support.AdminSessionUser;
+import com.likelion.yonsei.daedongje.domain.auth.support.CurrentAdmin;
 import com.likelion.yonsei.daedongje.domain.auth.support.RequireAdminRole;
 import com.likelion.yonsei.daedongje.domain.image.dto.PresignedUrlCreateRequest;
 import com.likelion.yonsei.daedongje.domain.image.dto.PresignedUrlCreateResponse;
@@ -33,9 +35,11 @@ public class ImageUploadController {
     )
     @PostMapping("/presigned-url")
     public ResponseEntity<ApiResponse<PresignedUrlCreateResponse>> createPresignedUrl(
+            @CurrentAdmin AdminSessionUser currentAdmin,
             @Valid @RequestBody PresignedUrlCreateRequest request
     ) {
-        PresignedUrlCreateResponse response = imageUploadService.createPresignedUrl(request);
+        PresignedUrlCreateResponse response =
+                imageUploadService.createPresignedUrl(currentAdmin, request);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 }

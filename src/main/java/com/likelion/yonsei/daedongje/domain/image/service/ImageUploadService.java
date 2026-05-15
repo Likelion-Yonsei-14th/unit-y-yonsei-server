@@ -1,6 +1,9 @@
 package com.likelion.yonsei.daedongje.domain.image.service;
 
 import com.likelion.yonsei.daedongje.common.exception.BusinessException;
+import com.likelion.yonsei.daedongje.domain.auth.entity.AdminRole;
+import com.likelion.yonsei.daedongje.domain.auth.exception.AuthErrorCode;
+import com.likelion.yonsei.daedongje.domain.auth.support.AdminSessionUser;
 import com.likelion.yonsei.daedongje.domain.image.config.AwsS3Properties;
 import com.likelion.yonsei.daedongje.domain.image.dto.PresignedUrlCreateRequest;
 import com.likelion.yonsei.daedongje.domain.image.dto.PresignedUrlCreateResponse;
@@ -23,14 +26,15 @@ import java.util.UUID;
 public class ImageUploadService {
 
     private static final String IMAGE_ROOT_PATH = "images";
+    private static final long MAX_IMAGE_SIZE_BYTES = 5L * 1024 * 1024; // 5MB
 
-    private static final Set<String> ALLOWED_DOMAINS = Set.of(
-            "booth",
-            "menu",
-            "lost-item",
-            "banner",
-            "performance",
-            "notice"
+    private static final Map<String, Set<AdminRole>> ALLOWED_ROLES_BY_DOMAIN = Map.of(
+            "banner", Set.of(AdminRole.SUPER, AdminRole.MASTER),
+            "notice", Set.of(AdminRole.SUPER, AdminRole.MASTER),
+            "lost-item", Set.of(AdminRole.SUPER, AdminRole.MASTER),
+            "booth", Set.of(AdminRole.SUPER, AdminRole.MASTER, AdminRole.BOOTH),
+            "menu", Set.of(AdminRole.SUPER, AdminRole.MASTER, AdminRole.BOOTH),
+            "performance", Set.of(AdminRole.SUPER, AdminRole.MASTER, AdminRole.PERFORMER)
     );
 
     private static final Set<String> ALLOWED_EXTENSIONS = Set.of(
@@ -56,18 +60,24 @@ public class ImageUploadService {
     private final S3Presigner s3Presigner;
     private final AwsS3Properties awsS3Properties;
 
-    public PresignedUrlCreateResponse createPresignedUrl(PresignedUrlCreateRequest request) {
+    public PresignedUrlCreateResponse createPresignedUrl(
+            AdminSessionUser currentAdmin,
+            PresignedUrlCreateRequest request
+    ) {
         String domain = normalizeDomain(request.getDomain());
         String extension = extractExtension(request.getFileName());
         String contentType = normalizeContentType(request.getContentType());
+        Long fileSize = request.getFileSize();
 
         validateDomain(domain);
+        validateDomainAccess(domain, currentAdmin.getRole());
         validateExtension(extension);
         validateContentType(contentType);
         validateExtensionAndContentType(extension, contentType);
+        validateFileSize(fileSize);
 
         String objectKey = createObjectKey(domain, extension);
-        String uploadUrl = createUploadUrl(objectKey, contentType);
+        String uploadUrl = createUploadUrl(objectKey, contentType, fileSize);
         String imageUrl = awsS3Properties.getNormalizedImageBaseUrl() + "/" + objectKey;
 
         return PresignedUrlCreateResponse.of(uploadUrl, objectKey, imageUrl);
@@ -79,12 +89,6 @@ public class ImageUploadService {
 
     private String normalizeContentType(String contentType) {
         return contentType.trim().toLowerCase();
-    }
-
-    private void validateDomain(String domain) {
-        if (!ALLOWED_DOMAINS.contains(domain)) {
-            throw new BusinessException(ImageErrorCode.INVALID_IMAGE_DOMAIN);
-        }
     }
 
     private String extractExtension(String fileName) {
@@ -121,11 +125,12 @@ public class ImageUploadService {
         return IMAGE_ROOT_PATH + "/" + domain + "/" + UUID.randomUUID() + "." + extension;
     }
 
-    private String createUploadUrl(String objectKey, String contentType) {
+    private String createUploadUrl(String objectKey, String contentType, Long fileSize) {
         PutObjectRequest putObjectRequest = PutObjectRequest.builder()
                 .bucket(awsS3Properties.getBucket())
                 .key(objectKey)
                 .contentType(contentType)
+                .contentLength(fileSize)
                 .build();
 
         PutObjectPresignRequest presignRequest = PutObjectPresignRequest.builder()
@@ -136,5 +141,28 @@ public class ImageUploadService {
         PresignedPutObjectRequest presignedRequest = s3Presigner.presignPutObject(presignRequest);
 
         return presignedRequest.url().toString();
+    }
+
+    private void validateFileSize(Long fileSize) {
+        if (fileSize == null || fileSize <= 0) {
+            throw new BusinessException(ImageErrorCode.INVALID_IMAGE_SIZE);
+        }
+
+        if (fileSize > MAX_IMAGE_SIZE_BYTES) {
+            throw new BusinessException(ImageErrorCode.IMAGE_SIZE_EXCEEDED);
+        }
+    }
+    private void validateDomain(String domain) {
+        if (!ALLOWED_ROLES_BY_DOMAIN.containsKey(domain)) {
+            throw new BusinessException(ImageErrorCode.INVALID_IMAGE_DOMAIN);
+        }
+    }
+
+    private void validateDomainAccess(String domain, AdminRole role) {
+        Set<AdminRole> allowedRoles = ALLOWED_ROLES_BY_DOMAIN.get(domain);
+
+        if (!allowedRoles.contains(role)) {
+            throw new BusinessException(AuthErrorCode.FORBIDDEN);
+        }
     }
 }
