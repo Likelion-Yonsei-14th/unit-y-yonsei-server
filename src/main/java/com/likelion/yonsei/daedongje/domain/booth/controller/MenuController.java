@@ -21,6 +21,8 @@ public class MenuController {
     private final MenuService menuService;
 
     @Operation(summary = "메뉴 목록 조회", description = "특정 부스의 메뉴 목록을 조회합니다.")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "존재하지 않는 부스")
     @GetMapping
     public ApiResponse<List<MenuResponse>> getMenus(
             @PathVariable Long boothId) {
@@ -28,6 +30,8 @@ public class MenuController {
     }
 
     @Operation(summary = "메뉴 단건 조회", description = "특정 메뉴를 조회합니다.")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "존재하지 않는 부스 또는 메뉴")
     @GetMapping("/{menuId}")
     public ApiResponse<MenuResponse> getMenu(
             @PathVariable Long boothId,
