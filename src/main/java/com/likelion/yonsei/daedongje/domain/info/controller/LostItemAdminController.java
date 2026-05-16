@@ -44,8 +44,7 @@ public class LostItemAdminController {
     @Operation(summary = "분실물 삭제")
     @DeleteMapping("/{lostItemId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public ApiResponse<Void> deleteLostItem(@PathVariable Long lostItemId) {
+    public void deleteLostItem(@PathVariable Long lostItemId) {
         lostItemService.deleteLostItem(lostItemId);
-        return ApiResponse.successEmpty();
     }
 }

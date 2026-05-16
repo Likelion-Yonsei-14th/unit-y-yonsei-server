@@ -147,8 +147,7 @@ class LostItemControllerTest {
         Long lostItemId = objectMapper.readTree(response).path("data").path("id").asLong();
 
         mockMvc.perform(delete("/api/admin/lost-items/{lostItemId}", lostItemId))
-                .andExpect(status().isNoContent())
-                .andExpect(jsonPath("$.success").value(true));
+                .andExpect(status().isNoContent());
 
         mockMvc.perform(get("/api/lost-items"))
                 .andExpect(status().isOk())
