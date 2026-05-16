@@ -126,7 +126,7 @@ public class ReservationService {
                 if (reservation.getStatus() == ReservationStatus.CANCELLED) {
                     throw new BusinessException(ReservationErrorCode.ALREADY_CANCELLED);
                 }
-                reservation.cancel(request.cancelReason());
+                reservation.cancel();
             }
             default -> throw new BusinessException(ReservationErrorCode.INVALID_STATUS_TRANSITION);
         }
@@ -151,7 +151,7 @@ public class ReservationService {
             throw new BusinessException(ReservationErrorCode.ALREADY_CANCELLED);
         }
 
-        reservation.cancel(request.cancelReason());
+        reservation.cancel();
         return ReservationResponse.from(reservation);
     }
 
