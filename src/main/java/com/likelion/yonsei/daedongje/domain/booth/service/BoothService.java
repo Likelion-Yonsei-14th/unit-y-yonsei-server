@@ -102,6 +102,13 @@ public class BoothService {
                 .toList();
     }
 
+    // 부스명·단체명 키워드 검색
+    public List<BoothResponse> search(String keyword) {
+        return boothRepository.searchByKeyword(keyword).stream()
+                .map(BoothResponse::from)
+                .toList();
+    }
+
     // 예약 가능 부스 목록 조회 (isReservable=true AND status=OPEN, 대기 팀 수 포함)
     public List<ReservableBoothResponse> getReservableList() {
         List<Booth> booths = boothRepository.findAllByIsReservableAndStatus(true, BoothStatus.OPEN);

@@ -35,6 +35,8 @@ public interface BoothRepository extends JpaRepository<Booth, Long> {
 
     List<Booth> findAllByDateAndSectorAndIsFood(Integer date, BoothSector sector, Boolean isFood);
 
+    @Query("SELECT b FROM Booth b WHERE LOWER(b.name) LIKE LOWER(CONCAT('%', :keyword, '%')) OR LOWER(b.organization) LIKE LOWER(CONCAT('%', :keyword, '%'))")
+    List<Booth> searchByKeyword(@Param("keyword") String keyword);
     List<Booth> findAllByIsReservable(Boolean isReservable);
 
     List<Booth> findAllByIsReservableAndStatus(Boolean isReservable, BoothStatus status);

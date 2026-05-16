@@ -37,6 +37,16 @@ public class BoothController {
         return ApiResponse.success(boothService.getReservableList());
     }
 
+    @Operation(summary = "부스 검색", description = "부스명 또는 단체명에 키워드가 포함된 부스를 검색한다. 대소문자를 구분하지 않는다.")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "검색 성공")
+    @GetMapping("/search")
+    public ApiResponse<List<BoothResponse>> search(
+            @Parameter(description = "검색 키워드 (부스명 또는 단체명)", example = "멋사")
+            @RequestParam String keyword
+    ) {
+        return ApiResponse.success(boothService.search(keyword));
+    }
+
     @Operation(summary = "부스 단건 조회")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "존재하지 않는 부스 (B-001)")
