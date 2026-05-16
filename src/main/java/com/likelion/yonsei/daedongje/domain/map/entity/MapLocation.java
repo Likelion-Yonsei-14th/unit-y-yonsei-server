@@ -46,4 +46,50 @@ public class MapLocation extends BaseEntity {
 
     protected MapLocation() {
     }
+
+    private MapLocation(
+            String locationName,
+            String sector,
+            BigDecimal mapX,
+            BigDecimal mapY,
+            BigDecimal width,
+            BigDecimal height,
+            MapLocationType locationType,
+            Integer displayOrder,
+            MapDisplayStatus displayStatus
+    ) {
+        this.locationName = locationName;
+        this.sector = sector;
+        this.mapX = mapX;
+        this.mapY = mapY;
+        this.width = width;
+        this.height = height;
+        this.locationType = locationType;
+        this.displayOrder = displayOrder != null ? displayOrder : 0;
+        this.displayStatus = displayStatus;
+    }
+
+    public static MapLocation create(
+            String locationName,
+            String sector,
+            BigDecimal mapX,
+            BigDecimal mapY,
+            BigDecimal width,
+            BigDecimal height,
+            MapLocationType locationType,
+            Integer displayOrder,
+            MapDisplayStatus displayStatus
+    ) {
+        return new MapLocation(
+                locationName,
+                sector,
+                mapX,
+                mapY,
+                width,
+                height,
+                locationType,
+                displayOrder,
+                displayStatus
+        );
+    }
 }
