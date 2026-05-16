@@ -19,7 +19,11 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
 
     List<Reservation> findAllByBoothIdAndStatus(Long boothId, ReservationStatus status);
 
-    int countByBoothIdAndStatus(Long boothId, ReservationStatus status);
+    long countByBoothIdAndStatus(Long boothId, ReservationStatus status);
+
+    // 여러 부스의 PENDING 예약 수를 한 번에 조회 (N+1 방지)
+    @Query("SELECT r.booth.id, COUNT(r) FROM Reservation r WHERE r.booth.id IN :boothIds AND r.status = :status GROUP BY r.booth.id")
+    List<Object[]> countByBoothIdsAndStatus(@Param("boothIds") List<Long> boothIds, @Param("status") ReservationStatus status);
 
     // 사용자 예약 목록 조회 (이름 + 연락처 + 선택적 상태 기준)
     // PIN 일치 여부는 BCrypt 비교가 필요하므로 서비스 레이어에서 필터링

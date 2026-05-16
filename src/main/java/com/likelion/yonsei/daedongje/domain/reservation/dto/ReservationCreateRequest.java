@@ -2,7 +2,6 @@ package com.likelion.yonsei.daedongje.domain.reservation.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.*;
-import jakarta.validation.constraints.AssertTrue;
 
 
 @Schema(description = "예약 생성 요청")

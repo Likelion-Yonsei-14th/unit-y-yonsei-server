@@ -1,7 +1,9 @@
 package com.likelion.yonsei.daedongje.domain.booth.controller;
 
+import com.likelion.yonsei.daedongje.common.festival.FestivalDayService;
 import com.likelion.yonsei.daedongje.common.response.ApiResponse;
 import com.likelion.yonsei.daedongje.domain.booth.dto.BoothResponse;
+import com.likelion.yonsei.daedongje.domain.booth.dto.ReservableBoothResponse;
 import com.likelion.yonsei.daedongje.domain.booth.entity.BoothSector;
 import com.likelion.yonsei.daedongje.domain.booth.service.BoothService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -19,6 +21,21 @@ import java.util.List;
 public class BoothController {
 
     private final BoothService boothService;
+    private final FestivalDayService festivalDayService;
+
+    @Operation(summary = "현재 축제 일차 조회", description = "서버 현재 시간(KST) 기준으로 부스 필터에 적용할 축제 일차를 반환한다.\n\n- 2 = 2026년 5월 27일\n- 3 = 2026년 5월 28일\n- 4 = 2026년 5월 29일\n\n부스 운영 기간 이전이면 2, 이후면 4로 클램핑된다.")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공")
+    @GetMapping("/festival-day")
+    public ApiResponse<Integer> getCurrentFestivalDay() {
+        return ApiResponse.success(festivalDayService.getCurrentFestivalDay());
+    }
+
+    @Operation(summary = "예약 가능 부스 목록 조회", description = "예약 접수 중인 부스 목록과 각 부스의 현재 대기 팀 수를 반환한다.")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공")
+    @GetMapping("/reservable")
+    public ApiResponse<List<ReservableBoothResponse>> getReservableList() {
+        return ApiResponse.success(boothService.getReservableList());
+    }
 
     @Operation(summary = "부스 검색", description = "부스명 또는 단체명에 키워드가 포함된 부스를 검색한다. 대소문자를 구분하지 않는다.")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "검색 성공")
