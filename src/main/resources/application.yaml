@@ -48,6 +48,7 @@ spring:
     redis:
       namespace: ${SPRING_SESSION_REDIS_NAMESPACE:daedongje:session}
 
+
 server:
   servlet:
     session:
@@ -65,3 +66,10 @@ springdoc:
     operations-sorter: alpha
   api-docs:
     path: /v3/api-docs
+
+aws:
+  s3:
+    bucket: ${AWS_S3_BUCKET:daedongje-s3}
+    region: ${AWS_S3_REGION:ap-northeast-2}
+    image-base-url: ${AWS_S3_IMAGE_BASE_URL:https://daedongje-s3.s3.ap-northeast-2.amazonaws.com}
+    presigned-url-expiration-minutes: ${AWS_S3_PRESIGNED_URL_EXPIRATION_MINUTES:5}
