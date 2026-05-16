@@ -5,6 +5,7 @@ import com.likelion.yonsei.daedongje.domain.reservation.dto.ReservationCreateReq
 import com.likelion.yonsei.daedongje.domain.reservation.dto.ReservationCreateResponse;
 import com.likelion.yonsei.daedongje.domain.reservation.dto.ReservationMyRequest;
 import com.likelion.yonsei.daedongje.domain.reservation.dto.ReservationResponse;
+import com.likelion.yonsei.daedongje.domain.reservation.dto.ReservationUpdateRequest;
 import com.likelion.yonsei.daedongje.domain.reservation.dto.ReservationUserCancelRequest;
 import com.likelion.yonsei.daedongje.domain.reservation.service.ReservationService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -60,6 +61,27 @@ public class ReservationController {
         return ApiResponse.success(
                 reservationService.getListByBooker(
                         request.bookerName(), request.phoneNumber(), request.pin(), request.status()));
+    }
+
+    @Operation(
+            summary = "사용자 예약 정보 수정",
+            description = """
+                    예약자 본인이 이름·연락처·PIN으로 소유권을 확인한 뒤 예약 정보를 수정한다.
+                    - 대기 중(PENDING) 상태인 예약만 수정 가능.
+                    - `newBookerName`, `newPhoneNumber`, `newPartySize` 중 변경할 항목만 전달하면 된다. 생략 시 기존 값 유지.
+                    - PIN을 설정한 예약은 PIN이 일치해야 수정 가능.
+                    - 소유권 불일치 시 보안상 존재하지 않는 예약과 동일한 404 반환.
+                    """
+    )
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "수정 성공")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "대기 중이 아닌 예약 (R-006)")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "존재하지 않는 예약 또는 소유권 불일치 (R-001)")
+    @PatchMapping("/{id}")
+    public ApiResponse<ReservationResponse> update(
+            @PathVariable Long id,
+            @RequestBody @Valid ReservationUpdateRequest request
+    ) {
+        return ApiResponse.success(reservationService.updateByBooker(id, request));
     }
 
     @Operation(
