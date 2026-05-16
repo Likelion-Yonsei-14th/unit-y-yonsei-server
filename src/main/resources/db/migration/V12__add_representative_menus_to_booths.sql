@@ -1,0 +1,1 @@
+ALTER TABLE booths ADD COLUMN representative_menus VARCHAR(255) NULL;
