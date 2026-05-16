@@ -33,14 +33,16 @@ public class MapLocation extends BaseEntity {
     @Column(precision = 6, scale = 3)
     private BigDecimal height;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "location_type", length = 30)
-    private String locationType;
+    private MapLocationType locationType;
 
-    @Column(name = "display_order")
+    @Column(name = "display_order", nullable = false)
     private Integer displayOrder;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "display_status", length = 20)
-    private String displayStatus;
+    private MapDisplayStatus displayStatus;
 
     protected MapLocation() {
     }

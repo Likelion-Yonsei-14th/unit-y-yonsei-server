@@ -1,6 +1,8 @@
 package com.likelion.yonsei.daedongje.domain.map.dto;
 
 import com.likelion.yonsei.daedongje.domain.map.entity.MapLocation;
+import com.likelion.yonsei.daedongje.domain.map.entity.MapDisplayStatus;
+import com.likelion.yonsei.daedongje.domain.map.entity.MapLocationType;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 import lombok.Getter;
@@ -35,13 +37,13 @@ public class MapLocationResponse {
     private BigDecimal height;
 
     @Schema(description = "위치 타입", example = "STAGE")
-    private String locationType;
+    private MapLocationType locationType;
 
     @Schema(description = "노출 순서", example = "1")
     private Integer displayOrder;
 
     @Schema(description = "노출 상태", example = "VISIBLE")
-    private String displayStatus;
+    private MapDisplayStatus displayStatus;
 
     @Schema(description = "생성 일시")
     private LocalDateTime createdAt;

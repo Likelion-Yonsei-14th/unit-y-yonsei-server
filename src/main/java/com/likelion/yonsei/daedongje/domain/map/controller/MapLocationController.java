@@ -5,6 +5,8 @@ import com.likelion.yonsei.daedongje.common.response.PageResponse;
 import com.likelion.yonsei.daedongje.domain.auth.entity.AdminRole;
 import com.likelion.yonsei.daedongje.domain.auth.support.RequireAdminRole;
 import com.likelion.yonsei.daedongje.domain.map.dto.MapLocationResponse;
+import com.likelion.yonsei.daedongje.domain.map.entity.MapDisplayStatus;
+import com.likelion.yonsei.daedongje.domain.map.entity.MapLocationType;
 import com.likelion.yonsei.daedongje.domain.map.service.MapLocationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -29,9 +31,9 @@ public class MapLocationController {
             @Parameter(description = "구역", example = "A")
             @RequestParam(required = false) String sector,
             @Parameter(description = "위치 타입", example = "STAGE")
-            @RequestParam(name = "location_type", required = false) String locationType,
+            @RequestParam(name = "location_type", required = false) MapLocationType locationType,
             @Parameter(description = "노출 상태", example = "VISIBLE")
-            @RequestParam(name = "display_status", required = false) String displayStatus,
+            @RequestParam(name = "display_status", required = false) MapDisplayStatus displayStatus,
             @Parameter(description = "페이지 번호. 0부터 시작", example = "0")
             @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "페이지 크기. 최대 100", example = "20")

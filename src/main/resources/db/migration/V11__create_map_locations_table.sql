@@ -8,7 +8,7 @@ CREATE TABLE map_locations
     width          DECIMAL(6, 3),
     height         DECIMAL(6, 3),
     location_type  VARCHAR(30),
-    display_order  INT,
+    display_order  INT           NOT NULL DEFAULT 0,
     display_status VARCHAR(20),
     created_at     DATETIME(6)   NOT NULL,
     updated_at     DATETIME(6)   NOT NULL,
@@ -18,3 +18,8 @@ CREATE TABLE map_locations
 )
     DEFAULT CHARSET = utf8mb4
     COLLATE = utf8mb4_unicode_ci;
+
+ALTER TABLE booths
+    ADD INDEX idx_booths_location_id (location_id),
+    ADD CONSTRAINT fk_booths_map_location
+        FOREIGN KEY (location_id) REFERENCES map_locations (id);
