@@ -4,6 +4,7 @@ import com.likelion.yonsei.daedongje.common.response.ApiResponse;
 import com.likelion.yonsei.daedongje.common.response.PageResponse;
 import com.likelion.yonsei.daedongje.domain.auth.entity.AdminRole;
 import com.likelion.yonsei.daedongje.domain.auth.support.RequireAdminRole;
+import com.likelion.yonsei.daedongje.domain.map.dto.MapLocationCreateRequest;
 import com.likelion.yonsei.daedongje.domain.map.dto.MapLocationResponse;
 import com.likelion.yonsei.daedongje.domain.map.entity.MapDisplayStatus;
 import com.likelion.yonsei.daedongje.domain.map.entity.MapLocationType;
@@ -11,7 +12,10 @@ import com.likelion.yonsei.daedongje.domain.map.service.MapLocationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @Tag(name = "지도 위치 어드민", description = "지도 위치 조회 어드민 API")
@@ -22,6 +26,18 @@ import org.springframework.web.bind.annotation.*;
 public class MapLocationController {
 
     private final MapLocationService mapLocationService;
+
+    @Operation(summary = "지도 위치 생성", description = "관리자 페이지에서 사용할 지도 위치를 등록합니다.")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "생성 성공")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "요청 값 검증 실패")
+    @PostMapping
+    @RequireAdminRole({AdminRole.SUPER, AdminRole.MASTER})
+    public ResponseEntity<ApiResponse<MapLocationResponse>> create(
+            @RequestBody @Valid MapLocationCreateRequest request
+    ) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success(mapLocationService.create(request)));
+    }
 
     @Operation(summary = "지도 위치 목록 조회", description = "관리자 페이지에서 지도 위치 목록을 필터와 페이지 조건으로 조회합니다.")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공")
