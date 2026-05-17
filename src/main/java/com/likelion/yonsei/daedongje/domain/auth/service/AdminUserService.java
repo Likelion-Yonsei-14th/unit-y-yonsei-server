@@ -11,7 +11,10 @@ import com.likelion.yonsei.daedongje.domain.auth.entity.AdminUser;
 import com.likelion.yonsei.daedongje.domain.auth.exception.AuthErrorCode;
 import com.likelion.yonsei.daedongje.domain.auth.repository.AdminUserRepository;
 
+import com.likelion.yonsei.daedongje.domain.booth.dto.BoothCreateRequest;
+import com.likelion.yonsei.daedongje.domain.booth.entity.BoothStatus;
 import com.likelion.yonsei.daedongje.domain.booth.repository.BoothRepository;
+import com.likelion.yonsei.daedongje.domain.booth.service.BoothService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Sort;
@@ -31,10 +34,18 @@ public class AdminUserService {
     private final PasswordEncoder passwordEncoder;
     private final AdminSessionService adminSessionService;
     private final BoothRepository boothRepository;
+    private final BoothService boothService;
 
     @Transactional
     public AdminUserCreateResponse createAdminUser(AdminUserCreateRequest request) {
         validateDuplicateLoginId(request.getLoginId());
+
+        // BOOTH role의 경우 부스 이름 필수
+        if (request.getRole() == AdminRole.BOOTH) {
+            if (request.getBoothName() == null || request.getBoothName().isBlank()) {
+                throw new BusinessException(AuthErrorCode.BOOTH_INFO_REQUIRED);
+            }
+        }
 
         String passwordHash = passwordEncoder.encode(request.getPassword());
 
@@ -50,7 +61,14 @@ public class AdminUserService {
 
         try {
             AdminUser savedAdminUser = adminUserRepository.saveAndFlush(adminUser);
+
+            // BOOTH 역할이면 부스 생성
+            if (request.getRole() == AdminRole.BOOTH) {
+                createBoothForNewAdmin(savedAdminUser, request);
+            }
+
             return AdminUserCreateResponse.from(savedAdminUser);
+
         } catch (DataIntegrityViolationException e) {
             throw new BusinessException(AuthErrorCode.LOGIN_ID_DUPLICATED);
         }
@@ -121,6 +139,49 @@ public class AdminUserService {
 //    private boolean isOrganizationInfoCompleted(AdminUser adminUser) {
 //        return false;
 //    }
+// BOOTH 어드민 생성 시 부스 기본 정보 함께 생성
+
+    private void createBoothForNewAdmin(AdminUser boothAdmin, AdminUserCreateRequest request) {
+    Integer boothDate = parseFirstBoothDate(request.getBoothOperatingDates());
+
+    BoothCreateRequest boothRequest = new BoothCreateRequest(
+            boothAdmin.getId(),                    // adminId
+            request.getBoothName(),                // name (필수)
+            request.getOrganization(),             // organization
+            request.getBoothLocationMemo(),        // description (자리 메모 저장)
+            boothDate,                             // date
+            null,                                  // openTime
+            null,                                  // closeTime
+            request.getBoothSector(),              // sector
+            null,                                  // location
+            BoothStatus.PREPARING,                 // status
+            false,                                 // isFood
+            null,                                  // instagram
+            false,                                 // isReservable
+            null,                                  // account
+            null                                   // locationId
+    );
+
+    boothService.create(boothRequest);
+}
+
+    // 운영 날짜 파싱
+    private Integer parseFirstBoothDate(String boothOperatingDates) {
+        if (boothOperatingDates == null || boothOperatingDates.isBlank()) {
+            return null;
+        }
+
+        try {
+            String[] dates = boothOperatingDates.split(",");
+            if (dates.length > 0) {
+                return Integer.parseInt(dates[0].trim());
+            }
+        } catch (NumberFormatException e) {
+            return null;
+        }
+
+        return null;
+    }
 
     @Transactional
     public void deleteAdminUser(Long id) {
