@@ -434,17 +434,16 @@ class PerformanceAdminControllerTest {
         JsonNode apiDocs = objectMapper.readTree(result.getResponse().getContentAsString());
         JsonNode myPerformancePath = apiDocs.path("paths").path(MY_PERFORMANCE_URL);
 
-        // /api/admin/performances/me 경로에 GET·PATCH·DELETE 오퍼레이션이 모두 존재하는지 path 범위로 검증한다.
         assertThat(myPerformancePath.isMissingNode()).isFalse();
         assertThat(myPerformancePath.has("get")).isTrue();
         assertThat(myPerformancePath.has("patch")).isTrue();
         assertThat(myPerformancePath.has("delete")).isTrue();
         assertThat(myPerformancePath.has("post")).isFalse();
 
-        // 각 오퍼레이션이 "공연 어드민" 태그로 노출되는지 확인한다.
         assertThat(myPerformancePath.path("get").path("tags").toString()).contains("공연 어드민");
         assertThat(myPerformancePath.path("patch").path("tags").toString()).contains("공연 어드민");
         assertThat(myPerformancePath.path("delete").path("tags").toString()).contains("공연 어드민");
+        assertThat(apiDocs.path("paths").has("/api/admin/performances/{id}")).isFalse();
     }
 
     private AdminUser adminUser(String loginId, AdminRole role) {
