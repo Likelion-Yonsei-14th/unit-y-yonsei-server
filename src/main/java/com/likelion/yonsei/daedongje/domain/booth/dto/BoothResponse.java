@@ -65,7 +65,14 @@ public class BoothResponse {
     @Schema(description = "부스 프로필 작성 완료 여부. organization·date·openTime·closeTime·sector·location 이 모두 입력된 경우 true.", example = "false")
     private boolean profileComplete;
 
+    @Schema(description = "썸네일 이미지 URL (display_order=1 이미지)", example = "https://example.com/thumbnail.jpg")
+    private String thumbnailUrl;
+
     public static BoothResponse from(Booth booth) {
+        return of(booth, null);
+    }
+
+    public static BoothResponse of(Booth booth, String thumbnailUrl) {
         return BoothResponse.builder()
                 .id(booth.getId())
                 .adminId(booth.getAdminId())
@@ -84,6 +91,7 @@ public class BoothResponse {
                 .account(booth.getAccount())
                 .locationId(booth.getLocationId())
                 .profileComplete(booth.isProfileComplete())
+                .thumbnailUrl(thumbnailUrl)
                 .build();
     }
 }

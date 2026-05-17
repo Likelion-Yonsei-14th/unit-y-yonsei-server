@@ -50,7 +50,10 @@ public class ReservableBoothResponse {
     @Schema(description = "현재 대기 팀 수", example = "5")
     private long waitingCount;
 
-    public static ReservableBoothResponse of(Booth booth, long waitingCount) {
+    @Schema(description = "썸네일 이미지 URL (display_order=1 이미지)", example = "https://example.com/thumbnail.jpg")
+    private String thumbnailUrl;
+
+    public static ReservableBoothResponse of(Booth booth, long waitingCount, String thumbnailUrl) {
         return ReservableBoothResponse.builder()
                 .id(booth.getId())
                 .name(booth.getName())
@@ -64,6 +67,7 @@ public class ReservableBoothResponse {
                 .status(booth.getStatus())
                 .isFood(booth.getIsFood())
                 .waitingCount(waitingCount)
+                .thumbnailUrl(thumbnailUrl)
                 .build();
     }
 }
