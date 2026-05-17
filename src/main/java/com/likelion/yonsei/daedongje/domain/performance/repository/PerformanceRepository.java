@@ -9,4 +9,6 @@ import java.util.Optional;
 public interface PerformanceRepository extends JpaRepository<Performance, Long> {
 
     Optional<Performance> findByAdminUser(AdminUser adminUser);
+
+    boolean existsByAdminUser(AdminUser adminUser);
 }

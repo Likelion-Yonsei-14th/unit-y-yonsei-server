@@ -43,8 +43,29 @@ class PerformanceServiceTest {
     }
 
     @Test
+    void createPerformanceForAdmin_can_store_creator_separately_from_performance_admin() {
+        AdminUser adminUser = adminUser();
+        AdminUser creator = adminUser("master", AdminRole.MASTER, 99L);
+        when(performanceRepository.save(any(Performance.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Performance saved = performanceService.createPerformanceForAdmin(adminUser, creator, "Main Stage");
+
+        assertThat(saved.getAdminUser()).isEqualTo(adminUser);
+        assertThat(saved.getCreatedBy()).isEqualTo(99L);
+    }
+
+    @Test
     void createPerformanceForAdmin_rejects_blank_name() {
         assertThatThrownBy(() -> performanceService.createPerformanceForAdmin(adminUser(), " "))
+                .isInstanceOf(BusinessException.class);
+    }
+
+    @Test
+    void createPerformanceForAdmin_rejects_duplicate_admin_performance() {
+        AdminUser adminUser = adminUser();
+        when(performanceRepository.existsByAdminUser(adminUser)).thenReturn(true);
+
+        assertThatThrownBy(() -> performanceService.createPerformanceForAdmin(adminUser, "Main Stage"))
                 .isInstanceOf(BusinessException.class);
     }
 
@@ -65,16 +86,20 @@ class PerformanceServiceTest {
     }
 
     private AdminUser adminUser() {
+        return adminUser("performer", AdminRole.PERFORMER, 1L);
+    }
+
+    private AdminUser adminUser(String loginId, AdminRole role, Long id) {
         AdminUser adminUser = AdminUser.create(
-                "performer",
+                loginId,
                 "password-hash",
                 "Performance Team",
-                AdminRole.PERFORMER,
+                role,
                 "Representative",
                 "010-0000-0000",
                 null
         );
-        ReflectionTestUtils.setField(adminUser, "id", 1L);
+        ReflectionTestUtils.setField(adminUser, "id", id);
         return adminUser;
     }
 }

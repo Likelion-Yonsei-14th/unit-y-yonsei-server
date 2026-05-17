@@ -15,8 +15,11 @@ CREATE TABLE performances
     created_at              DATETIME(6)   NOT NULL,
     updated_at              DATETIME(6)   NOT NULL,
     PRIMARY KEY (id),
-    INDEX idx_performances_admin_id (admin_id),
+    UNIQUE INDEX uk_performances_admin_id (admin_id),
     INDEX idx_performances_location_id (location_id),
+    INDEX idx_performances_created_by (created_by),
+    CONSTRAINT fk_performances_created_by
+        FOREIGN KEY (created_by) REFERENCES admin_users (id),
     CONSTRAINT fk_performances_admin_user
         FOREIGN KEY (admin_id) REFERENCES admin_users (id),
     CONSTRAINT fk_performances_map_location

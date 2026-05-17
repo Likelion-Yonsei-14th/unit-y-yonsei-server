@@ -26,6 +26,25 @@ class PerformanceTest {
     }
 
     @Test
+    void create_can_store_creator_separately_from_performance_admin() {
+        AdminUser adminUser = adminUser();
+        AdminUser creator = adminUser("master", AdminRole.MASTER, 99L);
+
+        Performance performance = Performance.create(adminUser, creator, "Main Stage");
+
+        assertThat(performance.getAdminUser()).isEqualTo(adminUser);
+        assertThat(performance.getCreatedBy()).isEqualTo(99L);
+    }
+
+    @Test
+    void create_rejects_non_performer_admin() {
+        AdminUser masterAdmin = adminUser("master", AdminRole.MASTER, 99L);
+
+        assertThatThrownBy(() -> Performance.create(masterAdmin, "Main Stage"))
+                .isInstanceOf(BusinessException.class);
+    }
+
+    @Test
     void create_rejects_blank_name() {
         AdminUser adminUser = adminUser();
 
@@ -100,16 +119,20 @@ class PerformanceTest {
     }
 
     private AdminUser adminUser() {
+        return adminUser("performer", AdminRole.PERFORMER, 1L);
+    }
+
+    private AdminUser adminUser(String loginId, AdminRole role, Long id) {
         AdminUser adminUser = AdminUser.create(
-                "performer",
+                loginId,
                 "password-hash",
                 "Performance Team",
-                AdminRole.PERFORMER,
+                role,
                 "Representative",
                 "010-0000-0000",
                 null
         );
-        ReflectionTestUtils.setField(adminUser, "id", 1L);
+        ReflectionTestUtils.setField(adminUser, "id", id);
         return adminUser;
     }
 }

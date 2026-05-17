@@ -2,6 +2,7 @@ package com.likelion.yonsei.daedongje.domain.performance.entity;
 
 import com.likelion.yonsei.daedongje.common.entity.BaseEntity;
 import com.likelion.yonsei.daedongje.common.exception.BusinessException;
+import com.likelion.yonsei.daedongje.domain.auth.entity.AdminRole;
 import com.likelion.yonsei.daedongje.domain.auth.entity.AdminUser;
 import com.likelion.yonsei.daedongje.domain.map.entity.MapLocation;
 import com.likelion.yonsei.daedongje.domain.performance.exception.PerformanceErrorCode;
@@ -36,7 +37,7 @@ public class Performance extends BaseEntity {
     private Long createdBy;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "admin_id", nullable = false)
+    @JoinColumn(name = "admin_id", nullable = false, unique = true)
     private AdminUser adminUser;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -68,18 +69,24 @@ public class Performance extends BaseEntity {
     @Column(name = "performance_status", nullable = false, length = 20)
     private PerformanceStatus performanceStatus;
 
-    private Performance(AdminUser adminUser, String performanceName) {
-        validateAdminUser(adminUser);
+    private Performance(AdminUser adminUser, Long createdBy, String performanceName) {
+        validatePerformanceAdmin(adminUser);
+        validateCreatedBy(createdBy);
         validatePerformanceName(performanceName);
 
-        this.createdBy = adminUser.getId();
+        this.createdBy = createdBy;
         this.adminUser = adminUser;
         this.performanceName = performanceName;
         this.performanceStatus = PerformanceStatus.HIDDEN;
     }
 
     public static Performance create(AdminUser adminUser, String performanceName) {
-        return new Performance(adminUser, performanceName);
+        return new Performance(adminUser, adminUser != null ? adminUser.getId() : null, performanceName);
+    }
+
+    public static Performance create(AdminUser adminUser, AdminUser createdByAdmin, String performanceName) {
+        validateConnectedAdmin(createdByAdmin);
+        return new Performance(adminUser, createdByAdmin.getId(), performanceName);
     }
 
     public void updateBasicInfo(
@@ -123,9 +130,22 @@ public class Performance extends BaseEntity {
         }
     }
 
-    private static void validateAdminUser(AdminUser adminUser) {
+    private static void validatePerformanceAdmin(AdminUser adminUser) {
+        validateConnectedAdmin(adminUser);
+        if (adminUser.getRole() != AdminRole.PERFORMER) {
+            throw new BusinessException(PerformanceErrorCode.PERFORMANCE_ADMIN_ROLE_REQUIRED);
+        }
+    }
+
+    private static void validateConnectedAdmin(AdminUser adminUser) {
         if (adminUser == null || adminUser.getId() == null) {
             throw new BusinessException(PerformanceErrorCode.PERFORMANCE_ADMIN_REQUIRED);
+        }
+    }
+
+    private static void validateCreatedBy(Long createdBy) {
+        if (createdBy == null) {
+            throw new BusinessException(PerformanceErrorCode.PERFORMANCE_CREATED_BY_REQUIRED);
         }
     }
 

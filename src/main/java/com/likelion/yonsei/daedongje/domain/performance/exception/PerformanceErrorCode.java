@@ -6,7 +6,10 @@ import org.springframework.http.HttpStatus;
 public enum PerformanceErrorCode implements ErrorCode {
 
     PERFORMANCE_NAME_REQUIRED(HttpStatus.BAD_REQUEST, "P-001", "Performance name is required."),
-    PERFORMANCE_ADMIN_REQUIRED(HttpStatus.BAD_REQUEST, "P-002", "Performance admin account is required.");
+    PERFORMANCE_ADMIN_REQUIRED(HttpStatus.BAD_REQUEST, "P-002", "Performance admin account is required."),
+    PERFORMANCE_CREATED_BY_REQUIRED(HttpStatus.BAD_REQUEST, "P-003", "Performance creator account is required."),
+    PERFORMANCE_ALREADY_EXISTS(HttpStatus.CONFLICT, "P-004", "Performance already exists for this admin account."),
+    PERFORMANCE_ADMIN_ROLE_REQUIRED(HttpStatus.BAD_REQUEST, "P-005", "Performance admin account must have PERFORMER role.");
 
     private final HttpStatus status;
     private final String code;
