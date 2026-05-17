@@ -5,6 +5,7 @@ import com.likelion.yonsei.daedongje.common.exception.CommonErrorCode;
 import com.likelion.yonsei.daedongje.common.response.PageResponse;
 import com.likelion.yonsei.daedongje.domain.map.dto.MapLocationCreateRequest;
 import com.likelion.yonsei.daedongje.domain.map.dto.MapLocationResponse;
+import com.likelion.yonsei.daedongje.domain.map.dto.MapLocationUpdateRequest;
 import com.likelion.yonsei.daedongje.domain.map.entity.MapDisplayStatus;
 import com.likelion.yonsei.daedongje.domain.map.entity.MapLocation;
 import com.likelion.yonsei.daedongje.domain.map.entity.MapLocationType;
@@ -39,6 +40,26 @@ public class MapLocationService {
         );
 
         return MapLocationResponse.from(mapLocationRepository.save(mapLocation));
+    }
+
+    @Transactional
+    public MapLocationResponse update(Long id, MapLocationUpdateRequest request) {
+        MapLocation mapLocation = mapLocationRepository.findById(id)
+                .orElseThrow(() -> new BusinessException(MapLocationErrorCode.MAP_LOCATION_NOT_FOUND));
+
+        mapLocation.update(
+                request.locationName(),
+                request.sector(),
+                request.mapX(),
+                request.mapY(),
+                request.width(),
+                request.height(),
+                request.locationType(),
+                request.displayOrder(),
+                request.displayStatus()
+        );
+
+        return MapLocationResponse.from(mapLocation);
     }
 
     public PageResponse<MapLocationResponse> getList(
