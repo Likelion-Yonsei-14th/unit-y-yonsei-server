@@ -5,6 +5,7 @@ import com.likelion.yonsei.daedongje.common.response.ApiResponse;
 import com.likelion.yonsei.daedongje.domain.booth.dto.BoothResponse;
 import com.likelion.yonsei.daedongje.domain.booth.dto.ReservableBoothResponse;
 import com.likelion.yonsei.daedongje.domain.booth.entity.BoothSector;
+import com.likelion.yonsei.daedongje.domain.booth.service.BoothClickLogService;
 import com.likelion.yonsei.daedongje.domain.booth.service.BoothService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -22,6 +23,7 @@ public class BoothController {
 
     private final BoothService boothService;
     private final FestivalDayService festivalDayService;
+    private final BoothClickLogService boothClickLogService;
 
     @Operation(summary = "현재 축제 일차 조회", description = "서버 현재 시간(KST) 기준으로 부스 필터에 적용할 축제 일차를 반환한다.\n\n- 2 = 2026년 5월 27일\n- 3 = 2026년 5월 28일\n- 4 = 2026년 5월 29일\n\n부스 운영 기간 이전이면 2, 이후면 4로 클램핑된다.")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공")
@@ -53,6 +55,15 @@ public class BoothController {
     @GetMapping("/{id}")
     public ApiResponse<BoothResponse> getById(@PathVariable Long id) {
         return ApiResponse.success(boothService.getById(id));
+    }
+
+    @Operation(summary = "부스 클릭 로그 저장", description = "부스 상세 진입 이벤트를 저장한다.")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "저장 성공")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "존재하지 않는 부스 (B-001)")
+    @PostMapping("/{boothId}/clicks")
+    public ApiResponse<Void> createClickLog(@PathVariable Long boothId) {
+        boothClickLogService.create(boothId);
+        return ApiResponse.successEmpty();
     }
 
     @Operation(summary = "부스 목록 조회", description = "날짜·구역·음식 여부를 AND 조건으로 필터링한다. 파라미터를 생략하면 전체 조회.")
