@@ -76,7 +76,7 @@ class PerformanceTest {
                 2,
                 LocalTime.of(18, 0),
                 LocalTime.of(19, 30),
-                "BAND",
+                PerformanceCategory.ARTIST,
                 "Lineup A",
                 PerformanceStatus.SCHEDULED
         );
@@ -86,7 +86,7 @@ class PerformanceTest {
         assertThat(performance.getPerformanceDate()).isEqualTo(2);
         assertThat(performance.getStartTime()).isEqualTo(LocalTime.of(18, 0));
         assertThat(performance.getEndTime()).isEqualTo(LocalTime.of(19, 30));
-        assertThat(performance.getPerformanceCategory()).isEqualTo("BAND");
+        assertThat(performance.getPerformanceCategory()).isEqualTo(PerformanceCategory.ARTIST);
         assertThat(performance.getLineupName()).isEqualTo("Lineup A");
         assertThat(performance.getPerformanceStatus()).isEqualTo(PerformanceStatus.SCHEDULED);
     }
@@ -101,7 +101,7 @@ class PerformanceTest {
                 2,
                 LocalTime.of(18, 0),
                 LocalTime.of(19, 30),
-                "BAND",
+                PerformanceCategory.ARTIST,
                 "Lineup A",
                 PerformanceStatus.SCHEDULED
         );
@@ -113,7 +113,7 @@ class PerformanceTest {
         assertThat(performance.getPerformanceDate()).isEqualTo(2);
         assertThat(performance.getStartTime()).isEqualTo(LocalTime.of(18, 0));
         assertThat(performance.getEndTime()).isEqualTo(LocalTime.of(19, 30));
-        assertThat(performance.getPerformanceCategory()).isEqualTo("BAND");
+        assertThat(performance.getPerformanceCategory()).isEqualTo(PerformanceCategory.ARTIST);
         assertThat(performance.getLineupName()).isEqualTo("Lineup A");
         assertThat(performance.getPerformanceStatus()).isEqualTo(PerformanceStatus.SCHEDULED);
     }

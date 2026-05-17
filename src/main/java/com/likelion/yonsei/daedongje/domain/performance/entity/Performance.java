@@ -59,8 +59,9 @@ public class Performance extends BaseEntity {
     @Column(name = "end_time")
     private LocalTime endTime;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "performance_category", length = 50)
-    private String performanceCategory;
+    private PerformanceCategory performanceCategory;
 
     @Column(name = "lineup_name", length = 100)
     private String lineupName;
@@ -96,7 +97,7 @@ public class Performance extends BaseEntity {
             Integer performanceDate,
             LocalTime startTime,
             LocalTime endTime,
-            String performanceCategory,
+            PerformanceCategory performanceCategory,
             String lineupName,
             PerformanceStatus performanceStatus
     ) {
