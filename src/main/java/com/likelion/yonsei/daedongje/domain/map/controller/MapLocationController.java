@@ -53,6 +53,17 @@ public class MapLocationController {
         return ApiResponse.success(mapLocationService.update(id, request));
     }
 
+    @Operation(summary = "지도 위치 삭제", description = "관리자 페이지에서 사용할 지도 위치를 삭제합니다.")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "삭제 성공")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "존재하지 않는 지도 위치")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "참조 중인 지도 위치")
+    @DeleteMapping("/{id}")
+    @RequireAdminRole({AdminRole.SUPER, AdminRole.MASTER})
+    public ApiResponse<Void> delete(@PathVariable Long id) {
+        mapLocationService.delete(id);
+        return ApiResponse.successEmpty();
+    }
+
     @Operation(summary = "지도 위치 목록 조회", description = "관리자 페이지에서 지도 위치 목록을 필터와 페이지 조건으로 조회합니다.")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "페이지 요청 값 오류")
