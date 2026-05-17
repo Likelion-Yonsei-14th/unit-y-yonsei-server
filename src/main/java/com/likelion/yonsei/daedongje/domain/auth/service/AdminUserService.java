@@ -10,6 +10,7 @@ import com.likelion.yonsei.daedongje.domain.auth.entity.AdminRole;
 import com.likelion.yonsei.daedongje.domain.auth.entity.AdminUser;
 import com.likelion.yonsei.daedongje.domain.auth.exception.AuthErrorCode;
 import com.likelion.yonsei.daedongje.domain.auth.repository.AdminUserRepository;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Sort;
@@ -27,6 +28,7 @@ public class AdminUserService {
 
     private final AdminUserRepository adminUserRepository;
     private final PasswordEncoder passwordEncoder;
+    private final AdminSessionService adminSessionService;
 
     @Transactional
     public AdminUserCreateResponse createAdminUser(AdminUserCreateRequest request) {
@@ -86,7 +88,11 @@ public class AdminUserService {
     public void resetAdminUserPassword(Long id, AdminUserPasswordResetRequest request) {
         AdminUser adminUser = adminUserRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(AuthErrorCode.ADMIN_USER_NOT_FOUND));
+        if (adminUser.getRole() == AdminRole.SUPER) {
+            throw new BusinessException(AuthErrorCode.SUPER_PASSWORD_RESET_FORBIDDEN);
+        }
         adminUser.changePassword(passwordEncoder.encode(request.getPassword()));    // encoder에 의해 해시로 저장
+        adminSessionService.invalidateAdminSessions(adminUser.getId());  // 비밀번호 변경 시 기존 세션 무효화(삭제)하여 강제 로그아웃
     }
 
     // role이 null이거나 빈 문자열인 경우 null을 반환하여 필터링 없이 전체 조회하도록 함
