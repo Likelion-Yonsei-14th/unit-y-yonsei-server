@@ -18,3 +18,11 @@ spring:
     # 프로덕션 흐름 검증은 통합 테스트(Testcontainers)에서 별도로 다룬다.
     # 여기서는 빠른 슬라이스/단위 테스트를 우선시.
     enabled: false
+
+# 테스트용 AWS S3 설정 — 실제 AWS 자격 증명 대신 테스트용 키 사용.
+aws:
+  s3:
+    bucket: test-bucket
+    region: ap-northeast-2
+    image-base-url: https://test-bucket.s3.ap-northeast-2.amazonaws.com
+    presigned-url-expiration-minutes: 5

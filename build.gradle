@@ -53,6 +53,10 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 	implementation 'org.springframework.session:spring-session-data-redis'
 
+	//S3
+	implementation platform("software.amazon.awssdk:bom:2.44.4")
+	implementation "software.amazon.awssdk:s3"
+
 	runtimeOnly 'com.mysql:mysql-connector-j'
 
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
