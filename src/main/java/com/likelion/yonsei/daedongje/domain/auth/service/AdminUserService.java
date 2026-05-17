@@ -11,6 +11,7 @@ import com.likelion.yonsei.daedongje.domain.auth.entity.AdminUser;
 import com.likelion.yonsei.daedongje.domain.auth.exception.AuthErrorCode;
 import com.likelion.yonsei.daedongje.domain.auth.repository.AdminUserRepository;
 
+import com.likelion.yonsei.daedongje.domain.booth.repository.BoothRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Sort;
@@ -29,6 +30,7 @@ public class AdminUserService {
     private final AdminUserRepository adminUserRepository;
     private final PasswordEncoder passwordEncoder;
     private final AdminSessionService adminSessionService;
+    private final BoothRepository boothRepository;
 
     @Transactional
     public AdminUserCreateResponse createAdminUser(AdminUserCreateRequest request) {
@@ -119,4 +121,29 @@ public class AdminUserService {
 //    private boolean isOrganizationInfoCompleted(AdminUser adminUser) {
 //        return false;
 //    }
+
+    @Transactional
+    public void deleteAdminUser(Long id) {
+        AdminUser adminUser = adminUserRepository.findById(id)
+                .orElseThrow(() -> new BusinessException(AuthErrorCode.ADMIN_USER_NOT_FOUND));
+
+        validateDeletableAdminUser(adminUser);
+
+        adminUserRepository.delete(adminUser);
+    }
+
+    private void validateDeletableAdminUser(AdminUser adminUser) {
+        // 1. SUPER 계정 삭제 방지
+        if (adminUser.getRole() == AdminRole.SUPER) {
+            throw new BusinessException(AuthErrorCode.SUPER_ADMIN_DELETE_NOT_ALLOWED);
+        }
+
+        // 2. BOOTH 어드민의 경우, 소유 부스가 있는지 확인
+        if (adminUser.getRole() == AdminRole.BOOTH) {
+            boolean hasOwnedBooths = boothRepository.existsByAdminId(adminUser.getId());
+            if (hasOwnedBooths) {
+                throw new BusinessException(AuthErrorCode.ADMIN_HAS_OWNED_BOOTHS);
+            }
+        }
+    }
 }
