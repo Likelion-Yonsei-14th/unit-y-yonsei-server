@@ -53,11 +53,14 @@ server:
   servlet:
     session:
       cookie:
-        name: DDJ_ADMIN_SESSION
-        http-only: true
+        name: ${SESSION_COOKIE_NAME:DDJ_ADMIN_SESSION}
+        http-only: ${SESSION_COOKIE_HTTP_ONLY:true}
         secure: ${SESSION_COOKIE_SECURE:false}
         same-site: ${SESSION_COOKIE_SAME_SITE:lax}
 
+app:
+  cors:
+    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:5173}
 
 springdoc:
   swagger-ui:

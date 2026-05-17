@@ -3,8 +3,10 @@ springdoc:
     enabled: false
   api-docs:
     enabled: false
+
 server:
   servlet:
     session:
       cookie:
         secure: true
+        same-site: none
