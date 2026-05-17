@@ -103,4 +103,20 @@ public class AdminUserService {
 //    private boolean isOrganizationInfoCompleted(AdminUser adminUser) {
 //        return false;
 //    }
+
+    @Transactional
+    public void deleteAdminUser(Long id) {
+        AdminUser adminUser = adminUserRepository.findById(id)
+                .orElseThrow(() -> new BusinessException(AuthErrorCode.ADMIN_USER_NOT_FOUND));
+
+        validateDeletableAdminUser(adminUser);
+
+        adminUserRepository.delete(adminUser);
+    }
+
+    private void validateDeletableAdminUser(AdminUser adminUser) {
+        if (adminUser.getRole() == AdminRole.SUPER) {
+            throw new BusinessException(AuthErrorCode.SUPER_ADMIN_DELETE_NOT_ALLOWED);
+        }
+    }
 }

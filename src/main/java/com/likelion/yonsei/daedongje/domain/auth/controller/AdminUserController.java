@@ -62,4 +62,17 @@ public class AdminUserController {
     ) {
         return ApiResponse.success(adminUserService.getAdminUserDetail(id));
     }
+
+    @Operation(
+            summary = "어드민 계정 삭제",
+            description = "Super Admin이 MASTER, BOOTH, PERFORMER 어드민 계정을 삭제합니다. SUPER 계정은 삭제할 수 없습니다."
+    )
+    @RequireAdminRole(AdminRole.SUPER)
+    @DeleteMapping("/{id}")
+    public ApiResponse<Void> deleteAdminUser(
+            @PathVariable Long id
+    ) {
+        adminUserService.deleteAdminUser(id);
+        return ApiResponse.successEmpty();
+    }
 }
