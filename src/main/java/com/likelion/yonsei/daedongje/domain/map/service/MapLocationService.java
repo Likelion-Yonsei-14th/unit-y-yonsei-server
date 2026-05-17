@@ -3,6 +3,7 @@ package com.likelion.yonsei.daedongje.domain.map.service;
 import com.likelion.yonsei.daedongje.common.exception.BusinessException;
 import com.likelion.yonsei.daedongje.common.exception.CommonErrorCode;
 import com.likelion.yonsei.daedongje.common.response.PageResponse;
+import com.likelion.yonsei.daedongje.domain.map.dto.MapLocationCreateRequest;
 import com.likelion.yonsei.daedongje.domain.map.dto.MapLocationResponse;
 import com.likelion.yonsei.daedongje.domain.map.entity.MapDisplayStatus;
 import com.likelion.yonsei.daedongje.domain.map.entity.MapLocation;
@@ -22,6 +23,23 @@ public class MapLocationService {
     private static final int MAX_PAGE_SIZE = 100;
 
     private final MapLocationRepository mapLocationRepository;
+
+    @Transactional
+    public MapLocationResponse create(MapLocationCreateRequest request) {
+        MapLocation mapLocation = MapLocation.create(
+                request.locationName(),
+                request.sector(),
+                request.mapX(),
+                request.mapY(),
+                request.width(),
+                request.height(),
+                request.locationType(),
+                request.displayOrder(),
+                request.displayStatus()
+        );
+
+        return MapLocationResponse.from(mapLocationRepository.save(mapLocation));
+    }
 
     public PageResponse<MapLocationResponse> getList(
             String sector,
