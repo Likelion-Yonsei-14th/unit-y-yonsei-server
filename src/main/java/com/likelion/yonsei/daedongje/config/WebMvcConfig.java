@@ -19,7 +19,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
     private final AdminRoleInterceptor adminRoleInterceptor;
     private final CurrentAdminArgumentResolver currentAdminArgumentResolver;
 
-    @Value("${app.cors.allowed-origins}")
+    @Value("${app.cors.allowed-origins:http://localhost:3000,http://localhost:5173}")
     private String[] allowedOrigins;
 
     @Override
