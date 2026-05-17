@@ -14,7 +14,9 @@ public enum AuthErrorCode implements ErrorCode {
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "A-007", "로그인이 필요합니다."),
     INVALID_SESSION(HttpStatus.UNAUTHORIZED, "A-008", "로그인 정보가 유효하지 않습니다."),
     FORBIDDEN(HttpStatus.FORBIDDEN, "A-009", "접근 권한이 없습니다."),
-    ADMIN_USER_NOT_FOUND(HttpStatus.NOT_FOUND, "A-010", "존재하지 않는 관리자 계정입니다.");
+    ADMIN_USER_NOT_FOUND(HttpStatus.NOT_FOUND, "A-010", "존재하지 않는 관리자 계정입니다."),
+    SUPER_PASSWORD_RESET_FORBIDDEN(HttpStatus.FORBIDDEN, "A-011", "SUPER 계정의 비밀번호는 재설정할 수 없습니다."),
+    SESSION_REPOSITORY_NOT_AVAILABLE(HttpStatus.INTERNAL_SERVER_ERROR, "A-012", "세션 저장소를 사용할 수 없습니다.");
 
 
     private final HttpStatus status;
