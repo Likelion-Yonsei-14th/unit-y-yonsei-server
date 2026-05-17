@@ -3,8 +3,10 @@ package com.likelion.yonsei.daedongje.domain.map.dto;
 import com.likelion.yonsei.daedongje.domain.map.entity.MapDisplayStatus;
 import com.likelion.yonsei.daedongje.domain.map.entity.MapLocationType;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
@@ -24,16 +26,22 @@ public record MapLocationCreateRequest(
 
         @Schema(description = "지도 X 좌표", example = "123.4567")
         @NotNull
+        @Digits(integer = 6, fraction = 4)
         BigDecimal mapX,
 
         @Schema(description = "지도 Y 좌표", example = "45.6789")
         @NotNull
+        @Digits(integer = 6, fraction = 4)
         BigDecimal mapY,
 
         @Schema(description = "지도 표시 너비", example = "12.345", nullable = true)
+        @PositiveOrZero
+        @Digits(integer = 3, fraction = 3)
         BigDecimal width,
 
         @Schema(description = "지도 표시 높이", example = "6.789", nullable = true)
+        @PositiveOrZero
+        @Digits(integer = 3, fraction = 3)
         BigDecimal height,
 
         @Schema(description = "위치 타입", example = "STAGE", allowableValues = {"STAGE", "BOOTH", "ENTRANCE", "FACILITY", "OTHER"})
