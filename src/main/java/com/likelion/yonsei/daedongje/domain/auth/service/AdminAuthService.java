@@ -13,6 +13,7 @@ import com.likelion.yonsei.daedongje.domain.auth.support.AdminAuthContextService
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
+import org.springframework.session.FindByIndexNameSessionRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,6 +44,10 @@ public class AdminAuthService {
         HttpSession session = httpRequest.getSession(true);
         session.setAttribute(AdminSessionConst.ADMIN_USER_ID, adminUser.getId());
         session.setAttribute(AdminSessionConst.ADMIN_ROLE, adminUser.getRole().name());
+        session.setAttribute(
+            FindByIndexNameSessionRepository.PRINCIPAL_NAME_INDEX_NAME,
+            String.valueOf(adminUser.getId())
+        );
 
         adminUser.updateLastLoginAt();
 

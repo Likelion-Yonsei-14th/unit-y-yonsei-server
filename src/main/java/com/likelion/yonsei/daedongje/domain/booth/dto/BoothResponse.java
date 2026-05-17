@@ -65,7 +65,10 @@ public class BoothResponse {
     @Schema(description = "부스 프로필 작성 완료 여부. organization·date·openTime·closeTime·sector·location 이 모두 입력된 경우 true.", example = "false")
     private boolean profileComplete;
 
-    public static BoothResponse from(Booth booth) {
+    @Schema(description = "현재 대기 팀 수", example = "3")
+    private long waitingCount;
+
+    public static BoothResponse of(Booth booth, long waitingCount) {
         return BoothResponse.builder()
                 .id(booth.getId())
                 .adminId(booth.getAdminId())
@@ -84,6 +87,11 @@ public class BoothResponse {
                 .account(booth.getAccount())
                 .locationId(booth.getLocationId())
                 .profileComplete(booth.isProfileComplete())
+                .waitingCount(waitingCount)
                 .build();
+    }
+
+    public static BoothResponse from(Booth booth) {
+        return of(booth, 0L);
     }
 }
