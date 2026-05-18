@@ -74,7 +74,7 @@ public class BoothResponse {
     @Schema(description = "썸네일 이미지 URL (display_order=1 이미지)", example = "https://example.com/thumbnail.jpg")
     private String thumbnailUrl;
 
-    @Schema(description = "지도 위치 정보 (locationId가 없으면 null)")
+    @Schema(description = "부스의 지도 위치 상세 정보. 위치가 설정되지 않은 경우 null. 위치 설정은 생성·수정 요청의 locationId로 지정.")
     private MapLocationResponse mapLocation;
 
     public static BoothResponse from(Booth booth) {
