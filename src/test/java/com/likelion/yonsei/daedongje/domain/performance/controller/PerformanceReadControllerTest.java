@@ -89,6 +89,25 @@ class PerformanceReadControllerTest {
     }
 
     @Test
+    void getCurrentPerformance_uses_only_ongoing_performances() throws Exception {
+        performanceRepository.save(performance("Scheduled Stage", null, 1, LocalTime.of(10, 0), LocalTime.of(11, 0),
+                PerformanceCategory.ARTIST, "Lineup A", PerformanceStatus.SCHEDULED));
+        performanceRepository.save(performance("Ended Stage", null, 1, LocalTime.of(11, 0), LocalTime.of(12, 0),
+                PerformanceCategory.CLUB, "Lineup B", PerformanceStatus.ENDED));
+        performanceRepository.save(performance("Canceled Stage", null, 1, LocalTime.of(12, 0), LocalTime.of(13, 0),
+                PerformanceCategory.ARTIST, "Lineup C", PerformanceStatus.CANCELED));
+        Performance ongoing = performanceRepository.save(performance("Ongoing Stage", null, 2,
+                LocalTime.of(18, 0), LocalTime.of(19, 0), PerformanceCategory.CLUB, "Lineup D",
+                PerformanceStatus.ONGOING));
+
+        mockMvc.perform(get("/performances/current"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.id").value(ongoing.getId()))
+                .andExpect(jsonPath("$.data.performanceName").value("Ongoing Stage"))
+                .andExpect(jsonPath("$.data.performanceStatus").value("ONGOING"));
+    }
+
+    @Test
     void getCurrentPerformance_returns_earliest_ongoing_performance() throws Exception {
         performanceRepository.save(performance(
                 "Late Current",
@@ -184,6 +203,26 @@ class PerformanceReadControllerTest {
     }
 
     @Test
+    void getPerformanceDetail_returns_canceled_and_ended_performances() throws Exception {
+        Performance canceled = performanceRepository.save(performance("Canceled Detail", null, 1,
+                LocalTime.of(18, 0), LocalTime.of(19, 0), PerformanceCategory.ARTIST, "Lineup A",
+                PerformanceStatus.CANCELED));
+        Performance ended = performanceRepository.save(performance("Ended Detail", null, 2,
+                LocalTime.of(20, 0), LocalTime.of(21, 0), PerformanceCategory.CLUB, "Lineup B",
+                PerformanceStatus.ENDED));
+
+        mockMvc.perform(get("/performances/{id}", canceled.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.performanceName").value("Canceled Detail"))
+                .andExpect(jsonPath("$.data.performanceStatus").value("CANCELED"));
+
+        mockMvc.perform(get("/performances/{id}", ended.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.performanceName").value("Ended Detail"))
+                .andExpect(jsonPath("$.data.performanceStatus").value("ENDED"));
+    }
+
+    @Test
     void getPerformanceTimetable_returns_sorted_results() throws Exception {
         performanceRepository.save(performance("Day2 Early", null, 2, LocalTime.of(12, 0), LocalTime.of(13, 0),
                 PerformanceCategory.CLUB, "Lineup C", PerformanceStatus.SCHEDULED));
@@ -202,6 +241,23 @@ class PerformanceReadControllerTest {
     }
 
     @Test
+    void getPerformanceTimetable_excludes_hidden_and_includes_canceled_and_ended() throws Exception {
+        performanceRepository.save(performance("Canceled Stage", null, 1, LocalTime.of(18, 0),
+                LocalTime.of(19, 0), PerformanceCategory.ARTIST, "Lineup A", PerformanceStatus.CANCELED));
+        performanceRepository.save(performance("Ended Stage", null, 1, LocalTime.of(19, 0),
+                LocalTime.of(20, 0), PerformanceCategory.CLUB, "Lineup B", PerformanceStatus.ENDED));
+        performanceRepository.save(Performance.create(adminUser(), "Hidden Stage"));
+
+        mockMvc.perform(get("/performances/timetable"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(2))
+                .andExpect(jsonPath("$.data[0].performanceName").value("Canceled Stage"))
+                .andExpect(jsonPath("$.data[0].performanceStatus").value("CANCELED"))
+                .andExpect(jsonPath("$.data[1].performanceName").value("Ended Stage"))
+                .andExpect(jsonPath("$.data[1].performanceStatus").value("ENDED"));
+    }
+
+    @Test
     void getPerformances_returns_sorted_list() throws Exception {
         performanceRepository.save(performance("Day2 Early", null, 2, LocalTime.of(12, 0), LocalTime.of(13, 0),
                 PerformanceCategory.CLUB, "Lineup C", PerformanceStatus.SCHEDULED));
@@ -217,6 +273,23 @@ class PerformanceReadControllerTest {
                 .andExpect(jsonPath("$.data[0].performanceName").value("Day1 Early"))
                 .andExpect(jsonPath("$.data[1].performanceName").value("Day1 Late"))
                 .andExpect(jsonPath("$.data[2].performanceName").value("Day2 Early"));
+    }
+
+    @Test
+    void getPerformances_excludes_hidden_and_includes_canceled_and_ended() throws Exception {
+        performanceRepository.save(performance("Canceled Stage", null, 1, LocalTime.of(18, 0),
+                LocalTime.of(19, 0), PerformanceCategory.ARTIST, "Lineup A", PerformanceStatus.CANCELED));
+        performanceRepository.save(performance("Ended Stage", null, 1, LocalTime.of(19, 0),
+                LocalTime.of(20, 0), PerformanceCategory.CLUB, "Lineup B", PerformanceStatus.ENDED));
+        performanceRepository.save(Performance.create(adminUser(), "Hidden Stage"));
+
+        mockMvc.perform(get("/performances"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(2))
+                .andExpect(jsonPath("$.data[0].performanceName").value("Canceled Stage"))
+                .andExpect(jsonPath("$.data[0].performanceStatus").value("CANCELED"))
+                .andExpect(jsonPath("$.data[1].performanceName").value("Ended Stage"))
+                .andExpect(jsonPath("$.data[1].performanceStatus").value("ENDED"));
     }
 
     @Test
