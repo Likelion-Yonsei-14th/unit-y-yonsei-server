@@ -9,6 +9,7 @@ import com.likelion.yonsei.daedongje.domain.auth.support.AdminSessionUser;
 import com.likelion.yonsei.daedongje.domain.map.entity.MapLocation;
 import com.likelion.yonsei.daedongje.domain.map.exception.MapLocationErrorCode;
 import com.likelion.yonsei.daedongje.domain.map.repository.MapLocationRepository;
+import com.likelion.yonsei.daedongje.domain.performance.dto.PerformanceCreateServiceRequest;
 import com.likelion.yonsei.daedongje.domain.performance.dto.PerformanceMyResponse;
 import com.likelion.yonsei.daedongje.domain.performance.dto.PerformanceUpdateRequest;
 import com.likelion.yonsei.daedongje.domain.performance.entity.Performance;
@@ -30,22 +31,56 @@ public class PerformanceService {
 
     @Transactional
     public Performance createPerformanceForAdmin(AdminUser adminUser, String performanceName) {
-        return createPerformanceForAdmin(adminUser, adminUser, performanceName);
+        return createPerformanceForAdmin(adminUser, adminUser, createRequest(performanceName));
+    }
+
+    @Transactional
+    public Performance createPerformanceForAdmin(AdminUser adminUser, PerformanceCreateServiceRequest request) {
+        return createPerformanceForAdmin(adminUser, adminUser, request);
     }
 
     @Transactional
     public Performance createPerformanceForAdmin(AdminUser adminUser, AdminUser createdByAdmin, String performanceName) {
-        Performance performance = Performance.create(adminUser, createdByAdmin, performanceName);
+        return createPerformanceForAdmin(adminUser, createdByAdmin, createRequest(performanceName));
+    }
+
+    @Transactional
+    public Performance createPerformanceForAdmin(
+            AdminUser adminUser,
+            AdminUser createdByAdmin,
+            PerformanceCreateServiceRequest request
+    ) {
+        if (request == null) {
+            throw new BusinessException(PerformanceErrorCode.PERFORMANCE_NAME_REQUIRED);
+        }
 
         if (performanceRepository.existsByAdminUser(adminUser)) {
             throw new BusinessException(PerformanceErrorCode.PERFORMANCE_ALREADY_EXISTS);
         }
+
+        Performance performance = Performance.create(adminUser, createdByAdmin, request.performanceName());
+        MapLocation location = findLocationOrNull(request.locationId());
+        performance.updateBasicInfo(
+                location,
+                null,
+                null,
+                request.performanceDate(),
+                request.startTime(),
+                request.endTime(),
+                null,
+                null,
+                null
+        );
 
         try {
             return performanceRepository.save(performance);
         } catch (DataIntegrityViolationException e) {
             throw new BusinessException(PerformanceErrorCode.PERFORMANCE_ALREADY_EXISTS);
         }
+    }
+
+    private PerformanceCreateServiceRequest createRequest(String performanceName) {
+        return new PerformanceCreateServiceRequest(performanceName, null, null, null, null);
     }
 
     public PerformanceMyResponse getMyPerformance(AdminSessionUser currentAdmin) {
