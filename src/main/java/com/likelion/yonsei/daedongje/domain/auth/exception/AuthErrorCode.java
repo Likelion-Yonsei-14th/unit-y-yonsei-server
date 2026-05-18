@@ -14,11 +14,14 @@ public enum AuthErrorCode implements ErrorCode {
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "A-007", "로그인이 필요합니다."),
     INVALID_SESSION(HttpStatus.UNAUTHORIZED, "A-008", "로그인 정보가 유효하지 않습니다."),
     FORBIDDEN(HttpStatus.FORBIDDEN, "A-009", "접근 권한이 없습니다."),
+
+
     ADMIN_USER_NOT_FOUND(HttpStatus.NOT_FOUND, "A-010", "존재하지 않는 관리자 계정입니다."),
     SUPER_PASSWORD_RESET_FORBIDDEN(HttpStatus.FORBIDDEN, "A-011", "SUPER 계정의 비밀번호는 재설정할 수 없습니다."),
     SESSION_REPOSITORY_NOT_AVAILABLE(HttpStatus.INTERNAL_SERVER_ERROR, "A-012", "세션 저장소를 사용할 수 없습니다."),
     SUPER_ADMIN_DELETE_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "A-013", "Super Admin 계정은 삭제할 수 없습니다."),
-    ADMIN_HAS_OWNED_BOOTHS(HttpStatus.BAD_REQUEST, "A-014", "소유한 부스가 있어 어드민 계정을 삭제할 수 없습니다. 먼저 부스를 정리해주세요.");;
+    ADMIN_HAS_OWNED_BOOTHS(HttpStatus.BAD_REQUEST, "A-014", "소유한 부스가 있어 어드민 계정을 삭제할 수 없습니다. 먼저 부스를 정리해주세요."),
+    INVALID_BOOTH_OPERATING_DATE(HttpStatus.BAD_REQUEST, "A-015", "부스 운영 날짜는 1~3 사이의 숫자여야 합니다.");
 
 
     private final HttpStatus status;

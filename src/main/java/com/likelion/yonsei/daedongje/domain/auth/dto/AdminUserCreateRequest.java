@@ -3,9 +3,7 @@ package com.likelion.yonsei.daedongje.domain.auth.dto;
 import com.likelion.yonsei.daedongje.domain.auth.entity.AdminRole;
 import com.likelion.yonsei.daedongje.domain.booth.entity.BoothSector;
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -49,8 +47,8 @@ public class AdminUserCreateRequest {
     @Schema(description = "운영 캐퍼스 (BOOTH 역할일 때 선택)", example = "송도", nullable = true)
     private BoothSector boothSector;
 
-    @Schema(description = "운영 날짜 (BOOTH 역할일 때 선택, 쉼표 구분)", example = "1, 2, 3", nullable = true)
-    private String boothOperatingDates; // "1,2,3"
+    @Schema(description = "부스 운영 날짜. 1~3 중 하나")
+    private Integer boothOperatingDate;
 
     @Schema(description = "자리 메모 (BOOTH 역할일 때 선택)", example = "A 구역 2번 위치 후보", nullable = true)
     @Size(max = 500)

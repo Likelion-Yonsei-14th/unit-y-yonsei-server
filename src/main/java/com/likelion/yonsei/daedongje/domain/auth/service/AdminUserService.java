@@ -39,23 +39,10 @@ public class AdminUserService {
     private final PerformanceService performanceService;
 
     @Transactional
-    public AdminUserCreateResponse createAdminUser(AdminUserCreateRequest request) {
+    public AdminUserCreateResponse createAdminUser(AdminUserCreateRequest request, Long currentAdminId) {
         validateDuplicateLoginId(request.getLoginId());
 
-        // BOOTH role의 경우 부스 이름 필수
-        if (request.getRole() == AdminRole.BOOTH) {
-            if (request.getBoothName() == null || request.getBoothName().isBlank()) {
-                throw new BusinessException(AuthErrorCode.BOOTH_INFO_REQUIRED);
-            }
-        }
-
-        // PERFORMER role의 경우 공연 이름 필수
-        if (request.getRole() == AdminRole.PERFORMER) {
-            if (request.getPerformanceName() == null || request.getPerformanceName().isBlank()) {
-                throw new BusinessException(AuthErrorCode.PERFORMER_INFO_REQUIRED);
-            }
-        }
-
+        validateRequiredInfoByRole(request);
 
         String passwordHash = passwordEncoder.encode(request.getPassword());
 
@@ -69,31 +56,23 @@ public class AdminUserService {
                 request.getMemo()
         );
 
-        try {
-            AdminUser savedAdminUser = adminUserRepository.saveAndFlush(adminUser);
+        AdminUser savedAdminUser = saveAdminUser(adminUser);
 
-            // BOOTH 역할이면 부스 생성
-            if (request.getRole() == AdminRole.BOOTH) {
-                createBoothForNewAdmin(savedAdminUser, request);
-            }
-
-            // PERFORMER 역할이면 공연 생성
-            if (request.getRole() == AdminRole.PERFORMER) {
-                createPerformanceForNewAdmin(savedAdminUser, request);
-            }
-
-            return AdminUserCreateResponse.from(savedAdminUser);
-
-        } catch (DataIntegrityViolationException e) {
-            throw new BusinessException(AuthErrorCode.LOGIN_ID_DUPLICATED);
+        if (request.getRole() == AdminRole.BOOTH) {
+            createBoothForNewAdmin(savedAdminUser, request);
         }
 
+        if (request.getRole() == AdminRole.PERFORMER) {
+            AdminUser createdByAdmin = findAdminUser(currentAdminId);
+            createPerformanceForNewAdmin(savedAdminUser,createdByAdmin, request);
+        }
+
+        return AdminUserCreateResponse.from(savedAdminUser);
     }
 
     private void validateDuplicateLoginId(String loginId) {
         if (adminUserRepository.existsByLoginId(loginId)) {
-            throw new BusinessException(AuthErrorCode.LOGIN_ID_DUPLICATED
-            );
+            throw new BusinessException(AuthErrorCode.LOGIN_ID_DUPLICATED);
         }
     }
 
@@ -158,51 +137,36 @@ public class AdminUserService {
 // BOOTH 어드민 생성 시 부스 기본 정보 함께 생성
 
     private void createBoothForNewAdmin(AdminUser boothAdmin, AdminUserCreateRequest request) {
-    Integer boothDate = parseFirstBoothDate(request.getBoothOperatingDates());
+        BoothCreateRequest boothRequest = new BoothCreateRequest(
+                boothAdmin.getId(),                    // adminId
+                request.getBoothName(),                // name
+                request.getOrganization(),             // organization
+                request.getBoothLocationMemo(),        // description
+                request.getBoothOperatingDate(),       // date
+                null,                                  // openTime
+                null,                                  // closeTime
+                request.getBoothSector(),              // sector
+                null,                                  // location
+                BoothStatus.PREPARING,                 // status
+                false,                                 // isFood
+                null,                                  // instagram
+                false,                                 // isReservable
+                null,                                  // account
+                null                                   // locationId
+        );
 
-    BoothCreateRequest boothRequest = new BoothCreateRequest(
-            boothAdmin.getId(),                    // adminId
-            request.getBoothName(),                // name (필수)
-            request.getOrganization(),             // organization
-            request.getBoothLocationMemo(),        // description (자리 메모 저장)
-            boothDate,                             // date
-            null,                                  // openTime
-            null,                                  // closeTime
-            request.getBoothSector(),              // sector
-            null,                                  // location
-            BoothStatus.PREPARING,                 // status
-            false,                                 // isFood
-            null,                                  // instagram
-            false,                                 // isReservable
-            null,                                  // account
-            null                                   // locationId
-    );
-
-    boothService.create(boothRequest);
-}
-
-    // 운영 날짜 파싱
-    private Integer parseFirstBoothDate(String boothOperatingDates) {
-        if (boothOperatingDates == null || boothOperatingDates.isBlank()) {
-            return null;
-        }
-
-        try {
-            String[] dates = boothOperatingDates.split(",");
-            if (dates.length > 0) {
-                return Integer.parseInt(dates[0].trim());
-            }
-        } catch (NumberFormatException e) {
-            return null;
-        }
-
-        return null;
+        boothService.create(boothRequest);
     }
 
     // PERFORMER 어드민 생성 시 공연 기본 정보 함께 생성
-    private void createPerformanceForNewAdmin(AdminUser performerAdmin, AdminUserCreateRequest request) {
+    private void createPerformanceForNewAdmin(
+            AdminUser performerAdmin,
+            AdminUser createdByAdmin,
+            AdminUserCreateRequest request
+    ) {
         performanceService.createPerformanceForAdmin(
                 performerAdmin,
+                createdByAdmin,
                 request.getPerformanceName()
         );
     }
@@ -230,5 +194,44 @@ public class AdminUserService {
                 throw new BusinessException(AuthErrorCode.ADMIN_HAS_OWNED_BOOTHS);
             }
         }
+    }
+
+    private void validateRequiredInfoByRole(AdminUserCreateRequest request) {
+        if (request.getRole() == AdminRole.BOOTH) {
+            if (request.getBoothName() == null || request.getBoothName().isBlank()) {
+                throw new BusinessException(AuthErrorCode.BOOTH_INFO_REQUIRED);
+            }
+
+            validateBoothOperatingDate(request.getBoothOperatingDate());
+        }
+
+        if (request.getRole() == AdminRole.PERFORMER) {
+            if (request.getPerformanceName() == null || request.getPerformanceName().isBlank()) {
+                throw new BusinessException(AuthErrorCode.PERFORMER_INFO_REQUIRED);
+            }
+        }
+    }
+
+    private AdminUser saveAdminUser(AdminUser adminUser) {
+        try {
+            return adminUserRepository.saveAndFlush(adminUser);
+        } catch (DataIntegrityViolationException e) {
+            throw new BusinessException(AuthErrorCode.LOGIN_ID_DUPLICATED);
+        }
+    }
+
+    private void validateBoothOperatingDate(Integer boothOperatingDate) {
+        if (boothOperatingDate == null) {
+            return;
+        }
+
+        if (boothOperatingDate < 1 || boothOperatingDate > 3) {
+            throw new BusinessException(AuthErrorCode.INVALID_BOOTH_OPERATING_DATE);
+        }
+    }
+
+    private AdminUser findAdminUser(Long id) {
+        return adminUserRepository.findById(id)
+                .orElseThrow(() -> new BusinessException(AuthErrorCode.ADMIN_USER_NOT_FOUND));
     }
 }

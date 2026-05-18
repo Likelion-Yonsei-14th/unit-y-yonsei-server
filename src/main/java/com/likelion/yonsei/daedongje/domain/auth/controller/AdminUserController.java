@@ -8,6 +8,8 @@ import com.likelion.yonsei.daedongje.domain.auth.dto.AdminUserListResponse;
 import com.likelion.yonsei.daedongje.domain.auth.dto.AdminUserPasswordResetRequest;
 import com.likelion.yonsei.daedongje.domain.auth.entity.AdminRole;
 import com.likelion.yonsei.daedongje.domain.auth.service.AdminUserService;
+import com.likelion.yonsei.daedongje.domain.auth.support.AdminSessionUser;
+import com.likelion.yonsei.daedongje.domain.auth.support.CurrentAdmin;
 import com.likelion.yonsei.daedongje.domain.auth.support.RequireAdminRole;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -34,9 +36,10 @@ public class AdminUserController {
     @RequireAdminRole(AdminRole.SUPER)
     @PostMapping
     public ResponseEntity<ApiResponse<AdminUserCreateResponse>> createAdminUser(
+            @CurrentAdmin AdminSessionUser currentAdmin,
             @Valid @RequestBody AdminUserCreateRequest request
     ) {
-        AdminUserCreateResponse response = adminUserService.createAdminUser(request);
+        AdminUserCreateResponse response = adminUserService.createAdminUser(request, currentAdmin.getId());
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(response));
     }
 
