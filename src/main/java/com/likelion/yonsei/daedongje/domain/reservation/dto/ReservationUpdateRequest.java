@@ -12,11 +12,13 @@ public record ReservationUpdateRequest(
         @Schema(description = "현재 예약자 명 (소유권 확인용)", example = "홍길동")
         @NotBlank
         @Size(max = 20)
+        @Pattern(regexp = "^\\S.*", message = "공백으로 시작할 수 없습니다.")
         String bookerName,
 
         @Schema(description = "현재 연락처 (소유권 확인용)", example = "010-1234-5678")
         @NotBlank
         @Size(max = 20)
+        @Pattern(regexp = "^\\S.*", message = "공백으로 시작할 수 없습니다.")
         String phoneNumber,
 
         @Schema(description = "예약 조회용 비밀번호 4자리 (PIN 설정 시 필수)", example = "1234")
@@ -25,10 +27,12 @@ public record ReservationUpdateRequest(
 
         @Schema(description = "변경할 예약자 명 (생략 시 유지)", example = "김철수")
         @Size(max = 20)
+        @Pattern(regexp = "^\\S.*", message = "공백으로 시작할 수 없습니다.")
         String newBookerName,
 
         @Schema(description = "변경할 연락처 (생략 시 유지)", example = "010-9876-5432")
         @Size(max = 20)
+        @Pattern(regexp = "^\\S.*", message = "공백으로 시작할 수 없습니다.")
         String newPhoneNumber,
 
         @Schema(description = "변경할 인원 수 (생략 시 유지)", example = "3")
