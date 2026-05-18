@@ -12,7 +12,10 @@ import com.likelion.yonsei.daedongje.domain.map.repository.MapLocationRepository
 import com.likelion.yonsei.daedongje.domain.performance.entity.Performance;
 import com.likelion.yonsei.daedongje.domain.performance.entity.PerformanceCategory;
 import com.likelion.yonsei.daedongje.domain.performance.entity.PerformanceStatus;
+import com.likelion.yonsei.daedongje.domain.performance.repository.PerformanceCheerMessageRepository;
+import com.likelion.yonsei.daedongje.domain.performance.repository.PerformanceImageRepository;
 import com.likelion.yonsei.daedongje.domain.performance.repository.PerformanceRepository;
+import com.likelion.yonsei.daedongje.domain.performance.repository.PerformanceSetlistRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -50,10 +53,22 @@ class PerformanceReadControllerTest {
     @Autowired
     private PerformanceRepository performanceRepository;
 
+    @Autowired
+    private PerformanceCheerMessageRepository performanceCheerMessageRepository;
+
+    @Autowired
+    private PerformanceSetlistRepository performanceSetlistRepository;
+
+    @Autowired
+    private PerformanceImageRepository performanceImageRepository;
+
     private int adminSequence;
 
     @BeforeEach
     void setUp() {
+        performanceCheerMessageRepository.deleteAll();
+        performanceSetlistRepository.deleteAll();
+        performanceImageRepository.deleteAll();
         performanceRepository.deleteAll();
         mapLocationRepository.deleteAll();
         adminUserRepository.deleteAll();
@@ -186,7 +201,7 @@ class PerformanceReadControllerTest {
         );
         performanceRepository.save(performance);
 
-        mockMvc.perform(get("/performances/{id}", performance.getId()))
+        mockMvc.perform(get("/api/performances/{id}", performance.getId()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.hashtag1").value("JPOP"))
                 .andExpect(jsonPath("$.data.hashtag2").value("인디"))
@@ -247,7 +262,7 @@ class PerformanceReadControllerTest {
                 "https://www.instagram.com/yonsei"
         ));
 
-        mockMvc.perform(get("/performances/timetable"))
+        mockMvc.perform(get("/api/performances/timetable"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data[0].hashtag1").value("JPOP"))
                 .andExpect(jsonPath("$.data[0].hashtag2").value("인디"))
@@ -292,7 +307,7 @@ class PerformanceReadControllerTest {
                 "https://www.instagram.com/yonsei"
         ));
 
-        mockMvc.perform(get("/performances"))
+        mockMvc.perform(get("/api/performances"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data[0].hashtag1").value("JPOP"))
                 .andExpect(jsonPath("$.data[0].hashtag2").value("인디"))
@@ -319,7 +334,7 @@ class PerformanceReadControllerTest {
                 "https://www.instagram.com/yonsei"
         ));
 
-        mockMvc.perform(get("/performances/current"))
+        mockMvc.perform(get("/api/performances/current"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.hashtag1").value("JPOP"))
                 .andExpect(jsonPath("$.data.hashtag2").value("인디"))
