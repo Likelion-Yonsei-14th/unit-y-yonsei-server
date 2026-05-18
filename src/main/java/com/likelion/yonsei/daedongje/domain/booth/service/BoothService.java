@@ -11,6 +11,8 @@ import com.likelion.yonsei.daedongje.domain.booth.entity.Booth;
 import com.likelion.yonsei.daedongje.domain.booth.entity.BoothSector;
 import com.likelion.yonsei.daedongje.domain.booth.entity.BoothStatus;
 import com.likelion.yonsei.daedongje.domain.booth.exception.BoothErrorCode;
+import com.likelion.yonsei.daedongje.domain.booth.entity.BoothImage;
+import com.likelion.yonsei.daedongje.domain.booth.repository.BoothImageRepository;
 import com.likelion.yonsei.daedongje.domain.booth.repository.BoothRepository;
 import com.likelion.yonsei.daedongje.domain.reservation.entity.ReservationStatus;
 import com.likelion.yonsei.daedongje.domain.reservation.repository.ReservationRepository;
@@ -28,10 +30,12 @@ import java.util.stream.Collectors;
 public class BoothService {
 
     private final BoothRepository boothRepository;
+    private final BoothImageRepository boothImageRepository;
     private final ReservationRepository reservationRepository;
 
-    public BoothService(BoothRepository boothRepository, ReservationRepository reservationRepository) {
+    public BoothService(BoothRepository boothRepository, BoothImageRepository boothImageRepository, ReservationRepository reservationRepository) {
         this.boothRepository = boothRepository;
+        this.boothImageRepository = boothImageRepository;
         this.reservationRepository = reservationRepository;
     }
 
@@ -73,7 +77,7 @@ public class BoothService {
     public BoothResponse getById(Long id) {
         Booth booth = boothRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(BoothErrorCode.BOOTH_NOT_FOUND));
-        return BoothResponse.from(booth);
+        return BoothResponse.of(booth, 0L, fetchThumbnail(id));
     }
 
     // 부스 전체 조회 (필터: 날짜, 구역, 음식 여부 — 모든 AND 조합 지원)
@@ -108,16 +112,21 @@ public class BoothService {
                         row -> (Long) row[0],
                         row -> (Long) row[1]
                 ));
+        Map<Long, String> thumbnailMap = fetchThumbnailMap(boothIds);
 
         return booths.stream()
-                .map(booth -> BoothResponse.of(booth, waitingCountMap.getOrDefault(booth.getId(), 0L)))
+                .map(booth -> BoothResponse.of(booth, waitingCountMap.getOrDefault(booth.getId(), 0L), thumbnailMap.get(booth.getId())))
                 .toList();
     }
 
-    // 부스명·단체명 키워드 검색
+    // 부스명·단체명·메뉴명 키워드 검색
     public List<BoothResponse> search(String keyword) {
-        return boothRepository.searchByKeyword(keyword).stream()
-                .map(BoothResponse::from)
+        List<Booth> booths = boothRepository.searchByKeyword(keyword);
+        if (booths.isEmpty()) return List.of();
+
+        Map<Long, String> thumbnailMap = fetchThumbnailMap(booths.stream().map(Booth::getId).toList());
+        return booths.stream()
+                .map(booth -> BoothResponse.of(booth, 0L, thumbnailMap.get(booth.getId())))
                 .toList();
     }
 
@@ -134,9 +143,14 @@ public class BoothService {
                         row -> (Long) row[0],
                         row -> (Long) row[1]
                 ));
+        Map<Long, String> thumbnailMap = fetchThumbnailMap(boothIds);
 
         return booths.stream()
-                .map(booth -> ReservableBoothResponse.of(booth, waitingCountMap.getOrDefault(booth.getId(), 0L)))
+                .map(booth -> ReservableBoothResponse.of(
+                        booth,
+                        waitingCountMap.getOrDefault(booth.getId(), 0L),
+                        thumbnailMap.get(booth.getId())
+                ))
                 .toList();
     }
 
@@ -212,16 +226,27 @@ public class BoothService {
         boothRepository.delete(booth);
     }
 
-    /**
-     * 운영 시간 유효성 검사.
-     * - openTime, closeTime 둘 중 하나만 입력된 경우 예외 (둘 다 null이거나 둘 다 non-null이어야 함)
-     * - 둘 다 입력된 경우 closeTime > openTime이어야 함
-     */
+    private String fetchThumbnail(Long boothId) {
+        return boothImageRepository.findByBoothIdAndDisplayOrder(boothId, 1)
+                .map(BoothImage::getImageUrl)
+                .orElse(null);
+    }
+
+    private Map<Long, String> fetchThumbnailMap(List<Long> boothIds) {
+        return boothImageRepository.findThumbnailsByBoothIds(boothIds).stream()
+                .collect(Collectors.toMap(BoothImage::getBoothId, BoothImage::getImageUrl));
+    }
+
     private String toMenuString(List<String> menus) {
         if (menus == null || menus.isEmpty()) return null;
         return String.join(",", menus);
     }
 
+    /**
+     * 운영 시간 유효성 검사.
+     * - openTime, closeTime 둘 중 하나만 입력된 경우 예외 (둘 다 null이거나 둘 다 non-null이어야 함)
+     * - 둘 다 입력된 경우 closeTime > openTime이어야 함
+     */
     private void validateBoothTime(LocalTime openTime, LocalTime closeTime) {
         boolean openProvided = openTime != null;
         boolean closeProvided = closeTime != null;

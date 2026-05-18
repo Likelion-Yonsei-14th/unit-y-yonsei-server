@@ -73,7 +73,14 @@ public class BoothResponse {
     @Schema(description = "현재 대기 팀 수", example = "3")
     private long waitingCount;
 
-    public static BoothResponse of(Booth booth, long waitingCount) {
+    @Schema(description = "썸네일 이미지 URL (display_order=1 이미지)", example = "https://example.com/thumbnail.jpg")
+    private String thumbnailUrl;
+
+    public static BoothResponse from(Booth booth) {
+        return of(booth, 0L, null);
+    }
+
+    public static BoothResponse of(Booth booth, long waitingCount, String thumbnailUrl) {
         return BoothResponse.builder()
                 .id(booth.getId())
                 .adminId(booth.getAdminId())
@@ -94,11 +101,8 @@ public class BoothResponse {
                 .profileComplete(booth.isProfileComplete())
                 .representativeMenus(parseMenus(booth.getRepresentativeMenus()))
                 .waitingCount(waitingCount)
+                .thumbnailUrl(thumbnailUrl)
                 .build();
-    }
-
-    public static BoothResponse from(Booth booth) {
-        return of(booth, 0L);
     }
 
     private static List<String> parseMenus(String raw) {
