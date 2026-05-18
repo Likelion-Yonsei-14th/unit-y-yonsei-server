@@ -1,0 +1,40 @@
+# 로컬 개발용 MySQL 컨테이너.
+# 사용법: `docker compose up -d` (백그라운드 기동), `docker compose down` (종료, 데이터 보존)
+# 데이터 초기화: `docker compose down -v` (볼륨까지 삭제)
+#
+# application.yaml 의 디폴트 datasource 가 이 컨테이너에 바로 연결되도록 맞춰져 있다.
+# 운영(RDS) 환경에선 DB_URL, DB_USERNAME, DB_PASSWORD 환경변수로 오버라이드.
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: daedongje-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: daedongje
+      MYSQL_USER: daedongje
+      MYSQL_PASSWORD: daedongje
+      TZ: Asia/Seoul
+    ports:
+      - "3307:3306"
+    volumes:
+      - daedongje-mysql-data:/var/lib/mysql
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-time-zone=+09:00
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpassword"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7.2-alpine
+    container_name: daedongje-redis
+    ports:
+      - "6379:6379"
+
+volumes:
+  daedongje-mysql-data:

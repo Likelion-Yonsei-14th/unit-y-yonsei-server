@@ -134,3 +134,176 @@ test: 예약 동시성 테스트 추가
 
 커밋에 이슈 키(`BACK-XX`)를 포함하면 Linear에서 해당 이슈에 커밋 히스토리가 자동 표시됩니다.
 
+---
+
+## 로컬 개발 시작하기
+
+### 사전 요구사항
+
+- **JDK 17** (Temurin 권장) — `java -version`으로 확인
+- **Docker Desktop** — [docker.com/products/docker-desktop](https://www.docker.com/products/docker-desktop/) (학생 무료)
+
+### 1. 로컬 MySQL 띄우기
+
+```bash
+# 백그라운드로 컨테이너 기동
+docker compose up -d
+
+# 컨테이너 상태 확인 (Up + healthy 면 OK)
+docker compose ps
+
+# 종료 (데이터는 보존)
+docker compose down
+
+# 데이터까지 완전 초기화
+docker compose down -v
+```
+
+기본 접속 정보 (`docker-compose.yml`에 정의):
+
+| 항목 | 값 |
+| --- | --- |
+| Host | `localhost` |
+| Port | `3306` |
+| Database | `daedongje` |
+| Username | `daedongje` |
+| Password | `daedongje` |
+
+### 2. 애플리케이션 실행
+
+`application.yaml`의 datasource는 위 docker-compose 기본값을 그대로 사용한다 — **별도 환경변수 설정 없이 바로 실행 가능**.
+
+```bash
+./gradlew bootRun
+```
+
+운영(RDS) 등 다른 DB 사용 시 환경변수로 오버라이드:
+
+```bash
+DB_URL=jdbc:mysql://my-rds-endpoint:3306/daedongje \
+DB_USERNAME=produser \
+DB_PASSWORD=secret \
+./gradlew bootRun
+```
+
+### 3. Swagger UI 확인
+
+앱 기동 후 [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html) 접속.
+
+---
+
+## 데이터베이스 마이그레이션 (Flyway)
+
+스키마 변경은 코드와 함께 버전 관리된다. JPA `ddl-auto`는 `validate`로만 동작 — 직접 테이블을 만들거나 변경하지 않는다.
+
+### 마이그레이션 파일 위치
+
+```
+src/main/resources/db/migration/
+├── V1__init.sql                     ← 베이스라인 (실질적으로 비어있음 — `SELECT 1` placeholder만 포함)
+├── V2__create_booth_table.sql       ← 도메인 PR 에서 추가될 예시
+├── V3__create_reservation_table.sql
+└── ...
+```
+
+### 새 마이그레이션 추가 절차
+
+1. 다음 버전 번호 확인 (현재 디렉토리에서 가장 큰 V 번호 + 1)
+2. 파일 생성: `V{번호}__{스네이크_케이스_설명}.sql`
+   - 예: `V2__create_booth_table.sql`
+3. SQL 작성 (DDL/DML 모두 가능)
+4. 앱 기동 — Flyway 가 자동으로 미적용 파일을 순서대로 실행
+5. 적용 확인: `flyway_schema_history` 테이블 조회
+
+### 절대 하지 말 것
+
+- ❌ **이미 머지된 V 파일을 수정** — 적용된 환경에서 다시 실행되지 않아 환경 간 불일치 발생. 변경이 필요하면 새 V 파일 추가 (예: `V5__alter_booth_add_email.sql`).
+- ❌ **버전 번호 건너뛰기** — Flyway 는 순차 적용. V2 다음에 V4 만들면 환경에 따라 동작 다름.
+- ❌ **로컬에서 테이블 직접 만들기** — 다른 팀원과 스키마 불일치 발생.
+
+### 작성 예시
+
+```sql
+-- V2__create_booth_table.sql
+CREATE TABLE booth (
+    id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+    name        VARCHAR(100) NOT NULL,
+    location    VARCHAR(200),
+    created_at  DATETIME(6) NOT NULL,
+    updated_at  DATETIME(6) NOT NULL,
+    INDEX idx_booth_location (location)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+```
+
+---
+
+## 도메인 엔티티 작성 가이드
+
+모든 JPA 엔티티는 `BaseEntity` 를 상속하여 `createdAt` / `updatedAt` 자동 관리를 받는다.
+
+```java
+import com.likelion.yonsei.daedongje.common.entity.BaseEntity;
+import jakarta.persistence.*;
+
+@Entity
+@Table(name = "booth")
+public class Booth extends BaseEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false, length = 100)
+    private String name;
+
+    @Column(length = 200)
+    private String location;
+
+    // 기본 생성자 (JPA 요구) + 비즈니스 생성자/getter 작성
+}
+```
+
+### BaseEntity 가 자동 관리하는 컬럼
+
+| 필드 | 타입 | 동작 |
+| --- | --- | --- |
+| `createdAt` | `LocalDateTime` | 엔티티 최초 저장 시 자동 채워지고 이후 변경 안 됨 |
+| `updatedAt` | `LocalDateTime` | 매 저장(update) 마다 자동 갱신 |
+
+### Flyway 마이그레이션에서의 대응
+
+엔티티 작성 시 마이그레이션 SQL 에 `created_at`, `updated_at` `DATETIME(6) NOT NULL` 컬럼을 반드시 함께 정의한다 (위 "작성 예시" SQL 참고). JPA `ddl-auto=validate` 가 컬럼 부재를 즉시 잡아내어 앱이 기동되지 않는다.
+
+### 의도적으로 미포함된 항목
+
+- **`createdBy` / `updatedBy` (수정자 추적)** — 인증 도메인 머지 후 별도 PR 로 추가 예정 (SecurityContext 의존)
+- **soft delete (`deletedAt`)** — 모든 엔티티가 필요한 게 아니므로 도메인별로 별도 인터페이스/믹스인으로 추가
+
+---
+
+## Spring 프로파일
+
+환경별 설정은 Spring 프로파일로 분리한다.
+
+| 프로파일 | 활성화 방법 | 적용되는 yaml | 용도 |
+| --- | --- | --- | --- |
+| (default) | `./gradlew bootRun` | `application.yaml` 만 | 로컬 개발 — 환경변수 디폴트(docker-compose MySQL) 사용 |
+| `dev` | `./gradlew bootRun --args='--spring.profiles.active=dev'` | + `application-dev.yaml` | 스테이징 (현재 빈 스텁) |
+| `prod` | `SPRING_PROFILES_ACTIVE=prod ./gradlew bootRun` | + `application-prod.yaml` | 프로덕션 — Swagger UI 비활성화 등 |
+
+적용 순서: `application.yaml` (공통) → `application-{프로파일}.yaml` (오버라이드).
+
+DB 연결 같은 환경 의존 값은 yaml 에 직접 박지 않고 `${DB_URL}` 같은 환경변수 참조로 작성하므로, 보통 프로파일별 yaml 은 비어있거나 매우 가볍다. 환경변수만 잘 설정하면 한 jar 가 모든 환경에서 동작한다.
+
+---
+
+## 테스트 실행
+
+```bash
+./gradlew test
+```
+
+- 테스트는 H2 인메모리 DB (`MODE=MySQL`)를 사용 — Docker MySQL 안 띄워도 즉시 실행 가능
+- JPA `ddl-auto=create-drop` 으로 엔티티 정의에서 스키마 자동 생성
+- Flyway 는 테스트에서 비활성화 (운영 마이그레이션 흐름 검증은 추후 Testcontainers 통합 테스트로)
+
