@@ -8,6 +8,8 @@ import lombok.Builder;
 import lombok.Getter;
 
 import java.time.LocalTime;
+import java.util.Arrays;
+import java.util.List;
 
 @Schema(description = "예약 가능 부스 응답")
 @Getter
@@ -50,6 +52,9 @@ public class ReservableBoothResponse {
     @Schema(description = "현재 대기 팀 수", example = "5")
     private long waitingCount;
 
+    @Schema(description = "대표 메뉴 카테고리 목록", example = "[\"치킨\", \"맥주\"]")
+    private List<String> representativeMenus;
+
     public static ReservableBoothResponse of(Booth booth, long waitingCount) {
         return ReservableBoothResponse.builder()
                 .id(booth.getId())
@@ -64,6 +69,12 @@ public class ReservableBoothResponse {
                 .status(booth.getStatus())
                 .isFood(booth.getIsFood())
                 .waitingCount(waitingCount)
+                .representativeMenus(parseMenus(booth.getRepresentativeMenus()))
                 .build();
+    }
+
+    private static List<String> parseMenus(String raw) {
+        if (raw == null || raw.isBlank()) return List.of();
+        return Arrays.stream(raw.split(",")).map(String::trim).filter(s -> !s.isBlank()).toList();
     }
 }

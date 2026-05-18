@@ -8,6 +8,8 @@ import lombok.Builder;
 import lombok.Getter;
 
 import java.time.LocalTime;
+import java.util.Arrays;
+import java.util.List;
 
 @Schema(description = "부스 응답")
 @Getter
@@ -65,6 +67,9 @@ public class BoothResponse {
     @Schema(description = "부스 프로필 작성 완료 여부. organization·date·openTime·closeTime·sector·location 이 모두 입력된 경우 true.", example = "false")
     private boolean profileComplete;
 
+    @Schema(description = "대표 메뉴 카테고리 목록", example = "[\"치킨\", \"맥주\"]")
+    private List<String> representativeMenus;
+
     @Schema(description = "현재 대기 팀 수", example = "3")
     private long waitingCount;
 
@@ -87,11 +92,17 @@ public class BoothResponse {
                 .account(booth.getAccount())
                 .locationId(booth.getLocationId())
                 .profileComplete(booth.isProfileComplete())
+                .representativeMenus(parseMenus(booth.getRepresentativeMenus()))
                 .waitingCount(waitingCount)
                 .build();
     }
 
     public static BoothResponse from(Booth booth) {
         return of(booth, 0L);
+    }
+
+    private static List<String> parseMenus(String raw) {
+        if (raw == null || raw.isBlank()) return List.of();
+        return Arrays.stream(raw.split(",")).map(String::trim).filter(s -> !s.isBlank()).toList();
     }
 }

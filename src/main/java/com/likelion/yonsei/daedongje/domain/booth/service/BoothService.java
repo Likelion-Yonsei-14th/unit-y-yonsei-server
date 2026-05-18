@@ -58,7 +58,8 @@ public class BoothService {
                 request.instagram(),
                 request.isReservable(),
                 request.account(),
-                request.locationId()
+                request.locationId(),
+                toMenuString(request.representativeMenus())
         );
 
         try {
@@ -166,7 +167,8 @@ public class BoothService {
                     request.instagram(),
                     request.isReservable(),
                     request.account(),
-                    request.locationId()
+                    request.locationId(),
+                    toMenuString(request.representativeMenus())
             );
             return BoothResponse.from(booth);
         } catch (DataIntegrityViolationException e) {
@@ -215,6 +217,11 @@ public class BoothService {
      * - openTime, closeTime 둘 중 하나만 입력된 경우 예외 (둘 다 null이거나 둘 다 non-null이어야 함)
      * - 둘 다 입력된 경우 closeTime > openTime이어야 함
      */
+    private String toMenuString(List<String> menus) {
+        if (menus == null || menus.isEmpty()) return null;
+        return String.join(",", menus);
+    }
+
     private void validateBoothTime(LocalTime openTime, LocalTime closeTime) {
         boolean openProvided = openTime != null;
         boolean closeProvided = closeTime != null;

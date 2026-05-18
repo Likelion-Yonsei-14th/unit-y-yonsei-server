@@ -152,7 +152,8 @@ public class AdminUserService {
                 null,                                  // instagram
                 false,                                 // isReservable
                 null,                                  // account
-                null                                   // locationId
+                null,                                  // locationId
+                null                                   // representativeMenus
         );
 
         boothService.create(boothRequest);
