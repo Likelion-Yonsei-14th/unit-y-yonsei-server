@@ -11,7 +11,11 @@ import com.likelion.yonsei.daedongje.domain.auth.entity.AdminUser;
 import com.likelion.yonsei.daedongje.domain.auth.exception.AuthErrorCode;
 import com.likelion.yonsei.daedongje.domain.auth.repository.AdminUserRepository;
 
+import com.likelion.yonsei.daedongje.domain.booth.dto.BoothCreateRequest;
+import com.likelion.yonsei.daedongje.domain.booth.entity.BoothStatus;
 import com.likelion.yonsei.daedongje.domain.booth.repository.BoothRepository;
+import com.likelion.yonsei.daedongje.domain.booth.service.BoothService;
+import com.likelion.yonsei.daedongje.domain.performance.service.PerformanceService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Sort;
@@ -31,10 +35,14 @@ public class AdminUserService {
     private final PasswordEncoder passwordEncoder;
     private final AdminSessionService adminSessionService;
     private final BoothRepository boothRepository;
+    private final BoothService boothService;
+    private final PerformanceService performanceService;
 
     @Transactional
-    public AdminUserCreateResponse createAdminUser(AdminUserCreateRequest request) {
+    public AdminUserCreateResponse createAdminUser(AdminUserCreateRequest request, Long currentAdminId) {
         validateDuplicateLoginId(request.getLoginId());
+
+        validateRequiredInfoByRole(request);
 
         String passwordHash = passwordEncoder.encode(request.getPassword());
 
@@ -48,19 +56,23 @@ public class AdminUserService {
                 request.getMemo()
         );
 
-        try {
-            AdminUser savedAdminUser = adminUserRepository.saveAndFlush(adminUser);
-            return AdminUserCreateResponse.from(savedAdminUser);
-        } catch (DataIntegrityViolationException e) {
-            throw new BusinessException(AuthErrorCode.LOGIN_ID_DUPLICATED);
+        AdminUser savedAdminUser = saveAdminUser(adminUser);
+
+        if (request.getRole() == AdminRole.BOOTH) {
+            createBoothForNewAdmin(savedAdminUser, request);
         }
 
+        if (request.getRole() == AdminRole.PERFORMER) {
+            AdminUser createdByAdmin = findAdminUser(currentAdminId);
+            createPerformanceForNewAdmin(savedAdminUser,createdByAdmin, request);
+        }
+
+        return AdminUserCreateResponse.from(savedAdminUser);
     }
 
     private void validateDuplicateLoginId(String loginId) {
         if (adminUserRepository.existsByLoginId(loginId)) {
-            throw new BusinessException(AuthErrorCode.LOGIN_ID_DUPLICATED
-            );
+            throw new BusinessException(AuthErrorCode.LOGIN_ID_DUPLICATED);
         }
     }
 
@@ -122,6 +134,43 @@ public class AdminUserService {
 //        return false;
 //    }
 
+// BOOTH 어드민 생성 시 부스 기본 정보 함께 생성
+
+    private void createBoothForNewAdmin(AdminUser boothAdmin, AdminUserCreateRequest request) {
+        BoothCreateRequest boothRequest = new BoothCreateRequest(
+                boothAdmin.getId(),                    // adminId
+                request.getBoothName(),                // name
+                request.getOrganization(),             // organization
+                request.getBoothLocationMemo(),        // description
+                request.getBoothOperatingDate(),       // date
+                null,                                  // openTime
+                null,                                  // closeTime
+                request.getBoothSector(),              // sector
+                null,                                  // location
+                BoothStatus.PREPARING,                 // status
+                false,                                 // isFood
+                null,                                  // instagram
+                false,                                 // isReservable
+                null,                                  // account
+                null                                   // locationId
+        );
+
+        boothService.create(boothRequest);
+    }
+
+    // PERFORMER 어드민 생성 시 공연 기본 정보 함께 생성
+    private void createPerformanceForNewAdmin(
+            AdminUser performerAdmin,
+            AdminUser createdByAdmin,
+            AdminUserCreateRequest request
+    ) {
+        performanceService.createPerformanceForAdmin(
+                performerAdmin,
+                createdByAdmin,
+                request.getPerformanceName()
+        );
+    }
+
     @Transactional
     public void deleteAdminUser(Long id) {
         AdminUser adminUser = adminUserRepository.findById(id)
@@ -145,5 +194,44 @@ public class AdminUserService {
                 throw new BusinessException(AuthErrorCode.ADMIN_HAS_OWNED_BOOTHS);
             }
         }
+    }
+
+    private void validateRequiredInfoByRole(AdminUserCreateRequest request) {
+        if (request.getRole() == AdminRole.BOOTH) {
+            if (request.getBoothName() == null || request.getBoothName().isBlank()) {
+                throw new BusinessException(AuthErrorCode.BOOTH_INFO_REQUIRED);
+            }
+
+            validateBoothOperatingDate(request.getBoothOperatingDate());
+        }
+
+        if (request.getRole() == AdminRole.PERFORMER) {
+            if (request.getPerformanceName() == null || request.getPerformanceName().isBlank()) {
+                throw new BusinessException(AuthErrorCode.PERFORMER_INFO_REQUIRED);
+            }
+        }
+    }
+
+    private AdminUser saveAdminUser(AdminUser adminUser) {
+        try {
+            return adminUserRepository.saveAndFlush(adminUser);
+        } catch (DataIntegrityViolationException e) {
+            throw new BusinessException(AuthErrorCode.LOGIN_ID_DUPLICATED);
+        }
+    }
+
+    private void validateBoothOperatingDate(Integer boothOperatingDate) {
+        if (boothOperatingDate == null) {
+            return;
+        }
+
+        if (boothOperatingDate < 1 || boothOperatingDate > 3) {
+            throw new BusinessException(AuthErrorCode.INVALID_BOOTH_OPERATING_DATE);
+        }
+    }
+
+    private AdminUser findAdminUser(Long id) {
+        return adminUserRepository.findById(id)
+                .orElseThrow(() -> new BusinessException(AuthErrorCode.ADMIN_USER_NOT_FOUND));
     }
 }
