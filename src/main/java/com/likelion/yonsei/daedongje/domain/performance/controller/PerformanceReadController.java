@@ -4,7 +4,6 @@ import com.likelion.yonsei.daedongje.common.response.ApiResponse;
 import com.likelion.yonsei.daedongje.domain.performance.dto.PerformanceCurrentResponse;
 import com.likelion.yonsei.daedongje.domain.performance.dto.PerformanceDetailResponse;
 import com.likelion.yonsei.daedongje.domain.performance.dto.PerformanceListResponse;
-import com.likelion.yonsei.daedongje.domain.performance.dto.PerformanceTimetableResponse;
 import com.likelion.yonsei.daedongje.domain.performance.service.PerformanceReadService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -38,7 +37,7 @@ public class PerformanceReadController {
 
     @Operation(summary = "공연 타임테이블 조회", description = "공연 타임테이블을 공연 일차와 시작 시간 순으로 조회합니다.")
     @GetMapping("/timetable")
-    public ApiResponse<List<PerformanceTimetableResponse>> getPerformanceTimetable() {
+    public ApiResponse<List<PerformanceListResponse>> getPerformanceTimetable() {
         return ApiResponse.success(performanceReadService.getPerformanceTimetable());
     }
 

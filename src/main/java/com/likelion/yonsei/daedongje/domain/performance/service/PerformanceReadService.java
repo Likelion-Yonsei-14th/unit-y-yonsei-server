@@ -4,7 +4,6 @@ import com.likelion.yonsei.daedongje.common.exception.BusinessException;
 import com.likelion.yonsei.daedongje.domain.performance.dto.PerformanceCurrentResponse;
 import com.likelion.yonsei.daedongje.domain.performance.dto.PerformanceDetailResponse;
 import com.likelion.yonsei.daedongje.domain.performance.dto.PerformanceListResponse;
-import com.likelion.yonsei.daedongje.domain.performance.dto.PerformanceTimetableResponse;
 import com.likelion.yonsei.daedongje.domain.performance.entity.Performance;
 import com.likelion.yonsei.daedongje.domain.performance.entity.PerformanceStatus;
 import com.likelion.yonsei.daedongje.domain.performance.exception.PerformanceErrorCode;
@@ -36,27 +35,28 @@ public class PerformanceReadService {
     }
 
     public PerformanceDetailResponse getPerformanceDetail(Long id) {
-        Performance performance = performanceRepository.findByIdAndPerformanceStatusNot(id, PerformanceStatus.HIDDEN)
+        Performance performance = performanceRepository.findByIdAndStatusNotWithLocation(id, PerformanceStatus.HIDDEN)
                 .orElseThrow(() -> new BusinessException(PerformanceErrorCode.PERFORMANCE_NOT_FOUND));
         return PerformanceDetailResponse.from(performance);
     }
 
     public PerformanceCurrentResponse getCurrentPerformance() {
-        Performance performance = performanceRepository.findAllByPerformanceStatus(PerformanceStatus.ONGOING).stream()
+        Performance performance = performanceRepository.findAllByStatusWithLocation(PerformanceStatus.ONGOING).stream()
                 .sorted(PERFORMANCE_ORDER)
                 .findFirst()
                 .orElseThrow(() -> new BusinessException(PerformanceErrorCode.PERFORMANCE_NOT_FOUND));
         return PerformanceCurrentResponse.from(performance);
     }
 
-    public List<PerformanceTimetableResponse> getPerformanceTimetable() {
+    public List<PerformanceListResponse> getPerformanceTimetable() {
         return findPublicPerformances().stream()
-                .map(PerformanceTimetableResponse::from)
+                .map(PerformanceListResponse::from)
                 .toList();
     }
 
     private List<Performance> findPublicPerformances() {
-        return performanceRepository.findAllByPerformanceStatusNot(PerformanceStatus.HIDDEN).stream()
+        // Public read APIs expose every status except HIDDEN so clients can render CANCELED/ENDED states.
+        return performanceRepository.findAllPublicWithLocation(PerformanceStatus.HIDDEN).stream()
                 .sorted(PERFORMANCE_ORDER)
                 .toList();
     }
