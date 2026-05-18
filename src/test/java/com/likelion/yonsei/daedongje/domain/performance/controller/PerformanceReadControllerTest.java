@@ -75,7 +75,7 @@ class PerformanceReadControllerTest {
         );
         performanceRepository.save(performance);
 
-        mockMvc.perform(get("/performances/current"))
+        mockMvc.perform(get("/api/performances/current"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.id").value(performance.getId()))
@@ -111,7 +111,7 @@ class PerformanceReadControllerTest {
                 PerformanceStatus.ONGOING
         ));
 
-        mockMvc.perform(get("/performances/current"))
+        mockMvc.perform(get("/api/performances/current"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.performanceName").value("Early Current"));
     }
@@ -129,7 +129,7 @@ class PerformanceReadControllerTest {
                 PerformanceStatus.SCHEDULED
         ));
 
-        mockMvc.perform(get("/performances/current"))
+        mockMvc.perform(get("/api/performances/current"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.error.code").value("P-006"));
@@ -150,7 +150,7 @@ class PerformanceReadControllerTest {
         );
         performanceRepository.save(performance);
 
-        mockMvc.perform(get("/performances/{id}", performance.getId()))
+        mockMvc.perform(get("/api/performances/{id}", performance.getId()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.id").value(performance.getId()))
                 .andExpect(jsonPath("$.data.performanceName").value("Detail Stage"))
@@ -169,7 +169,7 @@ class PerformanceReadControllerTest {
 
     @Test
     void getPerformanceDetail_fails_for_non_existing_id() throws Exception {
-        mockMvc.perform(get("/performances/{id}", 999999L))
+        mockMvc.perform(get("/api/performances/{id}", 999999L))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error.code").value("P-006"));
     }
@@ -178,7 +178,7 @@ class PerformanceReadControllerTest {
     void getPerformanceDetail_fails_for_hidden_performance() throws Exception {
         Performance hidden = performanceRepository.save(Performance.create(adminUser(), "Hidden Stage"));
 
-        mockMvc.perform(get("/performances/{id}", hidden.getId()))
+        mockMvc.perform(get("/api/performances/{id}", hidden.getId()))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error.code").value("P-006"));
     }
@@ -193,7 +193,7 @@ class PerformanceReadControllerTest {
                 PerformanceCategory.ARTIST, "Lineup A", PerformanceStatus.SCHEDULED));
         performanceRepository.save(Performance.create(adminUser(), "Hidden Stage"));
 
-        mockMvc.perform(get("/performances/timetable"))
+        mockMvc.perform(get("/api/performances/timetable"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.length()").value(3))
                 .andExpect(jsonPath("$.data[0].performanceName").value("Day1 Early"))
@@ -211,7 +211,7 @@ class PerformanceReadControllerTest {
                 PerformanceCategory.ARTIST, "Lineup A", PerformanceStatus.SCHEDULED));
         performanceRepository.save(Performance.create(adminUser(), "Hidden Stage"));
 
-        mockMvc.perform(get("/performances"))
+        mockMvc.perform(get("/api/performances"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.length()").value(3))
                 .andExpect(jsonPath("$.data[0].performanceName").value("Day1 Early"))
@@ -221,7 +221,7 @@ class PerformanceReadControllerTest {
 
     @Test
     void readApis_work_without_admin_authentication() throws Exception {
-        mockMvc.perform(get("/performances"))
+        mockMvc.perform(get("/api/performances"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true));
     }
@@ -236,13 +236,13 @@ class PerformanceReadControllerTest {
         JsonNode paths = apiDocs.path("paths");
 
         assertThat(apiDocs.path("tags").toString()).contains("공연");
-        assertThat(paths.has("/performances")).isTrue();
-        assertThat(paths.has("/performances/{id}")).isTrue();
-        assertThat(paths.has("/performances/current")).isTrue();
-        assertThat(paths.has("/performances/timetable")).isTrue();
-        assertThat(paths.path("/performances").has("post")).isFalse();
+        assertThat(paths.has("/api/performances")).isTrue();
+        assertThat(paths.has("/api/performances/{id}")).isTrue();
+        assertThat(paths.has("/api/performances/current")).isTrue();
+        assertThat(paths.has("/api/performances/timetable")).isTrue();
+        assertThat(paths.path("/api/performances").has("post")).isFalse();
         assertThat(paths.path("/api/admin/performances").has("post")).isFalse();
-        assertThat(paths.path("/performances/{id}").has("post")).isFalse();
+        assertThat(paths.path("/api/performances/{id}").has("post")).isFalse();
     }
 
     private Performance performance(
