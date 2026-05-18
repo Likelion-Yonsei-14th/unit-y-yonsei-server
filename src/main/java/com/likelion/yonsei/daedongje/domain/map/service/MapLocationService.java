@@ -69,11 +69,11 @@ public class MapLocationService {
         MapLocation mapLocation = mapLocationRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(MapLocationErrorCode.MAP_LOCATION_NOT_FOUND));
 
-        // TODO: performance 도메인 삭제 정책이 확정되면 performance.location_id 참조 여부도 함께 확인한다.
         try {
             mapLocationRepository.delete(mapLocation);
             mapLocationRepository.flush();
         } catch (DataIntegrityViolationException e) {
+            // booths, barrier_free_infos, lost_items, performances 등에서 참조 중이면 FK 제약으로 삭제가 거부된다.
             throw new BusinessException(MapLocationErrorCode.MAP_LOCATION_IN_USE);
         }
         return MapLocationDeleteResponse.of(id);
