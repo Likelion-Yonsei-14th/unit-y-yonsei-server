@@ -8,9 +8,7 @@ CREATE TABLE performance_cheer_messages
     created_at     DATETIME(6)  NOT NULL,
     updated_at     DATETIME(6)  NOT NULL,
     PRIMARY KEY (id),
-    INDEX idx_performance_cheer_messages_performance_id (performance_id),
     INDEX idx_performance_cheer_messages_setlist_id (setlist_id),
-    INDEX idx_performance_cheer_messages_created_at (created_at),
     INDEX idx_performance_cheer_messages_performance_created (performance_id, created_at, id),
     CONSTRAINT fk_performance_cheer_messages_performance
         FOREIGN KEY (performance_id) REFERENCES performances (id)
