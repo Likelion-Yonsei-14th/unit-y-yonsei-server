@@ -19,7 +19,6 @@ import com.likelion.yonsei.daedongje.domain.booth.repository.BoothRepository;
 import com.likelion.yonsei.daedongje.domain.performance.entity.Performance;
 import com.likelion.yonsei.daedongje.domain.performance.repository.PerformanceRepository;
 import com.likelion.yonsei.daedongje.domain.booth.service.BoothService;
-import com.likelion.yonsei.daedongje.domain.performance.repository.PerformanceRepository;
 import com.likelion.yonsei.daedongje.domain.performance.service.PerformanceService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -50,7 +49,6 @@ public class AdminUserService {
     private final BoothRepository boothRepository;
     private final PerformanceRepository performanceRepository;
     private final BoothService boothService;
-    private final PerformanceRepository performanceRepository;
     private final PerformanceService performanceService;
 
     @Transactional
