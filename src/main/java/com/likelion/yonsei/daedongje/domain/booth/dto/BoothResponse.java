@@ -76,6 +76,9 @@ public class BoothResponse {
     @Schema(description = "썸네일 이미지 URL (display_order=1 이미지)", example = "https://example.com/thumbnail.jpg")
     private String thumbnailUrl;
 
+    @Schema(description = "부스 공지사항 (없으면 null)", example = "오늘은 18시에 조기 마감합니다.")
+    private String notice;
+
     public static BoothResponse from(Booth booth) {
         return of(booth, 0L, null);
     }
@@ -102,6 +105,7 @@ public class BoothResponse {
                 .representativeMenus(parseMenus(booth.getRepresentativeMenus()))
                 .waitingCount(waitingCount)
                 .thumbnailUrl(thumbnailUrl)
+                .notice(booth.getNotice())
                 .build();
     }
 

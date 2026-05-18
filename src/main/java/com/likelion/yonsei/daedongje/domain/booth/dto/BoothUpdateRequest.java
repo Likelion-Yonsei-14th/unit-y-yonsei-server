@@ -61,5 +61,8 @@ public record BoothUpdateRequest(
         Long locationId,
 
         @Schema(description = "대표 메뉴 카테고리 목록 (예: [\"치킨\", \"맥주\"])", example = "[\"치킨\", \"맥주\"]")
-        List<String> representativeMenus
+        List<String> representativeMenus,
+
+        @Schema(description = "부스 공지사항. 생략 시 null로 저장", example = "오늘은 18시에 조기 마감합니다.", nullable = true)
+        String notice
 ) {}
