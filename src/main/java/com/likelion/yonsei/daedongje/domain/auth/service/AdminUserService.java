@@ -12,8 +12,11 @@ import com.likelion.yonsei.daedongje.domain.auth.exception.AuthErrorCode;
 import com.likelion.yonsei.daedongje.domain.auth.repository.AdminUserRepository;
 
 import com.likelion.yonsei.daedongje.domain.booth.dto.BoothCreateRequest;
+import com.likelion.yonsei.daedongje.domain.booth.entity.Booth;
 import com.likelion.yonsei.daedongje.domain.booth.entity.BoothStatus;
 import com.likelion.yonsei.daedongje.domain.booth.repository.BoothRepository;
+import com.likelion.yonsei.daedongje.domain.performance.entity.Performance;
+import com.likelion.yonsei.daedongje.domain.performance.repository.PerformanceRepository;
 import com.likelion.yonsei.daedongje.domain.booth.service.BoothService;
 import com.likelion.yonsei.daedongje.domain.performance.service.PerformanceService;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +28,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -35,6 +40,7 @@ public class AdminUserService {
     private final PasswordEncoder passwordEncoder;
     private final AdminSessionService adminSessionService;
     private final BoothRepository boothRepository;
+    private final PerformanceRepository performanceRepository;
     private final BoothService boothService;
     private final PerformanceService performanceService;
 
@@ -84,8 +90,41 @@ public class AdminUserService {
             ? adminUserRepository.findAll(sort)
             : adminUserRepository.findAllByRole(filterRole, sort);
 
+        if (adminUsers.isEmpty()) {
+            return List.of();
+        }
+
+        List<Long> boothAdminIds = adminUsers.stream()
+                .filter(adminUser -> adminUser.getRole() == AdminRole.BOOTH)
+                .map(AdminUser::getId)
+                .toList();
+        List<Long> performerAdminIds = adminUsers.stream()
+                .filter(adminUser -> adminUser.getRole() == AdminRole.PERFORMER)
+                .map(AdminUser::getId)
+                .toList();
+
+        Map<Long, List<Booth>> boothsByAdminId = (boothAdminIds.isEmpty() ? List.<Booth>of() : boothRepository.findAllByAdminIdIn(boothAdminIds)).stream()
+                .collect(Collectors.groupingBy(Booth::getAdminId));
+        Map<Long, Performance> performanceByAdminId = (performerAdminIds.isEmpty() ? List.<Performance>of() : performanceRepository.findAllByAdminUser_IdIn(performerAdminIds)).stream()
+                .collect(Collectors.toMap(
+                        performance -> performance.getAdminUser().getId(),
+                        performance -> performance,
+                        (existing, duplicate) -> existing
+                ));
+
         return adminUsers.stream()
-            .map(AdminUserListResponse::from)
+
+        // Role에 맞는 연관 정보(부스, 공연) 조회하여 응답 DTO에 포함시키기
+            .map(adminUser -> {
+                List<Booth> linkedBooths = adminUser.getRole() == AdminRole.BOOTH
+                        ? boothsByAdminId.getOrDefault(adminUser.getId(), List.of())
+                        : null;
+                Performance linkedPerformance = adminUser.getRole() == AdminRole.PERFORMER
+                        ? performanceByAdminId.get(adminUser.getId())
+                        : null;
+                boolean infoCompleted = resolveInfoCompleted(adminUser, linkedBooths);
+                return AdminUserListResponse.from(adminUser, infoCompleted, linkedBooths, linkedPerformance);
+            })
                 .toList();
     }
 
@@ -93,7 +132,15 @@ public class AdminUserService {
         AdminUser adminUser = adminUserRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(AuthErrorCode.ADMIN_USER_NOT_FOUND));
 
-        return AdminUserDetailResponse.fromDefault(adminUser);
+        List<Booth> linkedBooths = adminUser.getRole() == AdminRole.BOOTH
+                ? boothRepository.findAllByAdminIdIn(List.of(adminUser.getId()))
+                : null;
+        Performance linkedPerformance = adminUser.getRole() == AdminRole.PERFORMER
+                ? resolveLinkedPerformance(performanceRepository.findAllByAdminUser_IdIn(List.of(adminUser.getId())))
+                : null;
+
+        boolean infoCompleted = resolveInfoCompleted(adminUser, linkedBooths);
+        return AdminUserDetailResponse.from(adminUser, infoCompleted, linkedBooths, linkedPerformance);
     }
 
 
@@ -121,18 +168,26 @@ public class AdminUserService {
         }
     }
 
-//    InfoComplete 추후 개발
-//    private boolean resolveInfoCompleted(AdminUser adminUser) {
-//        AdminRole role = adminUser.getRole();
-//        if (role == AdminRole.MASTER || role == AdminRole.SUPER) {
-//            return true;
-//        }
-//        return isOrganizationInfoCompleted(adminUser);
-//    }
-//
-//    private boolean isOrganizationInfoCompleted(AdminUser adminUser) {
-//        return false;
-//    }
+    private boolean resolveInfoCompleted(AdminUser adminUser, List<Booth> linkedBooths) {
+        AdminRole role = adminUser.getRole();
+        if (role == AdminRole.MASTER || role == AdminRole.SUPER) {
+            return true;
+        }
+        if (role == AdminRole.BOOTH) {
+            if (linkedBooths == null || linkedBooths.isEmpty()) {
+                return false;
+            }
+            return linkedBooths.stream().anyMatch(Booth::isProfileComplete);
+        }
+        return false;
+    }
+
+    private Performance resolveLinkedPerformance(List<Performance> performances) {
+        if (performances == null || performances.isEmpty()) {
+            return null;
+        }
+        return performances.get(0);
+    }
 
 // BOOTH 어드민 생성 시 부스 기본 정보 함께 생성
 
