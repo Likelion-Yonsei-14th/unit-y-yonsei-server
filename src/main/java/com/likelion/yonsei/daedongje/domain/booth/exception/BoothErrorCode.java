@@ -7,7 +7,8 @@ public enum BoothErrorCode implements ErrorCode {
 
     BOOTH_NOT_FOUND(HttpStatus.NOT_FOUND, "B-001", "존재하지 않는 부스입니다."),
     INVALID_BOOTH_TIME(HttpStatus.BAD_REQUEST, "B-003", "운영 종료 시간은 시작 시간보다 늦어야 합니다."),
-    DUPLICATE_BOOTH_NAME(HttpStatus.CONFLICT, "B-004", "이미 존재하는 부스 이름입니다.");
+    DUPLICATE_BOOTH_NAME(HttpStatus.CONFLICT, "B-004", "이미 존재하는 부스 이름입니다."),
+    BOOTH_CLICK_RATE_LIMITED(HttpStatus.TOO_MANY_REQUESTS, "B-005", "부스 클릭 요청이 너무 많습니다. 잠시 후 다시 시도해주세요.");
 
     private final HttpStatus status;
     private final String code;

@@ -5,30 +5,72 @@ import com.likelion.yonsei.daedongje.domain.booth.entity.BoothClickLog;
 import com.likelion.yonsei.daedongje.domain.booth.exception.BoothErrorCode;
 import com.likelion.yonsei.daedongje.domain.booth.repository.BoothClickLogRepository;
 import com.likelion.yonsei.daedongje.domain.booth.repository.BoothRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 
 @Service
 @Transactional(readOnly = true)
 public class BoothClickLogService {
 
+    private static final Logger log = LoggerFactory.getLogger(BoothClickLogService.class);
+
+    /** 동일 IP·부스 조합당 1분 동안 허용하는 최대 클릭 로그 요청 수. */
+    private static final int MAX_CLICKS_PER_WINDOW = 10;
+    private static final Duration RATE_LIMIT_WINDOW = Duration.ofMinutes(1);
+    private static final String RATE_LIMIT_KEY_PREFIX = "ratelimit:booth-click:";
+
     private final BoothRepository boothRepository;
     private final BoothClickLogRepository boothClickLogRepository;
+    private final StringRedisTemplate redisTemplate;
 
     public BoothClickLogService(BoothRepository boothRepository,
-                                BoothClickLogRepository boothClickLogRepository) {
+                                BoothClickLogRepository boothClickLogRepository,
+                                StringRedisTemplate redisTemplate) {
         this.boothRepository = boothRepository;
         this.boothClickLogRepository = boothClickLogRepository;
+        this.redisTemplate = redisTemplate;
     }
 
     @Transactional
-    public void create(Long boothId) {
+    public void create(Long boothId, String clientIp) {
+        // 무분별한 클릭 로그 적재로부터 DB 를 보호하기 위해, 존재 여부 조회·저장보다 먼저 레이트 리밋을 확인한다.
+        checkRateLimit(boothId, clientIp);
+
         if (!boothRepository.existsById(boothId)) {
             throw new BusinessException(BoothErrorCode.BOOTH_NOT_FOUND);
         }
 
         boothClickLogRepository.save(BoothClickLog.create(boothId, LocalDateTime.now()));
+    }
+
+    /**
+     * IP·부스 조합 기준으로 1분 동안의 클릭 로그 요청 수를 제한한다.
+     *
+     * <p>Redis 의 원자적 {@code INCR} 로 카운트를 올리고, 윈도우의 첫 요청에만 TTL 을 설정한다.
+     * Redis 장애 시에는 클릭 로그 저장 자체를 막지 않도록 fail-open 으로 동작한다.
+     */
+    private void checkRateLimit(Long boothId, String clientIp) {
+        String key = RATE_LIMIT_KEY_PREFIX + clientIp + ":" + boothId;
+
+        Long count;
+        try {
+            count = redisTemplate.opsForValue().increment(key);
+            if (count != null && count == 1L) {
+                redisTemplate.expire(key, RATE_LIMIT_WINDOW);
+            }
+        } catch (RuntimeException e) {
+            log.warn("부스 클릭 레이트 리밋 확인 실패, 요청을 허용한다. boothId={}, ip={}", boothId, clientIp, e);
+            return;
+        }
+
+        if (count != null && count > MAX_CLICKS_PER_WINDOW) {
+            throw new BusinessException(BoothErrorCode.BOOTH_CLICK_RATE_LIMITED);
+        }
     }
 }

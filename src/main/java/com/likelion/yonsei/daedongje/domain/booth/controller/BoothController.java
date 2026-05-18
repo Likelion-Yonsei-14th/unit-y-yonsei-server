@@ -2,6 +2,7 @@ package com.likelion.yonsei.daedongje.domain.booth.controller;
 
 import com.likelion.yonsei.daedongje.common.festival.FestivalDayService;
 import com.likelion.yonsei.daedongje.common.response.ApiResponse;
+import com.likelion.yonsei.daedongje.common.web.ClientIpResolver;
 import com.likelion.yonsei.daedongje.domain.booth.dto.BoothResponse;
 import com.likelion.yonsei.daedongje.domain.booth.dto.ReservableBoothResponse;
 import com.likelion.yonsei.daedongje.domain.booth.entity.BoothSector;
@@ -10,6 +11,7 @@ import com.likelion.yonsei.daedongje.domain.booth.service.BoothService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -57,12 +59,13 @@ public class BoothController {
         return ApiResponse.success(boothService.getById(id));
     }
 
-    @Operation(summary = "부스 클릭 로그 저장", description = "부스 상세 진입 이벤트를 저장한다.")
+    @Operation(summary = "부스 클릭 로그 저장", description = "부스 상세 진입 이벤트를 저장한다. 동일 IP·부스 조합 기준 분당 10회로 요청을 제한한다.")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "저장 성공")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "존재하지 않는 부스 (B-001)")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "429", description = "클릭 로그 요청 한도 초과 (B-005)")
     @PostMapping("/{boothId}/clicks")
-    public ApiResponse<Void> createClickLog(@PathVariable Long boothId) {
-        boothClickLogService.create(boothId);
+    public ApiResponse<Void> createClickLog(@PathVariable Long boothId, HttpServletRequest request) {
+        boothClickLogService.create(boothId, ClientIpResolver.resolve(request));
         return ApiResponse.successEmpty();
     }
 
