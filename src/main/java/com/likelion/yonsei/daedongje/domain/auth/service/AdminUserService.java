@@ -26,12 +26,14 @@ import org.springframework.data.domain.Sort;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -77,7 +79,7 @@ public class AdminUserService {
 
         if (request.getRole() == AdminRole.PERFORMER) {
             AdminUser createdByAdmin = findAdminUser(currentAdminId);
-            createPerformanceForNewAdmin(savedAdminUser,createdByAdmin, request);
+            createPerformanceForNewAdmin(savedAdminUser, createdByAdmin, request);
         }
 
         return AdminUserCreateResponse.from(savedAdminUser);
@@ -383,7 +385,11 @@ public class AdminUserService {
         performanceService.createPerformanceForAdmin(
                 performerAdmin,
                 createdByAdmin,
-                request.getPerformanceName()
+                request.getPerformanceName(),
+                request.getPerformanceDate(),
+                request.getPerformanceLocationId(),
+                request.getPerformanceStartTime(),
+                request.getPerformanceEndTime()
         );
     }
 
@@ -414,7 +420,7 @@ public class AdminUserService {
 
     private void validateRequiredInfoByRole(AdminUserCreateRequest request) {
         if (request.getRole() == AdminRole.BOOTH) {
-            if (request.getBoothName() == null || request.getBoothName().isBlank()) {
+            if (!StringUtils.hasText(request.getBoothName())) {
                 throw new BusinessException(AuthErrorCode.BOOTH_INFO_REQUIRED);
             }
 
@@ -422,9 +428,7 @@ public class AdminUserService {
         }
 
         if (request.getRole() == AdminRole.PERFORMER) {
-            if (request.getPerformanceName() == null || request.getPerformanceName().isBlank()) {
-                throw new BusinessException(AuthErrorCode.PERFORMER_INFO_REQUIRED);
-            }
+            validatePerformerRequest(request);
         }
     }
 
@@ -449,5 +453,27 @@ public class AdminUserService {
     private AdminUser findAdminUser(Long id) {
         return adminUserRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(AuthErrorCode.ADMIN_USER_NOT_FOUND));
+    }
+
+    private void validatePerformerRequest(AdminUserCreateRequest request) {
+        if (!StringUtils.hasText(request.getPerformanceName())) {
+            throw new BusinessException(AuthErrorCode.PERFORMER_INFO_REQUIRED);
+        }
+
+        if (request.getPerformanceName().length() > 100) {
+            throw new BusinessException(AuthErrorCode.INVALID_PERFORMANCE_NAME_LENGTH);
+        }
+
+        Integer performanceDate = request.getPerformanceDate();
+        if (performanceDate != null && (performanceDate < 1 || performanceDate > 3)) {
+            throw new BusinessException(AuthErrorCode.INVALID_PERFORMANCE_DATE);
+        }
+
+        LocalTime startTime = request.getPerformanceStartTime();
+        LocalTime endTime = request.getPerformanceEndTime();
+
+        if (startTime != null && endTime != null && !startTime.isBefore(endTime)) {
+            throw new BusinessException(AuthErrorCode.INVALID_PERFORMANCE_TIME);
+        }
     }
 }

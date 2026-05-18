@@ -19,6 +19,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+
+import java.time.LocalTime;
 
 @Service
 @RequiredArgsConstructor
@@ -50,7 +53,7 @@ public class PerformanceService {
             AdminUser createdByAdmin,
             PerformanceCreateServiceRequest request
     ) {
-        if (request == null) {
+        if (request == null || !StringUtils.hasText(request.performanceName())) {
             throw new BusinessException(PerformanceErrorCode.PERFORMANCE_NAME_REQUIRED);
         }
 
@@ -58,11 +61,23 @@ public class PerformanceService {
             throw new BusinessException(PerformanceErrorCode.PERFORMANCE_ALREADY_EXISTS);
         }
 
-        Performance performance = Performance.create(adminUser, createdByAdmin, request.performanceName());
+        String normalizedPerformanceName = request.performanceName().trim();
+
+        if (performanceRepository.existsByPerformanceName(normalizedPerformanceName)) {
+            throw new BusinessException(PerformanceErrorCode.PERFORMANCE_NAME_DUPLICATED);
+        }
+
+        Performance performance = Performance.create(
+                adminUser,
+                createdByAdmin,
+                normalizedPerformanceName
+        );
+
         MapLocation location = findLocationOrNull(request.locationId());
+
         performance.updateBasicInfo(
                 location,
-                null,
+                normalizedPerformanceName,
                 null,
                 request.performanceDate(),
                 request.startTime(),
@@ -77,6 +92,29 @@ public class PerformanceService {
         } catch (DataIntegrityViolationException e) {
             throw new BusinessException(PerformanceErrorCode.PERFORMANCE_ALREADY_EXISTS);
         }
+    }
+
+    @Transactional
+    public Performance createPerformanceForAdmin(
+            AdminUser adminUser,
+            AdminUser createdByAdmin,
+            String performanceName,
+            Integer performanceDate,
+            Long locationId,
+            LocalTime startTime,
+            LocalTime endTime
+    ) {
+        return createPerformanceForAdmin(
+                adminUser,
+                createdByAdmin,
+                new PerformanceCreateServiceRequest(
+                        performanceName,
+                        performanceDate,
+                        locationId,
+                        startTime,
+                        endTime
+                )
+        );
     }
 
     private PerformanceCreateServiceRequest createRequest(String performanceName) {
@@ -139,4 +177,6 @@ public class PerformanceService {
         return mapLocationRepository.findById(locationId)
                 .orElseThrow(() -> new BusinessException(MapLocationErrorCode.MAP_LOCATION_NOT_FOUND));
     }
+
+
 }
