@@ -14,6 +14,9 @@ import com.likelion.yonsei.daedongje.domain.booth.exception.BoothErrorCode;
 import com.likelion.yonsei.daedongje.domain.booth.entity.BoothImage;
 import com.likelion.yonsei.daedongje.domain.booth.repository.BoothImageRepository;
 import com.likelion.yonsei.daedongje.domain.booth.repository.BoothRepository;
+import com.likelion.yonsei.daedongje.domain.map.dto.MapLocationResponse;
+import com.likelion.yonsei.daedongje.domain.map.entity.MapLocation;
+import com.likelion.yonsei.daedongje.domain.map.repository.MapLocationRepository;
 import com.likelion.yonsei.daedongje.domain.reservation.entity.ReservationStatus;
 import com.likelion.yonsei.daedongje.domain.reservation.repository.ReservationRepository;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -23,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -32,11 +36,13 @@ public class BoothService {
     private final BoothRepository boothRepository;
     private final BoothImageRepository boothImageRepository;
     private final ReservationRepository reservationRepository;
+    private final MapLocationRepository mapLocationRepository;
 
-    public BoothService(BoothRepository boothRepository, BoothImageRepository boothImageRepository, ReservationRepository reservationRepository) {
+    public BoothService(BoothRepository boothRepository, BoothImageRepository boothImageRepository, ReservationRepository reservationRepository, MapLocationRepository mapLocationRepository) {
         this.boothRepository = boothRepository;
         this.boothImageRepository = boothImageRepository;
         this.reservationRepository = reservationRepository;
+        this.mapLocationRepository = mapLocationRepository;
     }
 
     // 부스 생성
@@ -77,7 +83,7 @@ public class BoothService {
     public BoothResponse getById(Long id) {
         Booth booth = boothRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(BoothErrorCode.BOOTH_NOT_FOUND));
-        return BoothResponse.of(booth, 0L, fetchThumbnail(id));
+        return BoothResponse.of(booth, 0L, fetchThumbnail(id), null);
     }
 
     // 부스 전체 조회 (필터: 날짜, 구역, 음식 여부 — 모든 AND 조합 지원)
@@ -113,9 +119,10 @@ public class BoothService {
                         row -> (Long) row[1]
                 ));
         Map<Long, String> thumbnailMap = fetchThumbnailMap(boothIds);
+        Map<Long, MapLocationResponse> mapLocationMap = fetchMapLocationMap(booths);
 
         return booths.stream()
-                .map(booth -> BoothResponse.of(booth, waitingCountMap.getOrDefault(booth.getId(), 0L), thumbnailMap.get(booth.getId())))
+                .map(booth -> BoothResponse.of(booth, waitingCountMap.getOrDefault(booth.getId(), 0L), thumbnailMap.get(booth.getId()), mapLocationMap.get(booth.getLocationId())))
                 .toList();
     }
 
@@ -125,8 +132,9 @@ public class BoothService {
         if (booths.isEmpty()) return List.of();
 
         Map<Long, String> thumbnailMap = fetchThumbnailMap(booths.stream().map(Booth::getId).toList());
+        Map<Long, MapLocationResponse> mapLocationMap = fetchMapLocationMap(booths);
         return booths.stream()
-                .map(booth -> BoothResponse.of(booth, 0L, thumbnailMap.get(booth.getId())))
+                .map(booth -> BoothResponse.of(booth, 0L, thumbnailMap.get(booth.getId()), mapLocationMap.get(booth.getLocationId())))
                 .toList();
     }
 
@@ -235,6 +243,17 @@ public class BoothService {
     private Map<Long, String> fetchThumbnailMap(List<Long> boothIds) {
         return boothImageRepository.findThumbnailsByBoothIds(boothIds).stream()
                 .collect(Collectors.toMap(BoothImage::getBoothId, BoothImage::getImageUrl));
+    }
+
+    private Map<Long, MapLocationResponse> fetchMapLocationMap(List<Booth> booths) {
+        List<Long> locationIds = booths.stream()
+                .map(Booth::getLocationId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        if (locationIds.isEmpty()) return Map.of();
+        return mapLocationRepository.findAllById(locationIds).stream()
+                .collect(Collectors.toMap(MapLocation::getId, MapLocationResponse::from));
     }
 
     private String toMenuString(List<String> menus) {
