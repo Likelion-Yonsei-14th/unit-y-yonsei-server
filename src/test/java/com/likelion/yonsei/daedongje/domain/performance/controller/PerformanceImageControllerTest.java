@@ -8,6 +8,7 @@ import com.likelion.yonsei.daedongje.domain.auth.support.AdminSessionUser;
 import com.likelion.yonsei.daedongje.domain.performance.entity.Performance;
 import com.likelion.yonsei.daedongje.domain.performance.entity.PerformanceImage;
 import com.likelion.yonsei.daedongje.domain.performance.entity.PerformanceImageType;
+import com.likelion.yonsei.daedongje.domain.performance.entity.PerformanceStatus;
 import com.likelion.yonsei.daedongje.domain.performance.repository.PerformanceImageRepository;
 import com.likelion.yonsei.daedongje.domain.performance.repository.PerformanceRepository;
 import jakarta.servlet.http.HttpServletRequest;
@@ -22,6 +23,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.hasSize;
 import static org.mockito.ArgumentMatchers.any;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -62,6 +64,9 @@ class PerformanceImageControllerTest {
 
         adminUser = adminUserRepository.save(createAdminUser("performer-admin"));
         performance = performanceRepository.save(Performance.create(adminUser, "Main Stage"));
+        // 사용자 공개 조회 테스트를 위해 공연을 노출 상태로 전환한다 (생성 시 기본값은 HIDDEN)
+        performance.updateBasicInfo(null, null, null, null, null, null, null, null, PerformanceStatus.SCHEDULED);
+        performance = performanceRepository.save(performance);
 
         Mockito.when(adminAuthContextService.getCurrentAdmin(any(HttpServletRequest.class)))
                 .thenReturn(new AdminSessionUser(adminUser.getId(), AdminRole.PERFORMER, adminUser.getLoginId()));
@@ -198,7 +203,7 @@ class PerformanceImageControllerTest {
                 PerformanceImageType.DETAIL
         ));
 
-        mockMvc.perform(get("/performances/{id}/images", performance.getId()))
+        mockMvc.perform(get("/api/performances/{id}/images", performance.getId()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data", hasSize(3)))
@@ -209,7 +214,7 @@ class PerformanceImageControllerTest {
 
     @Test
     void getPerformanceImagesReturnsEmptyArrayWhenPerformanceHasNoImages() throws Exception {
-        mockMvc.perform(get("/performances/{id}/images", performance.getId()))
+        mockMvc.perform(get("/api/performances/{id}/images", performance.getId()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data", hasSize(0)));
@@ -217,7 +222,25 @@ class PerformanceImageControllerTest {
 
     @Test
     void getPerformanceImagesReturnsNotFoundWhenPerformanceDoesNotExist() throws Exception {
-        mockMvc.perform(get("/performances/{id}/images", 999999L))
+        mockMvc.perform(get("/api/performances/{id}/images", 999999L))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("P-006"));
+    }
+
+    @Test
+    void getPerformanceImagesReturnsNotFoundWhenPerformanceIsHidden() throws Exception {
+        AdminUser hiddenAdmin = adminUserRepository.save(createAdminUser("hidden-performer-admin"));
+        Performance hiddenPerformance = performanceRepository.save(Performance.create(hiddenAdmin, "Hidden Stage"));
+        // Performance.create의 기본 상태는 HIDDEN이므로 별도 전환 없이 비공개 상태다
+        performanceImageRepository.save(PerformanceImage.create(
+                hiddenPerformance,
+                "https://example.com/hidden.png",
+                1,
+                PerformanceImageType.PROFILE
+        ));
+
+        mockMvc.perform(get("/api/performances/{id}/images", hiddenPerformance.getId()))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.error.code").value("P-006"));
@@ -234,6 +257,8 @@ class PerformanceImageControllerTest {
 
         mockMvc.perform(delete("/api/admin/performances/me/images/{imageId}", image.getId()))
                 .andExpect(status().isNoContent());
+
+        assertThat(performanceImageRepository.findById(image.getId())).isEmpty();
     }
 
     @Test
