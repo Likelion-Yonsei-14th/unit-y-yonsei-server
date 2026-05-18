@@ -153,7 +153,8 @@ public class AdminUserService {
                 false,                                 // isReservable
                 null,                                  // account
                 null,                                  // locationId
-                null                                   // representativeMenus
+                null,                                  // representativeMenus
+                null                                   // notice
         );
 
         boothService.create(boothRequest);
