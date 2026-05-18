@@ -54,6 +54,10 @@ public class PerformanceService {
             throw new BusinessException(PerformanceErrorCode.PERFORMANCE_NAME_REQUIRED);
         }
 
+        if (performanceRepository.existsByAdminUser(adminUser)) {
+            throw new BusinessException(PerformanceErrorCode.PERFORMANCE_ALREADY_EXISTS);
+        }
+
         Performance performance = Performance.create(adminUser, createdByAdmin, request.performanceName());
         MapLocation location = findLocationOrNull(request.locationId());
         performance.updateBasicInfo(
@@ -67,10 +71,6 @@ public class PerformanceService {
                 null,
                 null
         );
-
-        if (performanceRepository.existsByAdminUser(adminUser)) {
-            throw new BusinessException(PerformanceErrorCode.PERFORMANCE_ALREADY_EXISTS);
-        }
 
         try {
             return performanceRepository.save(performance);
