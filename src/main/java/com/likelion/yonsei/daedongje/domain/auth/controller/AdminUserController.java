@@ -5,8 +5,11 @@ import com.likelion.yonsei.daedongje.domain.auth.dto.AdminUserCreateRequest;
 import com.likelion.yonsei.daedongje.domain.auth.dto.AdminUserCreateResponse;
 import com.likelion.yonsei.daedongje.domain.auth.dto.AdminUserDetailResponse;
 import com.likelion.yonsei.daedongje.domain.auth.dto.AdminUserListResponse;
+import com.likelion.yonsei.daedongje.domain.auth.dto.AdminUserPasswordResetRequest;
 import com.likelion.yonsei.daedongje.domain.auth.entity.AdminRole;
 import com.likelion.yonsei.daedongje.domain.auth.service.AdminUserService;
+import com.likelion.yonsei.daedongje.domain.auth.support.AdminSessionUser;
+import com.likelion.yonsei.daedongje.domain.auth.support.CurrentAdmin;
 import com.likelion.yonsei.daedongje.domain.auth.support.RequireAdminRole;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -33,9 +36,10 @@ public class AdminUserController {
     @RequireAdminRole(AdminRole.SUPER)
     @PostMapping
     public ResponseEntity<ApiResponse<AdminUserCreateResponse>> createAdminUser(
+            @CurrentAdmin AdminSessionUser currentAdmin,
             @Valid @RequestBody AdminUserCreateRequest request
     ) {
-        AdminUserCreateResponse response = adminUserService.createAdminUser(request);
+        AdminUserCreateResponse response = adminUserService.createAdminUser(request, currentAdmin.getId());
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(response));
     }
 
@@ -61,5 +65,33 @@ public class AdminUserController {
             @PathVariable Long id
     ) {
         return ApiResponse.success(adminUserService.getAdminUserDetail(id));
+    }
+
+    @Operation(
+            summary = "어드민 비밀번호 강제 재설정",
+            description = "Super Admin이 특정 어드민 계정의 비밀번호를 입력받은 값으로 재설정합니다."
+    )
+    @RequireAdminRole(AdminRole.SUPER)
+    @PatchMapping("/{id}/password")
+    public ApiResponse<Void> resetAdminUserPassword(
+            @PathVariable Long id,
+            @Valid @RequestBody AdminUserPasswordResetRequest request
+    ) {
+        adminUserService.resetAdminUserPassword(id, request);
+        return ApiResponse.successEmpty();
+    }
+
+
+    @Operation(
+            summary = "어드민 계정 삭제",
+            description = "Super Admin이 MASTER, BOOTH, PERFORMER 어드민 계정을 삭제합니다. SUPER 계정은 삭제할 수 없습니다."
+    )
+    @RequireAdminRole(AdminRole.SUPER)
+    @DeleteMapping("/{id}")
+    public ApiResponse<Void> deleteAdminUser(
+            @PathVariable Long id
+    ) {
+        adminUserService.deleteAdminUser(id);
+        return ApiResponse.successEmpty();
     }
 }

@@ -18,6 +18,16 @@ spring:
     # 프로덕션 흐름 검증은 통합 테스트(Testcontainers)에서 별도로 다룬다.
     # 여기서는 빠른 슬라이스/단위 테스트를 우선시.
     enabled: false
+  # 테스트는 Redis 없이 실행한다. Spring Session 을 끄면 서블릿 컨테이너 기본 세션을
+  # 사용하므로 세션 기반 인증 테스트는 그대로 동작한다. Redis 자동 설정도 제외해
+  # 컨텍스트 로딩 시 localhost:6379 연결 시도를 막는다.
+  # 실제 Redis 세션 동작 검증은 추후 Testcontainers 통합 테스트에서 다룬다.
+  session:
+    store-type: none
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
 
 # 테스트용 AWS S3 설정 — 실제 AWS 자격 증명 대신 테스트용 키 사용.
 aws:

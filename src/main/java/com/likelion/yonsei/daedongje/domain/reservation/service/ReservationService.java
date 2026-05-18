@@ -10,6 +10,7 @@ import com.likelion.yonsei.daedongje.domain.reservation.dto.ReservationAdminStat
 import com.likelion.yonsei.daedongje.domain.reservation.dto.ReservationCreateRequest;
 import com.likelion.yonsei.daedongje.domain.reservation.dto.ReservationCreateResponse;
 import com.likelion.yonsei.daedongje.domain.reservation.dto.ReservationResponse;
+import com.likelion.yonsei.daedongje.domain.reservation.dto.ReservationUpdateRequest;
 import com.likelion.yonsei.daedongje.domain.reservation.dto.ReservationUserCancelRequest;
 import com.likelion.yonsei.daedongje.domain.reservation.entity.Reservation;
 import com.likelion.yonsei.daedongje.domain.reservation.entity.ReservationStatus;
@@ -126,11 +127,31 @@ public class ReservationService {
                 if (reservation.getStatus() == ReservationStatus.CANCELLED) {
                     throw new BusinessException(ReservationErrorCode.ALREADY_CANCELLED);
                 }
-                reservation.cancel(request.cancelReason());
+                reservation.cancel();
             }
             default -> throw new BusinessException(ReservationErrorCode.INVALID_STATUS_TRANSITION);
         }
 
+        return ReservationResponse.from(reservation);
+    }
+
+    // 사용자 본인 예약 정보 수정 (이름 + 연락처 + PIN으로 소유권 확인, PENDING 상태만 가능)
+    @Transactional
+    public ReservationResponse updateByBooker(Long id, ReservationUpdateRequest request) {
+        Reservation reservation = reservationRepository.findById(id)
+                .orElseThrow(() -> new BusinessException(ReservationErrorCode.RESERVATION_NOT_FOUND));
+
+        if (!reservation.getBookerName().equals(request.bookerName()) ||
+                !reservation.getPhoneNumber().equals(request.phoneNumber()) ||
+                !pinMatches(reservation.getPin(), request.pin())) {
+            throw new BusinessException(ReservationErrorCode.RESERVATION_NOT_FOUND);
+        }
+
+        if (reservation.getStatus() != ReservationStatus.PENDING) {
+            throw new BusinessException(ReservationErrorCode.CANNOT_UPDATE_NON_PENDING);
+        }
+
+        reservation.update(request.newBookerName(), request.newPhoneNumber(), request.newPartySize());
         return ReservationResponse.from(reservation);
     }
 
@@ -151,7 +172,7 @@ public class ReservationService {
             throw new BusinessException(ReservationErrorCode.ALREADY_CANCELLED);
         }
 
-        reservation.cancel(request.cancelReason());
+        reservation.cancel();
         return ReservationResponse.from(reservation);
     }
 

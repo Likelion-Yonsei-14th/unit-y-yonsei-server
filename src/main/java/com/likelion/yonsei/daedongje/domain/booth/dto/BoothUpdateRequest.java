@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.*;
 
 import java.time.LocalTime;
+import java.util.List;
 
 @Schema(description = "부스 수정 요청")
 public record BoothUpdateRequest(
@@ -57,5 +58,8 @@ public record BoothUpdateRequest(
         String account,
 
         @Schema(description = "지도 위치 엔티티 ID", example = "10")
-        Long locationId
+        Long locationId,
+
+        @Schema(description = "대표 메뉴 카테고리 목록 (예: [\"치킨\", \"맥주\"])", example = "[\"치킨\", \"맥주\"]")
+        List<String> representativeMenus
 ) {}
