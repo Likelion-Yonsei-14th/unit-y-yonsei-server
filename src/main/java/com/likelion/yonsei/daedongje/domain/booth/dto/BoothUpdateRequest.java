@@ -61,5 +61,9 @@ public record BoothUpdateRequest(
         Long locationId,
 
         @Schema(description = "대표 메뉴 카테고리 목록 (예: [\"치킨\", \"맥주\"])", example = "[\"치킨\", \"맥주\"]")
-        List<String> representativeMenus
+        List<String> representativeMenus,
+
+        @Schema(description = "푸드트럭 여부. 외부 업체가 운영하는 푸드트럭이면 true, 일반 부스면 false", example = "false")
+        @NotNull
+        Boolean isFoodTruck
 ) {}

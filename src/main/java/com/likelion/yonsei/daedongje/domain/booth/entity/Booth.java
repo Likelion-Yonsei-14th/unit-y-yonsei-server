@@ -67,13 +67,16 @@ public class Booth extends BaseEntity {
     @Column(name = "representative_menus", length = 255)
     private String representativeMenus;
 
+    @Column(name = "is_food_truck", nullable = false)
+    private Boolean isFoodTruck;
+
     protected Booth() {}
 
     private Booth(Long adminId, String name, String organization, String description,
                   Integer date, LocalTime openTime, LocalTime closeTime,
                   BoothSector sector, Integer location, BoothStatus status,
                   Boolean isFood, String instagram, Boolean isReservable,
-                  String account, Long locationId, String representativeMenus) {
+                  String account, Long locationId, String representativeMenus, Boolean isFoodTruck) {
         this.adminId = adminId;
         this.name = name;
         this.organization = organization;
@@ -90,23 +93,24 @@ public class Booth extends BaseEntity {
         this.account = account;
         this.locationId = locationId;
         this.representativeMenus = representativeMenus;
+        this.isFoodTruck = isFoodTruck;
     }
 
     public static Booth create(Long adminId, String name, String organization, String description,
                                Integer date, LocalTime openTime, LocalTime closeTime,
                                BoothSector sector, Integer location, BoothStatus status,
                                Boolean isFood, String instagram, Boolean isReservable,
-                               String account, Long locationId, String representativeMenus) {
+                               String account, Long locationId, String representativeMenus, Boolean isFoodTruck) {
         return new Booth(adminId, name, organization, description, date, openTime, closeTime,
                 sector, location, status, isFood, instagram, isReservable, account, locationId,
-                representativeMenus);
+                representativeMenus, isFoodTruck);
     }
 
     public void update(String name, String organization, String description,
                        Integer date, LocalTime openTime, LocalTime closeTime,
                        BoothSector sector, Integer location, BoothStatus status,
                        Boolean isFood, String instagram, Boolean isReservable,
-                       String account, Long locationId, String representativeMenus) {
+                       String account, Long locationId, String representativeMenus, Boolean isFoodTruck) {
         this.name = name;
         this.organization = organization;
         this.description = description;
@@ -122,6 +126,7 @@ public class Booth extends BaseEntity {
         this.account = account;
         this.locationId = locationId;
         this.representativeMenus = representativeMenus;
+        this.isFoodTruck = isFoodTruck;
     }
 
     public void updateStatus(BoothStatus status) {
