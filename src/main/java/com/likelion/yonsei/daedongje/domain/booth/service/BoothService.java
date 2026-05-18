@@ -83,7 +83,7 @@ public class BoothService {
     public BoothResponse getById(Long id) {
         Booth booth = boothRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(BoothErrorCode.BOOTH_NOT_FOUND));
-        return BoothResponse.of(booth, 0L, fetchThumbnail(id), null);
+        return BoothResponse.of(booth, 0L, fetchThumbnail(id), fetchMapLocation(booth));
     }
 
     // 부스 전체 조회 (필터: 날짜, 구역, 음식 여부 — 모든 AND 조합 지원)
@@ -192,7 +192,7 @@ public class BoothService {
                     request.locationId(),
                     toMenuString(request.representativeMenus())
             );
-            return BoothResponse.from(booth);
+            return BoothResponse.of(booth, 0L, fetchThumbnail(booth.getId()), fetchMapLocation(booth));
         } catch (DataIntegrityViolationException e) {
             throw new BusinessException(BoothErrorCode.DUPLICATE_BOOTH_NAME);
         }
@@ -209,7 +209,7 @@ public class BoothService {
         }
 
         booth.updateStatus(status);
-        return BoothResponse.from(booth);
+        return BoothResponse.of(booth, 0L, fetchThumbnail(booth.getId()), fetchMapLocation(booth));
     }
 
     // 예약 접수 On/Off (BOOTH 역할은 본인 담당 부스만 변경 가능)
@@ -223,7 +223,7 @@ public class BoothService {
         }
 
         booth.updateIsReservable(isReservable);
-        return BoothResponse.from(booth);
+        return BoothResponse.of(booth, 0L, fetchThumbnail(booth.getId()), fetchMapLocation(booth));
     }
 
     // 부스 삭제
@@ -243,6 +243,13 @@ public class BoothService {
     private Map<Long, String> fetchThumbnailMap(List<Long> boothIds) {
         return boothImageRepository.findThumbnailsByBoothIds(boothIds).stream()
                 .collect(Collectors.toMap(BoothImage::getBoothId, BoothImage::getImageUrl));
+    }
+
+    private MapLocationResponse fetchMapLocation(Booth booth) {
+        if (booth.getLocationId() == null) return null;
+        return mapLocationRepository.findById(booth.getLocationId())
+                .map(MapLocationResponse::from)
+                .orElse(null);
     }
 
     private Map<Long, MapLocationResponse> fetchMapLocationMap(List<Booth> booths) {
