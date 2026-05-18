@@ -402,7 +402,7 @@ class PerformanceSetlistControllerTest {
                 null
         ));
 
-        mockMvc.perform(get("/performances/{id}/setlists", performance.getId()))
+        mockMvc.perform(get("/api/performances/{id}/setlists", performance.getId()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data", hasSize(3)))
@@ -413,7 +413,7 @@ class PerformanceSetlistControllerTest {
 
     @Test
     void getPerformanceSetlistsReturnsEmptyArrayWhenPerformanceHasNoSetlists() throws Exception {
-        mockMvc.perform(get("/performances/{id}/setlists", performance.getId()))
+        mockMvc.perform(get("/api/performances/{id}/setlists", performance.getId()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data", hasSize(0)));
@@ -421,7 +421,7 @@ class PerformanceSetlistControllerTest {
 
     @Test
     void getPerformanceSetlistsReturnsNotFoundWhenPerformanceDoesNotExist() throws Exception {
-        mockMvc.perform(get("/performances/{id}/setlists", 999999L))
+        mockMvc.perform(get("/api/performances/{id}/setlists", 999999L))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.error.code").value("P-006"));

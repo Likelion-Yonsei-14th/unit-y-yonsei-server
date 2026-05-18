@@ -23,7 +23,7 @@ public class PerformanceSetlistController {
             summary = "공연 셋리스트 목록 조회",
             description = "특정 공연의 셋리스트 목록을 songOrder ASC, id ASC 기준으로 조회합니다."
     )
-    @GetMapping("/performances/{id}/setlists")
+    @GetMapping("/api/performances/{id}/setlists")
     public ApiResponse<List<PerformanceSetlistResponse>> getPerformanceSetlists(@PathVariable Long id) {
         return ApiResponse.success(performanceSetlistService.getPerformanceSetlists(id));
     }
