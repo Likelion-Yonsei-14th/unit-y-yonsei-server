@@ -122,7 +122,8 @@ public class AdminUserService {
                 List<Performance> linkedPerformances = adminUser.getRole() == AdminRole.PERFORMER
                         ? performancesByAdminId.getOrDefault(adminUser.getId(), List.of())
                         : null;
-                return AdminUserListResponse.from(adminUser, linkedBooths, linkedPerformances);
+                boolean infoCompleted = resolveInfoCompleted(adminUser, linkedBooths);
+                return AdminUserListResponse.from(adminUser, infoCompleted, linkedBooths, linkedPerformances);
             })
                 .toList();
     }
@@ -138,7 +139,8 @@ public class AdminUserService {
                 ? performanceRepository.findAllByAdminUser_IdIn(List.of(adminUser.getId()))
                 : null;
 
-        return AdminUserDetailResponse.from(adminUser, linkedBooths, linkedPerformances);
+        boolean infoCompleted = resolveInfoCompleted(adminUser, linkedBooths);
+        return AdminUserDetailResponse.from(adminUser, infoCompleted, linkedBooths, linkedPerformances);
     }
 
 
@@ -166,18 +168,19 @@ public class AdminUserService {
         }
     }
 
-//    InfoComplete 추후 개발
-//    private boolean resolveInfoCompleted(AdminUser adminUser) {
-//        AdminRole role = adminUser.getRole();
-//        if (role == AdminRole.MASTER || role == AdminRole.SUPER) {
-//            return true;
-//        }
-//        return isOrganizationInfoCompleted(adminUser);
-//    }
-//
-//    private boolean isOrganizationInfoCompleted(AdminUser adminUser) {
-//        return false;
-//    }
+    private boolean resolveInfoCompleted(AdminUser adminUser, List<Booth> linkedBooths) {
+        AdminRole role = adminUser.getRole();
+        if (role == AdminRole.MASTER || role == AdminRole.SUPER) {
+            return true;
+        }
+        if (role == AdminRole.BOOTH) {
+            if (linkedBooths == null || linkedBooths.isEmpty()) {
+                return false;
+            }
+            return linkedBooths.stream().anyMatch(Booth::isProfileComplete);
+        }
+        return false;
+    }
 
 // BOOTH 어드민 생성 시 부스 기본 정보 함께 생성
 

@@ -22,14 +22,16 @@ public class AdminUserListResponse {
     private String role;
     private String status;
     private String representativeName;
+    @Schema(description = "정보 작성 완료 여부", example = "false")
+    private boolean infoCompleted;
     @Schema(description = "연동된 부스 요약 목록")
     private List<LinkedBoothSummary> linkedBooths;
     @Schema(description = "연동된 공연 요약 목록")
     private List<LinkedPerformanceSummary> linkedPerformances;
-//    private boolean infoCompleted;
 
     public static AdminUserListResponse from(
             AdminUser adminUser,
+            boolean infoCompleted,
             List<Booth> linkedBooths,
             List<Performance> linkedPerformances
     ) {
@@ -40,13 +42,13 @@ public class AdminUserListResponse {
                 adminUser.getRole().name(),
                 adminUser.getStatus().name(),
                 adminUser.getRepresentativeName(),
+                infoCompleted,
                 linkedBooths == null ? null : linkedBooths.stream()
                         .map(LinkedBoothSummary::from)
                         .toList(),
                 linkedPerformances == null ? null : linkedPerformances.stream()
                         .map(LinkedPerformanceSummary::from)
                         .toList()
-//                infoCompleted
         );
     }
 
