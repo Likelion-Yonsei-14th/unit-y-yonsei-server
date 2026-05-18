@@ -11,7 +11,8 @@ public enum PerformanceErrorCode implements ErrorCode {
     PERFORMANCE_ALREADY_EXISTS(HttpStatus.CONFLICT, "P-004", "Performance already exists for this admin account."),
     PERFORMANCE_ADMIN_ROLE_REQUIRED(HttpStatus.BAD_REQUEST, "P-005", "Performance admin account must have PERFORMER role."),
     PERFORMANCE_NOT_FOUND(HttpStatus.NOT_FOUND, "P-006", "Performance not found."),
-    PERFORMANCE_IMAGE_NOT_FOUND(HttpStatus.NOT_FOUND, "P-007", "Performance image not found.");
+    PERFORMANCE_INVALID_TIME_RANGE(HttpStatus.BAD_REQUEST, "P-007", "Performance end time must be after start time."),
+    PERFORMANCE_IMAGE_NOT_FOUND(HttpStatus.NOT_FOUND, "P-008", "Performance image not found.");
 
     private final HttpStatus status;
     private final String code;

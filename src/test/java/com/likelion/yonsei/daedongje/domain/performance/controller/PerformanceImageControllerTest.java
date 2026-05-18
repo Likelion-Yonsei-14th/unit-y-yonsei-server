@@ -266,7 +266,7 @@ class PerformanceImageControllerTest {
         mockMvc.perform(delete("/api/admin/performances/me/images/{imageId}", 999999L))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.error.code").value("P-007"));
+                .andExpect(jsonPath("$.error.code").value("P-008"));
     }
 
     @Test
