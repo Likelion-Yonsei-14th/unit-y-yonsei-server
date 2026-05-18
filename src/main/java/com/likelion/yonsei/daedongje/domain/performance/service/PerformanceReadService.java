@@ -56,7 +56,7 @@ public class PerformanceReadService {
     }
 
     private List<Performance> findPublicPerformances() {
-        return performanceRepository.findAllByPerformanceStatusNot(PerformanceStatus.HIDDEN).stream()
+        return performanceRepository.findAllWithLocationByPerformanceStatusNot(PerformanceStatus.HIDDEN).stream()
                 .sorted(PERFORMANCE_ORDER)
                 .toList();
     }
