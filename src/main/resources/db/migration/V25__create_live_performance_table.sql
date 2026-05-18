@@ -7,9 +7,11 @@ CREATE TABLE live_performance (
     created_at DATETIME(6) NOT NULL,
     updated_at DATETIME(6) NOT NULL,
 
+    -- 핀된 공연이 삭제되면 라이브 포인터를 자동으로 해제(NULL)한다.
     CONSTRAINT fk_live_performance_performance
         FOREIGN KEY (performance_id)
         REFERENCES performances(id)
+        ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 서비스가 항상 의존할 수 있도록 싱글톤 행(id = 1)을 미리 시드한다.

@@ -10,6 +10,8 @@ import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 
 /**
  * 운영진이 수동 지정하는 '현재 라이브 공연' 단일 포인터.
@@ -29,8 +31,10 @@ public class LivePerformance extends BaseEntity {
     @Id
     private Long id;
 
+    // 핀된 공연이 삭제되면 포인터를 자동으로 해제(NULL)한다. Flyway FK 의 ON DELETE SET NULL 과 일치.
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "performance_id")
+    @OnDelete(action = OnDeleteAction.SET_NULL)
     private Performance performance;
 
     private LivePerformance(Long id) {
