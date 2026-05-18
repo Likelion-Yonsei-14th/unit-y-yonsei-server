@@ -23,7 +23,7 @@ public class PerformanceImageController {
             summary = "공연 이미지 목록 조회",
             description = "특정 공연의 이미지 목록을 imageOrder ASC, id ASC 기준으로 조회합니다."
     )
-    @GetMapping("/performances/{id}/images")
+    @GetMapping("/api/performances/{id}/images")
     public ApiResponse<List<PerformanceImageResponse>> getPerformanceImages(@PathVariable Long id) {
         return ApiResponse.success(performanceImageService.getPerformanceImages(id));
     }
