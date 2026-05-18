@@ -59,8 +59,9 @@ public class Performance extends BaseEntity {
     @Column(name = "end_time")
     private LocalTime endTime;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "performance_category", length = 50)
-    private String performanceCategory;
+    private PerformanceCategory performanceCategory;
 
     @Column(name = "lineup_name", length = 100)
     private String lineupName;
@@ -96,7 +97,7 @@ public class Performance extends BaseEntity {
             Integer performanceDate,
             LocalTime startTime,
             LocalTime endTime,
-            String performanceCategory,
+            PerformanceCategory performanceCategory,
             String lineupName,
             PerformanceStatus performanceStatus
     ) {
@@ -119,6 +120,7 @@ public class Performance extends BaseEntity {
         if (endTime != null) {
             this.endTime = endTime;
         }
+        validateTimeRange();
         if (performanceCategory != null) {
             this.performanceCategory = performanceCategory;
         }
@@ -152,6 +154,14 @@ public class Performance extends BaseEntity {
     private static void validatePerformanceName(String performanceName) {
         if (performanceName == null || performanceName.isBlank()) {
             throw new BusinessException(PerformanceErrorCode.PERFORMANCE_NAME_REQUIRED);
+        }
+    }
+
+    // 부분 수정(PATCH)으로 한쪽 시간만 바뀌어도 최종 상태가 유효하도록, 적용 후 시간 쌍을 검증한다.
+    private void validateTimeRange() {
+        if (this.startTime != null && this.endTime != null
+                && !this.endTime.isAfter(this.startTime)) {
+            throw new BusinessException(PerformanceErrorCode.PERFORMANCE_INVALID_TIME_RANGE);
         }
     }
 }
