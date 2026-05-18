@@ -15,6 +15,7 @@ import com.likelion.yonsei.daedongje.domain.booth.dto.BoothCreateRequest;
 import com.likelion.yonsei.daedongje.domain.booth.entity.BoothStatus;
 import com.likelion.yonsei.daedongje.domain.booth.repository.BoothRepository;
 import com.likelion.yonsei.daedongje.domain.booth.service.BoothService;
+import com.likelion.yonsei.daedongje.domain.performance.service.PerformanceService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Sort;
@@ -35,6 +36,7 @@ public class AdminUserService {
     private final AdminSessionService adminSessionService;
     private final BoothRepository boothRepository;
     private final BoothService boothService;
+    private final PerformanceService performanceService;
 
     @Transactional
     public AdminUserCreateResponse createAdminUser(AdminUserCreateRequest request) {
@@ -46,6 +48,14 @@ public class AdminUserService {
                 throw new BusinessException(AuthErrorCode.BOOTH_INFO_REQUIRED);
             }
         }
+
+        // PERFORMER role의 경우 공연 이름 필수
+        if (request.getRole() == AdminRole.PERFORMER) {
+            if (request.getPerformanceName() == null || request.getPerformanceName().isBlank()) {
+                throw new BusinessException(AuthErrorCode.PERFORMER_INFO_REQUIRED);
+            }
+        }
+
 
         String passwordHash = passwordEncoder.encode(request.getPassword());
 
@@ -65,6 +75,11 @@ public class AdminUserService {
             // BOOTH 역할이면 부스 생성
             if (request.getRole() == AdminRole.BOOTH) {
                 createBoothForNewAdmin(savedAdminUser, request);
+            }
+
+            // PERFORMER 역할이면 공연 생성
+            if (request.getRole() == AdminRole.PERFORMER) {
+                createPerformanceForNewAdmin(savedAdminUser, request);
             }
 
             return AdminUserCreateResponse.from(savedAdminUser);
@@ -139,6 +154,7 @@ public class AdminUserService {
 //    private boolean isOrganizationInfoCompleted(AdminUser adminUser) {
 //        return false;
 //    }
+
 // BOOTH 어드민 생성 시 부스 기본 정보 함께 생성
 
     private void createBoothForNewAdmin(AdminUser boothAdmin, AdminUserCreateRequest request) {
@@ -181,6 +197,14 @@ public class AdminUserService {
         }
 
         return null;
+    }
+
+    // PERFORMER 어드민 생성 시 공연 기본 정보 함께 생성
+    private void createPerformanceForNewAdmin(AdminUser performerAdmin, AdminUserCreateRequest request) {
+        performanceService.createPerformanceForAdmin(
+                performerAdmin,
+                request.getPerformanceName()
+        );
     }
 
     @Transactional

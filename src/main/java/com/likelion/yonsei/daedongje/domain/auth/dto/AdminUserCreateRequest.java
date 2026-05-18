@@ -9,6 +9,8 @@ import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+//import java.time.LocalTime;
+
 @Getter
 @NoArgsConstructor
 public class AdminUserCreateRequest {
@@ -53,4 +55,21 @@ public class AdminUserCreateRequest {
     @Schema(description = "자리 메모 (BOOTH 역할일 때 선택)", example = "A 구역 2번 위치 후보", nullable = true)
     @Size(max = 500)
     private String boothLocationMemo;
+
+    // ===== PERFORMER 역할 전용 필드  =====
+    @Schema(description = "공연 이름", example = "AKARAKA 밴드", nullable = true)
+    @Size(max = 100)
+    private String performanceName;
+
+//    @Schema(description = "공연 일자", example = "1", nullable = true)
+//    private Integer performanceDate;
+//
+//    @Schema(description = "공연 장소 ID", example = "3", nullable = true)
+//    private Long performanceLocationId;
+//
+//    @Schema(description = "공연 시작 시간", example = "18:30", nullable = true)
+//    private LocalTime performanceStartTime;
+//
+//    @Schema(description = "공연 종료 시간", example = "19:00", nullable = true)
+//    private LocalTime performanceEndTime;
 }
