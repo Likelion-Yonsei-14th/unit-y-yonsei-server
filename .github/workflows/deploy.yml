@@ -8,7 +8,7 @@ on:
 
 concurrency:
   group: deploy-main
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 env:
   IMAGE_TAG: main
@@ -17,6 +17,7 @@ jobs:
   build-and-push:
     name: Build and push Docker image
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
       - name: Checkout source code
@@ -39,7 +40,6 @@ jobs:
           push: true
           tags: |
             ${{ secrets.DOCKER_IMAGE_NAME }}:${{ env.IMAGE_TAG }}
-            ${{ secrets.DOCKER_IMAGE_NAME }}:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -47,31 +47,116 @@ jobs:
     name: Deploy on EC2
     runs-on: ubuntu-latest
     needs: build-and-push
+    timeout-minutes: 15
 
     steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
       - name: Configure SSH key
+        env:
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+          EC2_HOST: ${{ secrets.EC2_HOST }}
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/ec2_key
+          printf '%s\n' "$EC2_SSH_KEY" > ~/.ssh/ec2_key
           chmod 600 ~/.ssh/ec2_key
-          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+          ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts
+
+      - name: Sync production compose file
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USERNAME: ${{ secrets.EC2_USERNAME }}
+        run: |
+          scp -i ~/.ssh/ec2_key docker-compose.prod.yml \
+              "$EC2_USERNAME@$EC2_HOST:~/unit-y-server/docker-compose.prod.yml"
 
       - name: Deploy with Docker Compose
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USERNAME: ${{ secrets.EC2_USERNAME }}
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
         run: |
-          ssh -i ~/.ssh/ec2_key ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} << 'EOF'
+          ssh -i ~/.ssh/ec2_key "$EC2_USERNAME@$EC2_HOST" \
+            DOCKERHUB_USERNAME="$DOCKERHUB_USERNAME" \
+            DOCKERHUB_TOKEN="$DOCKERHUB_TOKEN" \
+            'bash -s' <<'EOF'
             set -e
 
             cd ~/unit-y-server
+            
+            DOCKER_IMAGE_VALUE="$(grep -E '^DOCKER_IMAGE=' .env | tail -n 1 | cut -d '=' -f2- | tr -d '"' | tr -d "'")"
+          
+            if [ -z "$DOCKER_IMAGE_VALUE" ]; then
+              echo "DOCKER_IMAGE is missing in .env"
+              exit 1
+            fi
+          
+            ROLLBACK_IMAGE="${DOCKER_IMAGE_VALUE%:*}:rollback-main"
 
             echo "Login to Docker Hub..."
-            echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
-
+            echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+            
+            echo "Save current image for rollback..."
+            CURRENT_IMAGE_ID="$(docker inspect -f '{{.Image}}' unit-y-server 2>/dev/null || true)"
+            
+            if  [ -n "$CURRENT_IMAGE_ID" ]; then    
+              docker tag "$CURRENT_IMAGE_ID" "$ROLLBACK_IMAGE"
+              echo "Rollback image saved: $ROLLBACK_IMAGE"
+            else
+                echo "No current app container found. Skip rollback image save."
+            fi
+          
             echo "Pull latest image..."
             docker compose -f docker-compose.prod.yml pull app
 
             echo "Restart app container..."
             docker compose -f docker-compose.prod.yml up -d --no-deps --force-recreate app
-
+            
+            echo "Health check..."
+            for i in $(seq 1 30); do
+              if curl -fsS http://127.0.0.1:8080/actuator/health | grep -q '"status":"UP"'; then
+                echo "Health check passed."
+                break
+              fi
+          
+              echo "Waiting for app to become healthy... ($i/30)"
+              sleep 3
+          
+              if [ "$i" -eq 30 ]; then
+                echo "Health check failed."
+                echo "Failed app logs:"
+                docker logs --tail=100 unit-y-server || true
+                
+                if docker image inspect "$ROLLBACK_IMAGE" > /dev/null 2>&1; then
+                  echo "Rollback to previous image..."
+                  docker tag "$ROLLBACK_IMAGE" "$DOCKER_IMAGE_VALUE"
+                  docker compose -f docker-compose.prod.yml up -d --no-deps --force-recreate app
+                  
+                  echo "Rollback health check..."
+                  for j in $(seq 1 30); do
+                    if curl -fsS http://127.0.0.1:8080/actuator/health | grep -q '"status":"UP"'; then
+                      echo "Rollback completed."
+                      break
+                    fi
+                    
+                    echo "Waiting for rollback app to become healthy... ($j/30)"
+                    sleep 3
+                    
+                    if [ "$j" -eq 30 ]; then
+                      echo "Rollback health check failed."
+                      docker logs --tail=100 unit-y-server || true
+                    fi
+                  done
+                else
+                  echo "No rollback image available. Manual intervention required."
+                fi
+          
+                exit 1
+              fi
+            done
+            
             echo "Clean unused images..."
             docker image prune -f
 
