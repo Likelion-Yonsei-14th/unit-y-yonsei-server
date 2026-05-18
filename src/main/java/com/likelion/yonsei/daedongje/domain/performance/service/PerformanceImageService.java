@@ -9,6 +9,7 @@ import com.likelion.yonsei.daedongje.domain.performance.dto.PerformanceImageCrea
 import com.likelion.yonsei.daedongje.domain.performance.dto.PerformanceImageResponse;
 import com.likelion.yonsei.daedongje.domain.performance.entity.Performance;
 import com.likelion.yonsei.daedongje.domain.performance.entity.PerformanceImage;
+import com.likelion.yonsei.daedongje.domain.performance.entity.PerformanceStatus;
 import com.likelion.yonsei.daedongje.domain.performance.exception.PerformanceErrorCode;
 import com.likelion.yonsei.daedongje.domain.performance.repository.PerformanceImageRepository;
 import com.likelion.yonsei.daedongje.domain.performance.repository.PerformanceRepository;
@@ -44,7 +45,12 @@ public class PerformanceImageService {
     }
 
     public List<PerformanceImageResponse> getPerformanceImages(Long performanceId) {
-        if (!performanceRepository.existsById(performanceId)) {
+        Performance performance = performanceRepository.findById(performanceId)
+                .orElseThrow(() -> new BusinessException(PerformanceErrorCode.PERFORMANCE_NOT_FOUND));
+
+        // 비공개(HIDDEN)·취소(CANCELED) 공연의 이미지는 사용자 페이지에 노출하지 않는다.
+        if (performance.getPerformanceStatus() == PerformanceStatus.HIDDEN
+                || performance.getPerformanceStatus() == PerformanceStatus.CANCELED) {
             throw new BusinessException(PerformanceErrorCode.PERFORMANCE_NOT_FOUND);
         }
 
