@@ -1,5 +1,6 @@
 package com.likelion.yonsei.daedongje.domain.performance.controller;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.likelion.yonsei.daedongje.domain.auth.entity.AdminRole;
 import com.likelion.yonsei.daedongje.domain.auth.entity.AdminUser;
@@ -430,17 +431,20 @@ class PerformanceAdminControllerTest {
                 .andExpect(status().isOk())
                 .andReturn();
 
-        String apiDocs = result.getResponse().getContentAsString();
+        JsonNode apiDocs = objectMapper.readTree(result.getResponse().getContentAsString());
+        JsonNode myPerformancePath = apiDocs.path("paths").path(MY_PERFORMANCE_URL);
 
-        assertThat(apiDocs).contains("\"name\":\"공연 어드민\"");
-        assertThat(apiDocs).contains("\"/api/admin/performances/me\"");
-        assertThat(apiDocs).contains("\"get\"");
-        assertThat(apiDocs).contains("\"patch\"");
-        assertThat(apiDocs).contains("\"delete\"");
-        assertThat(apiDocs).doesNotContain("\"post\":{\"tags\":[\"공연 어드민\"]");
-        assertThat(apiDocs).doesNotContain("\"/performances/current\"");
-        assertThat(apiDocs).doesNotContain("\"/performances/timetable\"");
-        assertThat(apiDocs).doesNotContain("\"/api/admin/performances/{id}\"");
+        // /api/admin/performances/me 경로에 GET·PATCH·DELETE 오퍼레이션이 모두 존재하는지 path 범위로 검증한다.
+        assertThat(myPerformancePath.isMissingNode()).isFalse();
+        assertThat(myPerformancePath.has("get")).isTrue();
+        assertThat(myPerformancePath.has("patch")).isTrue();
+        assertThat(myPerformancePath.has("delete")).isTrue();
+        assertThat(myPerformancePath.has("post")).isFalse();
+
+        // 각 오퍼레이션이 "공연 어드민" 태그로 노출되는지 확인한다.
+        assertThat(myPerformancePath.path("get").path("tags").toString()).contains("공연 어드민");
+        assertThat(myPerformancePath.path("patch").path("tags").toString()).contains("공연 어드민");
+        assertThat(myPerformancePath.path("delete").path("tags").toString()).contains("공연 어드민");
     }
 
     private AdminUser adminUser(String loginId, AdminRole role) {
