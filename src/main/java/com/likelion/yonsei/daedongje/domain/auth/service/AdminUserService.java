@@ -1,6 +1,7 @@
 package com.likelion.yonsei.daedongje.domain.auth.service;
 
 import com.likelion.yonsei.daedongje.common.exception.BusinessException;
+import com.likelion.yonsei.daedongje.domain.auth.dto.AdminUserBulkCreateResponse;
 import com.likelion.yonsei.daedongje.domain.auth.dto.AdminUserCreateRequest;
 import com.likelion.yonsei.daedongje.domain.auth.dto.AdminUserCreateResponse;
 import com.likelion.yonsei.daedongje.domain.auth.dto.AdminUserDetailResponse;
@@ -25,7 +26,13 @@ import org.springframework.data.domain.Sort;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -75,6 +82,159 @@ public class AdminUserService {
 
         return AdminUserCreateResponse.from(savedAdminUser);
     }
+
+    @Transactional
+    public AdminUserBulkCreateResponse bulkCreateAdminUsers(MultipartFile file) {
+        List<AdminUserBulkCreateResponse.SuccessDetail> successList = new ArrayList<>();
+        List<AdminUserBulkCreateResponse.FailDetail> failList = new ArrayList<>();
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8))) {
+            String line;
+            boolean isHeader = true;
+            int rowIndex = 1;
+            
+            while ((line = reader.readLine()) != null) {
+                if (isHeader) {
+                    isHeader = false;
+                    continue;
+                }
+                
+                try {
+                    String[] columns = parseCsvLine(line);
+                    
+                    // 5개 미만 컬럼 검사
+                    if (columns.length < 5) {
+                        failList.add(new AdminUserBulkCreateResponse.FailDetail("", "", "올바르지 않은 데이터 형식 (컬럼 부족)"));
+                        rowIndex++;
+                        continue;
+                    }
+                    
+                    String roleStr = columns[0].trim();
+                    String boothName = columns[1].trim();
+                    String organization = columns[2].trim();
+                    String representativeName = columns[3].trim();
+                    String representativePhone = columns[4].trim();
+                    
+                    // 빈 줄 검사
+                    if (roleStr.isEmpty() && boothName.isEmpty()) {
+                        rowIndex++;
+                        continue;
+                    }
+                    
+                    // Role 검증
+                    AdminRole role;
+                    try {
+                        role = AdminRole.valueOf(roleStr);
+                        if (role != AdminRole.BOOTH && role != AdminRole.PERFORMER) {
+                            failList.add(new AdminUserBulkCreateResponse.FailDetail(roleStr, boothName, "유효하지 않은 Role(BOOTH or PERFORMER)"));
+                            rowIndex++;
+                            continue;
+                        }
+                    } catch (IllegalArgumentException e) {
+                        failList.add(new AdminUserBulkCreateResponse.FailDetail(roleStr, boothName, "유효하지 않은 Role(BOOTH or PERFORMER)"));
+                        rowIndex++;
+                        continue;
+                    }
+                    
+                    // ID 생성: booth_Name + 순번
+                    String loginId = boothName + "_" + rowIndex;
+                    
+                    // 중복 체크
+                    if (adminUserRepository.existsByLoginId(loginId)) {
+                        failList.add(new AdminUserBulkCreateResponse.FailDetail(roleStr, boothName, "이미 존재하는 로그인 아이디 (" + loginId + ")"));
+                        rowIndex++;
+                        continue;
+                    }
+                    
+                    // 랜덤 비밀번호 생성
+                    String password = generateRandomPassword();
+                    String passwordHash = passwordEncoder.encode(password);
+                    
+                    // 계정 생성
+                    AdminUser adminUser = AdminUser.create(
+                            loginId,
+                            passwordHash,
+                            organization,
+                            role,
+                            representativeName,
+                            representativePhone,
+                            "일괄 생성 계정"
+                    );
+                    
+                    try {
+                        adminUserRepository.save(adminUser);
+                        successList.add(new AdminUserBulkCreateResponse.SuccessDetail(loginId, password, boothName));
+                    } catch (Exception e) {
+                        failList.add(new AdminUserBulkCreateResponse.FailDetail(roleStr, boothName, "계정 생성 중 오류 발생: " + e.getMessage()));
+                    }
+                } catch (Exception e) {
+                    failList.add(new AdminUserBulkCreateResponse.FailDetail("", "", "행 처리 중 오류 발생: " + e.getMessage()));
+                }
+                
+                rowIndex++;
+            }
+            adminUserRepository.flush();
+        } catch (Exception e) {
+            throw new RuntimeException("CSV 파일 처리 중 오류가 발생했습니다.", e);
+        }
+        return AdminUserBulkCreateResponse.of(successList.size(), failList.size(), successList, failList);
+    }
+
+    private String[] parseCsvLine(String line) {
+        List<String> result = new ArrayList<>();
+        StringBuilder current = new StringBuilder();
+        boolean inQuotes = false;
+        
+        for (int i = 0; i < line.length(); i++) {
+            char c = line.charAt(i);
+            
+            if (c == '"') {
+                // 따옴표 처리: 연속된 따옴표는 이스케이프로 처리
+                if (inQuotes && i + 1 < line.length() && line.charAt(i + 1) == '"') {
+                    current.append('"');
+                    i++; // 다음 따옴표 스킵
+                } else {
+                    inQuotes = !inQuotes;
+                }
+            } else if (c == ',' && !inQuotes) {
+                // 따옴표 밖의 콤마는 구분자
+                result.add(current.toString());
+                current = new StringBuilder();
+            } else {
+                current.append(c);
+            }
+        }
+        result.add(current.toString());
+        
+        return result.toArray(new String[0]);
+    }
+    private String generateRandomPassword() {
+        String upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        String lower = "abcdefghijklmnopqrstuvwxyz";
+        String digits = "01023456789";
+        String specials = "!@#$%^&*()-_=+[]{}|;:,.<>?";
+        String allChars = upper + lower + digits + specials;
+        SecureRandom random = new SecureRandom();
+        int length = 8 + random.nextInt(3); // 8 ~ 10자
+        StringBuilder sb = new StringBuilder();
+        // 각 종류별 최소 1자 이상 보장
+        sb.append(upper.charAt(random.nextInt(upper.length())));
+        sb.append(lower.charAt(random.nextInt(lower.length())));
+        sb.append(digits.charAt(random.nextInt(digits.length())));
+        sb.append(specials.charAt(random.nextInt(specials.length())));
+        for (int i = 4; i < length; i++) {
+            sb.append(allChars.charAt(random.nextInt(allChars.length())));
+        }
+        // 셔플
+        char[] chars = sb.toString().toCharArray();
+        for (int i = chars.length - 1; i > 0; i--) {
+            int index = random.nextInt(i + 1);
+            char a = chars[index];
+            chars[index] = chars[i];
+            chars[i] = a;
+        }
+        return new String(chars);
+    }
+
 
     private void validateDuplicateLoginId(String loginId) {
         if (adminUserRepository.existsByLoginId(loginId)) {
