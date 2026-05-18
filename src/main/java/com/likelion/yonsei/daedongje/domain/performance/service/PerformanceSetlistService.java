@@ -75,12 +75,16 @@ public class PerformanceSetlistService {
     }
 
     public List<PerformanceSetlistResponse> getPerformanceSetlists(Long performanceId) {
-        if (!performanceRepository.existsById(performanceId)) {
+        List<PerformanceSetlist> setlists =
+                performanceSetlistRepository.findAllByPerformanceIdOrderBySongOrderAscIdAsc(performanceId);
+
+        // 셋리스트가 비어 있을 때만 공연 존재 여부를 추가 확인한다.
+        // (셋리스트가 1건이라도 있으면 FK상 공연은 반드시 존재하므로 조회를 1회로 줄인다)
+        if (setlists.isEmpty() && !performanceRepository.existsById(performanceId)) {
             throw new BusinessException(PerformanceErrorCode.PERFORMANCE_NOT_FOUND);
         }
 
-        return performanceSetlistRepository.findAllByPerformanceIdOrderBySongOrderAscIdAsc(performanceId)
-                .stream()
+        return setlists.stream()
                 .map(PerformanceSetlistResponse::from)
                 .toList();
     }
