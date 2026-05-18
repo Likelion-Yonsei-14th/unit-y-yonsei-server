@@ -94,10 +94,6 @@ public class AdminUserService {
             return List.of();
         }
 
-        List<Long> adminIds = adminUsers.stream()
-                .map(AdminUser::getId)
-                .toList();
-
         List<Long> boothAdminIds = adminUsers.stream()
                 .filter(adminUser -> adminUser.getRole() == AdminRole.BOOTH)
                 .map(AdminUser::getId)
@@ -109,8 +105,12 @@ public class AdminUserService {
 
         Map<Long, List<Booth>> boothsByAdminId = (boothAdminIds.isEmpty() ? List.<Booth>of() : boothRepository.findAllByAdminIdIn(boothAdminIds)).stream()
                 .collect(Collectors.groupingBy(Booth::getAdminId));
-        Map<Long, List<Performance>> performancesByAdminId = (performerAdminIds.isEmpty() ? List.<Performance>of() : performanceRepository.findAllByAdminUser_IdIn(performerAdminIds)).stream()
-                .collect(Collectors.groupingBy(performance -> performance.getAdminUser().getId()));
+        Map<Long, Performance> performanceByAdminId = (performerAdminIds.isEmpty() ? List.<Performance>of() : performanceRepository.findAllByAdminUser_IdIn(performerAdminIds)).stream()
+                .collect(Collectors.toMap(
+                        performance -> performance.getAdminUser().getId(),
+                        performance -> performance,
+                        (existing, duplicate) -> existing
+                ));
 
         return adminUsers.stream()
 
@@ -119,11 +119,11 @@ public class AdminUserService {
                 List<Booth> linkedBooths = adminUser.getRole() == AdminRole.BOOTH
                         ? boothsByAdminId.getOrDefault(adminUser.getId(), List.of())
                         : null;
-                List<Performance> linkedPerformances = adminUser.getRole() == AdminRole.PERFORMER
-                        ? performancesByAdminId.getOrDefault(adminUser.getId(), List.of())
+                Performance linkedPerformance = adminUser.getRole() == AdminRole.PERFORMER
+                        ? performanceByAdminId.get(adminUser.getId())
                         : null;
                 boolean infoCompleted = resolveInfoCompleted(adminUser, linkedBooths);
-                return AdminUserListResponse.from(adminUser, infoCompleted, linkedBooths, linkedPerformances);
+                return AdminUserListResponse.from(adminUser, infoCompleted, linkedBooths, linkedPerformance);
             })
                 .toList();
     }
@@ -135,12 +135,12 @@ public class AdminUserService {
         List<Booth> linkedBooths = adminUser.getRole() == AdminRole.BOOTH
                 ? boothRepository.findAllByAdminIdIn(List.of(adminUser.getId()))
                 : null;
-        List<Performance> linkedPerformances = adminUser.getRole() == AdminRole.PERFORMER
-                ? performanceRepository.findAllByAdminUser_IdIn(List.of(adminUser.getId()))
+        Performance linkedPerformance = adminUser.getRole() == AdminRole.PERFORMER
+                ? resolveLinkedPerformance(performanceRepository.findAllByAdminUser_IdIn(List.of(adminUser.getId())))
                 : null;
 
         boolean infoCompleted = resolveInfoCompleted(adminUser, linkedBooths);
-        return AdminUserDetailResponse.from(adminUser, infoCompleted, linkedBooths, linkedPerformances);
+        return AdminUserDetailResponse.from(adminUser, infoCompleted, linkedBooths, linkedPerformance);
     }
 
 
@@ -180,6 +180,13 @@ public class AdminUserService {
             return linkedBooths.stream().anyMatch(Booth::isProfileComplete);
         }
         return false;
+    }
+
+    private Performance resolveLinkedPerformance(List<Performance> performances) {
+        if (performances == null || performances.isEmpty()) {
+            return null;
+        }
+        return performances.get(0);
     }
 
 // BOOTH 어드민 생성 시 부스 기본 정보 함께 생성

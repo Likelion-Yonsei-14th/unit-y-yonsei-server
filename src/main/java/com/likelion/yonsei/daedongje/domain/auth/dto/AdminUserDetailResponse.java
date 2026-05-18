@@ -34,14 +34,14 @@ public class AdminUserDetailResponse {
     private boolean infoCompleted;
     @Schema(description = "연동된 부스 상세 목록")
     private List<LinkedBoothDetail> linkedBooths;
-    @Schema(description = "연동된 공연 상세 목록")
-    private List<LinkedPerformanceDetail> linkedPerformances;
+    @Schema(description = "연동된 공연 상세 정보 (계정당 최대 1개)")
+    private LinkedPerformanceDetail linkedPerformance;
 
     public static AdminUserDetailResponse from(
             AdminUser adminUser,
             boolean infoCompleted,
             List<Booth> linkedBooths,
-            List<Performance> linkedPerformances
+            Performance linkedPerformance
     ) {
         return new AdminUserDetailResponse(
                 adminUser.getId(),
@@ -56,9 +56,7 @@ public class AdminUserDetailResponse {
                 linkedBooths == null ? null : linkedBooths.stream()
                         .map(LinkedBoothDetail::from)
                         .toList(),
-                linkedPerformances == null ? null : linkedPerformances.stream()
-                        .map(LinkedPerformanceDetail::from)
-                        .toList()
+                linkedPerformance == null ? null : LinkedPerformanceDetail.from(linkedPerformance)
         );
     }
 
