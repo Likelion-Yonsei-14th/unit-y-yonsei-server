@@ -19,6 +19,7 @@ import com.likelion.yonsei.daedongje.domain.booth.repository.BoothRepository;
 import com.likelion.yonsei.daedongje.domain.performance.entity.Performance;
 import com.likelion.yonsei.daedongje.domain.performance.repository.PerformanceRepository;
 import com.likelion.yonsei.daedongje.domain.booth.service.BoothService;
+import com.likelion.yonsei.daedongje.domain.performance.repository.PerformanceRepository;
 import com.likelion.yonsei.daedongje.domain.performance.service.PerformanceService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -49,6 +50,7 @@ public class AdminUserService {
     private final BoothRepository boothRepository;
     private final PerformanceRepository performanceRepository;
     private final BoothService boothService;
+    private final PerformanceRepository performanceRepository;
     private final PerformanceService performanceService;
 
     @Transactional
@@ -408,6 +410,14 @@ public class AdminUserService {
             boolean hasOwnedBooths = boothRepository.existsByAdminId(adminUser.getId());
             if (hasOwnedBooths) {
                 throw new BusinessException(AuthErrorCode.ADMIN_HAS_OWNED_BOOTHS);
+            }
+        }
+
+        // 3. PERFORMER 어드민의 경우, 소유 공연이 있는지 확인
+        if (adminUser.getRole() == AdminRole.PERFORMER) {
+            boolean hasOwnedPerformances = performanceRepository.existsByAdminUser(adminUser);
+            if (hasOwnedPerformances) {
+                throw new BusinessException(AuthErrorCode.ADMIN_HAS_OWNED_PERFORMANCES);
             }
         }
     }
