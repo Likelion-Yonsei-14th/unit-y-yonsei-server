@@ -49,10 +49,11 @@ public class AdminUserController {
     )
     @RequireAdminRole(AdminRole.SUPER)
     @PostMapping(value = "/bulk", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ApiResponse<AdminUserBulkCreateResponse> bulkCreateAdminUsers(
+    public ResponseEntity<ApiResponse<AdminUserBulkCreateResponse>>  bulkCreateAdminUsers(
             @RequestParam("file") MultipartFile file
     ) {
-        return ApiResponse.success(adminUserService.bulkCreateAdminUsers(file));
+        return ResponseEntity.status(HttpStatus.CREATED)
+                 .body(ApiResponse.success(adminUserService.bulkCreateAdminUsers(file)));
     }
 
     @Operation(

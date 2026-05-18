@@ -20,7 +20,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.BufferedReader;
+import org.apache.commons.csv.CSVFormat;
+import org.apache.commons.csv.CSVParser;
+import org.apache.commons.csv.CSVRecord;
+
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
@@ -66,72 +69,73 @@ public class AdminUserService {
     public AdminUserBulkCreateResponse bulkCreateAdminUsers(MultipartFile file) {
         List<AdminUserBulkCreateResponse.SuccessDetail> successList = new ArrayList<>();
         List<AdminUserBulkCreateResponse.FailDetail> failList = new ArrayList<>();
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8))) {
-            String line;
-            boolean isHeader = true;
-            int rowIndex = 1;
-            while ((line = reader.readLine()) != null) {
-                if (isHeader) {
-                    isHeader = false;
-                    continue;
-                }
-                String[] columns = line.split(",");
-                if (columns.length < 5) {
-                    rowIndex++;
-                    failList.add(new AdminUserBulkCreateResponse.FailDetail("", "", "올바르지 않은 데이터 형식 (컬럼 부족)"));
-                    continue; // 빈 줄이거나 컬럼 부족 시 건너뛰기
-                }
-                String roleStr = columns[0].trim();
-                String boothName = columns[1].trim();
-                String organization = columns[2].trim();
-                String representativeName = columns[3].trim();
-                String representativePhone = columns[4].trim();
-                AdminRole role = null;
-                String reason = null;
-                // Role 검증
+        try (InputStreamReader reader = new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8);
+             CSVParser csvParser = CSVFormat.DEFAULT.withFirstRecordAsHeader().parse(reader)) {
+            
+            for (CSVRecord record : csvParser) {
                 try {
-                    role = AdminRole.valueOf(roleStr);
-                    if (role != AdminRole.BOOTH && role != AdminRole.PERFORMER) {
-                        reason = "유효하지 않은 Role(BOOTH or PERFORMER)";
+                    if (record.size() < 5) {
+                        failList.add(new AdminUserBulkCreateResponse.FailDetail("", "", "올바르지 않은 데이터 형식 (컬럼 부족)"));
+                        continue;
                     }
-                } catch (IllegalArgumentException e) {
-                    reason = "유효하지 않은 Role(BOOTH or PERFORMER)";
-                }
-                if (reason != null) {
-                    failList.add(new AdminUserBulkCreateResponse.FailDetail(roleStr, boothName, reason));
-                    rowIndex++;
-                    continue;
-                }
-                // ID 생성: booth_Name + 순번
-                String loginId = boothName + "_" + rowIndex;
-                
-                // 중복 체크
-                if (adminUserRepository.existsByLoginId(loginId)) {
-                    failList.add(new AdminUserBulkCreateResponse.FailDetail(roleStr, boothName, "이미 존재하는 로그인 아이디 (" + loginId + ")"));
-                    rowIndex++;
-                    continue;
-                }
-                // 랜덤 비밀번호 생성
-                String password = generateRandomPassword();
-                String passwordHash = passwordEncoder.encode(password);
-                // 계정 생성
-                AdminUser adminUser = AdminUser.create(
-                        loginId,
-                        passwordHash,
-                        organization,
-                        role,
-                        representativeName,
-                        representativePhone,
-                        "일괄 생성 계정" // memo
-                );
-                try {
-                    adminUserRepository.save(adminUser);
-                    successList.add(new AdminUserBulkCreateResponse.SuccessDetail(loginId, password, boothName));
+                    
+                    String roleStr = record.get(0).trim();
+                    String boothName = record.get(1).trim();
+                    String organization = record.get(2).trim();
+                    String representativeName = record.get(3).trim();
+                    String representativePhone = record.get(4).trim();
+                    
+                    // 빈 줄 검사
+                    if (roleStr.isEmpty() && boothName.isEmpty()) {
+                        continue;
+                    }
+                    
+                    // Role 검증
+                    AdminRole role;
+                    try {
+                        role = AdminRole.valueOf(roleStr);
+                        if (role != AdminRole.BOOTH && role != AdminRole.PERFORMER) {
+                            failList.add(new AdminUserBulkCreateResponse.FailDetail(roleStr, boothName, "유효하지 않은 Role(BOOTH or PERFORMER)"));
+                            continue;
+                        }
+                    } catch (IllegalArgumentException e) {
+                        failList.add(new AdminUserBulkCreateResponse.FailDetail(roleStr, boothName, "유효하지 않은 Role(BOOTH or PERFORMER)"));
+                        continue;
+                    }
+                    
+                    // ID 생성: booth_Name + 순번
+                    String loginId = boothName + "_" + (record.getRecordNumber());
+                    
+                    // 중복 체크
+                    if (adminUserRepository.existsByLoginId(loginId)) {
+                        failList.add(new AdminUserBulkCreateResponse.FailDetail(roleStr, boothName, "이미 존재하는 로그인 아이디 (" + loginId + ")"));
+                        continue;
+                    }
+                    
+                    // 랜덤 비밀번호 생성
+                    String password = generateRandomPassword();
+                    String passwordHash = passwordEncoder.encode(password);
+                    
+                    // 계정 생성
+                    AdminUser adminUser = AdminUser.create(
+                            loginId,
+                            passwordHash,
+                            organization,
+                            role,
+                            representativeName,
+                            representativePhone,
+                            "일괄 생성 계정"
+                    );
+                    
+                    try {
+                        adminUserRepository.save(adminUser);
+                        successList.add(new AdminUserBulkCreateResponse.SuccessDetail(loginId, password, boothName));
+                    } catch (Exception e) {
+                        failList.add(new AdminUserBulkCreateResponse.FailDetail(roleStr, boothName, "계정 생성 중 오류 발생: " + e.getMessage()));
+                    }
                 } catch (Exception e) {
-                    failList.add(new AdminUserBulkCreateResponse.FailDetail(roleStr, boothName, "계정 생성 중 오류 발생: " + e.getMessage()));
+                    failList.add(new AdminUserBulkCreateResponse.FailDetail("", "", "행 처리 중 오류 발생: " + e.getMessage()));
                 }
-                
-                rowIndex++;
             }
             adminUserRepository.flush();
         } catch (Exception e) {
