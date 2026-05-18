@@ -12,6 +12,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 
@@ -34,6 +35,9 @@ class BoothClickLogServiceTest {
     private BoothClickLogRepository boothClickLogRepository;
 
     @Mock
+    private ObjectProvider<StringRedisTemplate> redisTemplateProvider;
+
+    @Mock
     private StringRedisTemplate redisTemplate;
 
     @Mock
@@ -45,6 +49,7 @@ class BoothClickLogServiceTest {
     @Test
     @DisplayName("레이트 리밋 내 요청이면 존재하는 부스의 클릭 로그를 저장한다")
     void createSavesClickLog() {
+        when(redisTemplateProvider.getIfAvailable()).thenReturn(redisTemplate);
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.increment(anyString())).thenReturn(1L);
         when(boothRepository.existsById(1L)).thenReturn(true);
@@ -62,6 +67,7 @@ class BoothClickLogServiceTest {
     @Test
     @DisplayName("존재하지 않는 부스면 클릭 로그를 저장하지 않고 예외를 던진다")
     void createThrowsWhenBoothNotFound() {
+        when(redisTemplateProvider.getIfAvailable()).thenReturn(redisTemplate);
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.increment(anyString())).thenReturn(1L);
         when(boothRepository.existsById(999L)).thenReturn(false);
@@ -77,6 +83,7 @@ class BoothClickLogServiceTest {
     @Test
     @DisplayName("레이트 리밋 한도를 초과하면 부스 조회 없이 예외를 던진다")
     void createThrowsWhenRateLimitExceeded() {
+        when(redisTemplateProvider.getIfAvailable()).thenReturn(redisTemplate);
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.increment(anyString())).thenReturn(11L);
 
@@ -92,7 +99,19 @@ class BoothClickLogServiceTest {
     @Test
     @DisplayName("Redis 장애 시에는 레이트 리밋을 건너뛰고 클릭 로그를 저장한다")
     void createAllowsWhenRedisFails() {
+        when(redisTemplateProvider.getIfAvailable()).thenReturn(redisTemplate);
         when(redisTemplate.opsForValue()).thenThrow(new RuntimeException("redis down"));
+        when(boothRepository.existsById(1L)).thenReturn(true);
+
+        boothClickLogService.create(1L, CLIENT_IP);
+
+        verify(boothClickLogRepository).save(org.mockito.ArgumentMatchers.any(BoothClickLog.class));
+    }
+
+    @Test
+    @DisplayName("Redis 가 구성되지 않은 환경에서는 레이트 리밋을 건너뛰고 클릭 로그를 저장한다")
+    void createSkipsRateLimitWhenRedisNotConfigured() {
+        when(redisTemplateProvider.getIfAvailable()).thenReturn(null);
         when(boothRepository.existsById(1L)).thenReturn(true);
 
         boothClickLogService.create(1L, CLIENT_IP);

@@ -7,6 +7,7 @@ import com.likelion.yonsei.daedongje.domain.booth.repository.BoothClickLogReposi
 import com.likelion.yonsei.daedongje.domain.booth.repository.BoothRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,14 +28,18 @@ public class BoothClickLogService {
 
     private final BoothRepository boothRepository;
     private final BoothClickLogRepository boothClickLogRepository;
-    private final StringRedisTemplate redisTemplate;
+    /**
+     * Redis 자동 설정이 제외된 환경(예: 테스트)에서는 {@link StringRedisTemplate} 빈이 없을 수 있으므로
+     * {@link ObjectProvider} 로 선택적으로 주입받는다.
+     */
+    private final ObjectProvider<StringRedisTemplate> redisTemplateProvider;
 
     public BoothClickLogService(BoothRepository boothRepository,
                                 BoothClickLogRepository boothClickLogRepository,
-                                StringRedisTemplate redisTemplate) {
+                                ObjectProvider<StringRedisTemplate> redisTemplateProvider) {
         this.boothRepository = boothRepository;
         this.boothClickLogRepository = boothClickLogRepository;
-        this.redisTemplate = redisTemplate;
+        this.redisTemplateProvider = redisTemplateProvider;
     }
 
     @Transactional
@@ -53,9 +58,16 @@ public class BoothClickLogService {
      * IP·부스 조합 기준으로 1분 동안의 클릭 로그 요청 수를 제한한다.
      *
      * <p>Redis 의 원자적 {@code INCR} 로 카운트를 올리고, 윈도우의 첫 요청에만 TTL 을 설정한다.
-     * Redis 장애 시에는 클릭 로그 저장 자체를 막지 않도록 fail-open 으로 동작한다.
+     * Redis 가 구성되지 않았거나({@link StringRedisTemplate} 빈 부재) 장애가 발생한 경우에는
+     * 클릭 로그 저장 자체를 막지 않도록 fail-open 으로 동작한다.
      */
     private void checkRateLimit(Long boothId, String clientIp) {
+        StringRedisTemplate redisTemplate = redisTemplateProvider.getIfAvailable();
+        if (redisTemplate == null) {
+            // Redis 자동 설정이 제외된 환경에서는 레이트 리밋을 건너뛴다.
+            return;
+        }
+
         String key = RATE_LIMIT_KEY_PREFIX + clientIp + ":" + boothId;
 
         Long count;
