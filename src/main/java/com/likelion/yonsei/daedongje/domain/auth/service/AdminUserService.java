@@ -20,10 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import org.apache.commons.csv.CSVFormat;
-import org.apache.commons.csv.CSVParser;
-import org.apache.commons.csv.CSVRecord;
-
+import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
@@ -69,24 +66,36 @@ public class AdminUserService {
     public AdminUserBulkCreateResponse bulkCreateAdminUsers(MultipartFile file) {
         List<AdminUserBulkCreateResponse.SuccessDetail> successList = new ArrayList<>();
         List<AdminUserBulkCreateResponse.FailDetail> failList = new ArrayList<>();
-        try (InputStreamReader reader = new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8);
-             CSVParser csvParser = CSVFormat.DEFAULT.withFirstRecordAsHeader().parse(reader)) {
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8))) {
+            String line;
+            boolean isHeader = true;
+            int rowIndex = 1;
             
-            for (CSVRecord record : csvParser) {
+            while ((line = reader.readLine()) != null) {
+                if (isHeader) {
+                    isHeader = false;
+                    continue;
+                }
+                
                 try {
-                    if (record.size() < 5) {
+                    String[] columns = parseCsvLine(line);
+                    
+                    // 5개 미만 컬럼 검사
+                    if (columns.length < 5) {
                         failList.add(new AdminUserBulkCreateResponse.FailDetail("", "", "올바르지 않은 데이터 형식 (컬럼 부족)"));
+                        rowIndex++;
                         continue;
                     }
                     
-                    String roleStr = record.get(0).trim();
-                    String boothName = record.get(1).trim();
-                    String organization = record.get(2).trim();
-                    String representativeName = record.get(3).trim();
-                    String representativePhone = record.get(4).trim();
+                    String roleStr = columns[0].trim();
+                    String boothName = columns[1].trim();
+                    String organization = columns[2].trim();
+                    String representativeName = columns[3].trim();
+                    String representativePhone = columns[4].trim();
                     
                     // 빈 줄 검사
                     if (roleStr.isEmpty() && boothName.isEmpty()) {
+                        rowIndex++;
                         continue;
                     }
                     
@@ -96,19 +105,22 @@ public class AdminUserService {
                         role = AdminRole.valueOf(roleStr);
                         if (role != AdminRole.BOOTH && role != AdminRole.PERFORMER) {
                             failList.add(new AdminUserBulkCreateResponse.FailDetail(roleStr, boothName, "유효하지 않은 Role(BOOTH or PERFORMER)"));
+                            rowIndex++;
                             continue;
                         }
                     } catch (IllegalArgumentException e) {
                         failList.add(new AdminUserBulkCreateResponse.FailDetail(roleStr, boothName, "유효하지 않은 Role(BOOTH or PERFORMER)"));
+                        rowIndex++;
                         continue;
                     }
                     
                     // ID 생성: booth_Name + 순번
-                    String loginId = boothName + "_" + (record.getRecordNumber());
+                    String loginId = boothName + "_" + rowIndex;
                     
                     // 중복 체크
                     if (adminUserRepository.existsByLoginId(loginId)) {
                         failList.add(new AdminUserBulkCreateResponse.FailDetail(roleStr, boothName, "이미 존재하는 로그인 아이디 (" + loginId + ")"));
+                        rowIndex++;
                         continue;
                     }
                     
@@ -136,12 +148,43 @@ public class AdminUserService {
                 } catch (Exception e) {
                     failList.add(new AdminUserBulkCreateResponse.FailDetail("", "", "행 처리 중 오류 발생: " + e.getMessage()));
                 }
+                
+                rowIndex++;
             }
             adminUserRepository.flush();
         } catch (Exception e) {
             throw new RuntimeException("CSV 파일 처리 중 오류가 발생했습니다.", e);
         }
         return AdminUserBulkCreateResponse.of(successList.size(), failList.size(), successList, failList);
+    }
+
+    private String[] parseCsvLine(String line) {
+        List<String> result = new ArrayList<>();
+        StringBuilder current = new StringBuilder();
+        boolean inQuotes = false;
+        
+        for (int i = 0; i < line.length(); i++) {
+            char c = line.charAt(i);
+            
+            if (c == '"') {
+                // 따옴표 처리: 연속된 따옴표는 이스케이프로 처리
+                if (inQuotes && i + 1 < line.length() && line.charAt(i + 1) == '"') {
+                    current.append('"');
+                    i++; // 다음 따옴표 스킵
+                } else {
+                    inQuotes = !inQuotes;
+                }
+            } else if (c == ',' && !inQuotes) {
+                // 따옴표 밖의 콤마는 구분자
+                result.add(current.toString());
+                current = new StringBuilder();
+            } else {
+                current.append(c);
+            }
+        }
+        result.add(current.toString());
+        
+        return result.toArray(new String[0]);
     }
     private String generateRandomPassword() {
         String upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
