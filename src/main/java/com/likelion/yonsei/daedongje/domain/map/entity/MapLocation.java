@@ -46,4 +46,90 @@ public class MapLocation extends BaseEntity {
 
     protected MapLocation() {
     }
+
+    private MapLocation(
+            String locationName,
+            String sector,
+            BigDecimal mapX,
+            BigDecimal mapY,
+            BigDecimal width,
+            BigDecimal height,
+            MapLocationType locationType,
+            Integer displayOrder,
+            MapDisplayStatus displayStatus
+    ) {
+        this.locationName = locationName;
+        this.sector = sector;
+        this.mapX = mapX;
+        this.mapY = mapY;
+        this.width = width;
+        this.height = height;
+        this.locationType = locationType;
+        this.displayOrder = displayOrder != null ? displayOrder : 0;
+        this.displayStatus = displayStatus;
+    }
+
+    public static MapLocation create(
+            String locationName,
+            String sector,
+            BigDecimal mapX,
+            BigDecimal mapY,
+            BigDecimal width,
+            BigDecimal height,
+            MapLocationType locationType,
+            Integer displayOrder,
+            MapDisplayStatus displayStatus
+    ) {
+        return new MapLocation(
+                locationName,
+                sector,
+                mapX,
+                mapY,
+                width,
+                height,
+                locationType,
+                displayOrder,
+                displayStatus
+        );
+    }
+
+    public void update(
+            String locationName,
+            String sector,
+            BigDecimal mapX,
+            BigDecimal mapY,
+            BigDecimal width,
+            BigDecimal height,
+            MapLocationType locationType,
+            Integer displayOrder,
+            MapDisplayStatus displayStatus
+    ) {
+        if (locationName != null) {
+            this.locationName = locationName;
+        }
+        if (sector != null) {
+            this.sector = sector;
+        }
+        if (mapX != null) {
+            this.mapX = mapX;
+        }
+        if (mapY != null) {
+            this.mapY = mapY;
+        }
+        if (width != null) {
+            this.width = width;
+        }
+        if (height != null) {
+            this.height = height;
+        }
+        if (locationType != null) {
+            this.locationType = locationType;
+        }
+        if (displayOrder != null) {
+            this.displayOrder = displayOrder;
+        }
+        if (displayStatus != null) {
+            this.displayStatus = displayStatus;
+        }
+    }
 }

@@ -70,7 +70,10 @@ public class BoothResponse {
     @Schema(description = "대표 메뉴 카테고리 목록", example = "[\"치킨\", \"맥주\"]")
     private List<String> representativeMenus;
 
-    public static BoothResponse from(Booth booth) {
+    @Schema(description = "현재 대기 팀 수", example = "3")
+    private long waitingCount;
+
+    public static BoothResponse of(Booth booth, long waitingCount) {
         return BoothResponse.builder()
                 .id(booth.getId())
                 .adminId(booth.getAdminId())
@@ -90,7 +93,12 @@ public class BoothResponse {
                 .locationId(booth.getLocationId())
                 .profileComplete(booth.isProfileComplete())
                 .representativeMenus(parseMenus(booth.getRepresentativeMenus()))
+                .waitingCount(waitingCount)
                 .build();
+    }
+
+    public static BoothResponse from(Booth booth) {
+        return of(booth, 0L);
     }
 
     private static List<String> parseMenus(String raw) {

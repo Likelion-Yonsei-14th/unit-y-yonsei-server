@@ -20,8 +20,5 @@ public record ReservationUserCancelRequest(
 
         @Schema(description = "예약 조회용 비밀번호 4자리 (PIN 설정 시 필수)", example = "1234")
         @Pattern(regexp = "^[0-9]{4}$", message = "비밀번호는 숫자 4자리여야 합니다.")
-        String pin,
-
-        @Schema(description = "예약 취소 사유", example = "일정 변경으로 인한 취소")
-        String cancelReason
+        String pin
 ) {}

@@ -21,6 +21,8 @@ public interface BoothRepository extends JpaRepository<Booth, Long> {
 
     boolean existsByName(String name);
 
+    boolean existsByAdminId(Long adminId);
+
     List<Booth> findAllByDate(Integer date);
 
     List<Booth> findAllBySector(BoothSector sector);
@@ -44,4 +46,5 @@ public interface BoothRepository extends JpaRepository<Booth, Long> {
     List<Booth> findAllByIsReservable(Boolean isReservable);
 
     List<Booth> findAllByIsReservableAndStatus(Boolean isReservable, BoothStatus status);
+
 }

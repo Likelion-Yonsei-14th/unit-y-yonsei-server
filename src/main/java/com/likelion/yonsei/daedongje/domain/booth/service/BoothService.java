@@ -98,8 +98,19 @@ public class BoothService {
             booths = boothRepository.findAll();
         }
 
+        if (booths.isEmpty()) return List.of();
+
+        List<Long> boothIds = booths.stream().map(Booth::getId).toList();
+        Map<Long, Long> waitingCountMap = reservationRepository
+                .countByBoothIdsAndStatus(boothIds, ReservationStatus.PENDING)
+                .stream()
+                .collect(Collectors.toMap(
+                        row -> (Long) row[0],
+                        row -> (Long) row[1]
+                ));
+
         return booths.stream()
-                .map(BoothResponse::from)
+                .map(booth -> BoothResponse.of(booth, waitingCountMap.getOrDefault(booth.getId(), 0L)))
                 .toList();
     }
 
