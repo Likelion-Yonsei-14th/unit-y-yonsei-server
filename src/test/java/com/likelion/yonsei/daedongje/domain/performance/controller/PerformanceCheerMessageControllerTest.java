@@ -42,7 +42,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 class PerformanceCheerMessageControllerTest {
 
-    private static final String USER_CHEER_MESSAGES_URL = "/performances/{id}/cheer-messages";
+    private static final String USER_CHEER_MESSAGES_URL = "/api/performances/{id}/cheer-messages";
     private static final String ADMIN_CHEER_MESSAGES_URL = "/api/admin/performances/me/cheer-messages";
 
     @Autowired
@@ -331,8 +331,8 @@ class PerformanceCheerMessageControllerTest {
         JsonNode paths = apiDocs.path("paths");
 
         assertThat(apiDocs.path("tags").toString()).contains("공연 응원 메시지");
-        assertThat(paths.path("/performances/{id}/cheer-messages").has("post")).isTrue();
-        assertThat(paths.path("/performances/{id}/cheer-messages").has("get")).isTrue();
+        assertThat(paths.path("/api/performances/{id}/cheer-messages").has("post")).isTrue();
+        assertThat(paths.path("/api/performances/{id}/cheer-messages").has("get")).isTrue();
         assertThat(paths.path(ADMIN_CHEER_MESSAGES_URL).has("get")).isTrue();
         assertThat(paths.path(ADMIN_CHEER_MESSAGES_URL + "/{messageId}").has("delete")).isTrue();
         assertThat(paths.has("/api/admin/performances/{id}/cheer-messages")).isFalse();

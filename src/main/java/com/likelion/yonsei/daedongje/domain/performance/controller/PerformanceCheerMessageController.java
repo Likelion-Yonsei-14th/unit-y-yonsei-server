@@ -31,7 +31,7 @@ public class PerformanceCheerMessageController {
     private final PerformanceCheerMessageService cheerMessageService;
 
     @Operation(summary = "공연 응원 메시지 등록", description = "사용자가 공연과 선택 셋리스트에 응원 메시지를 등록합니다.")
-    @PostMapping("/performances/{id}/cheer-messages")
+    @PostMapping("/api/performances/{id}/cheer-messages")
     public ResponseEntity<ApiResponse<PerformanceCheerMessageResponse>> createCheerMessage(
             @PathVariable Long id,
             @Valid @RequestBody PerformanceCheerMessageCreateRequest request
@@ -41,7 +41,7 @@ public class PerformanceCheerMessageController {
     }
 
     @Operation(summary = "공연별 응원 메시지 목록 조회", description = "공연별 VISIBLE 응원 메시지를 createdAt ASC, id ASC 기준으로 조회합니다.")
-    @GetMapping("/performances/{id}/cheer-messages")
+    @GetMapping("/api/performances/{id}/cheer-messages")
     public ApiResponse<List<PerformanceCheerMessageResponse>> getCheerMessages(@PathVariable Long id) {
         return ApiResponse.success(cheerMessageService.getVisibleCheerMessages(id));
     }
