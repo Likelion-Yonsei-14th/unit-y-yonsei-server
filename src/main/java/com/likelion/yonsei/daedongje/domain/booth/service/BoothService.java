@@ -62,7 +62,8 @@ public class BoothService {
                 request.instagram(),
                 request.isReservable(),
                 request.account(),
-                request.locationId()
+                request.locationId(),
+                toMenuString(request.representativeMenus())
         );
 
         try {
@@ -76,7 +77,7 @@ public class BoothService {
     public BoothResponse getById(Long id) {
         Booth booth = boothRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(BoothErrorCode.BOOTH_NOT_FOUND));
-        return BoothResponse.of(booth, fetchThumbnail(id));
+        return BoothResponse.of(booth, 0L, fetchThumbnail(id));
     }
 
     // 부스 전체 조회 (필터: 날짜, 구역, 음식 여부 — 모든 AND 조합 지원)
@@ -103,9 +104,18 @@ public class BoothService {
 
         if (booths.isEmpty()) return List.of();
 
-        Map<Long, String> thumbnailMap = fetchThumbnailMap(booths.stream().map(Booth::getId).toList());
+        List<Long> boothIds = booths.stream().map(Booth::getId).toList();
+        Map<Long, Long> waitingCountMap = reservationRepository
+                .countByBoothIdsAndStatus(boothIds, ReservationStatus.PENDING)
+                .stream()
+                .collect(Collectors.toMap(
+                        row -> (Long) row[0],
+                        row -> (Long) row[1]
+                ));
+        Map<Long, String> thumbnailMap = fetchThumbnailMap(boothIds);
+
         return booths.stream()
-                .map(booth -> BoothResponse.of(booth, thumbnailMap.get(booth.getId())))
+                .map(booth -> BoothResponse.of(booth, waitingCountMap.getOrDefault(booth.getId(), 0L), thumbnailMap.get(booth.getId())))
                 .toList();
     }
 
@@ -116,7 +126,7 @@ public class BoothService {
 
         Map<Long, String> thumbnailMap = fetchThumbnailMap(booths.stream().map(Booth::getId).toList());
         return booths.stream()
-                .map(booth -> BoothResponse.of(booth, thumbnailMap.get(booth.getId())))
+                .map(booth -> BoothResponse.of(booth, 0L, thumbnailMap.get(booth.getId())))
                 .toList();
     }
 
@@ -171,7 +181,8 @@ public class BoothService {
                     request.instagram(),
                     request.isReservable(),
                     request.account(),
-                    request.locationId()
+                    request.locationId(),
+                    toMenuString(request.representativeMenus())
             );
             return BoothResponse.from(booth);
         } catch (DataIntegrityViolationException e) {
@@ -215,11 +226,6 @@ public class BoothService {
         boothRepository.delete(booth);
     }
 
-    /**
-     * 운영 시간 유효성 검사.
-     * - openTime, closeTime 둘 중 하나만 입력된 경우 예외 (둘 다 null이거나 둘 다 non-null이어야 함)
-     * - 둘 다 입력된 경우 closeTime > openTime이어야 함
-     */
     private String fetchThumbnail(Long boothId) {
         return boothImageRepository.findByBoothIdAndDisplayOrder(boothId, 1)
                 .map(BoothImage::getImageUrl)
@@ -231,6 +237,16 @@ public class BoothService {
                 .collect(Collectors.toMap(BoothImage::getBoothId, BoothImage::getImageUrl));
     }
 
+    private String toMenuString(List<String> menus) {
+        if (menus == null || menus.isEmpty()) return null;
+        return String.join(",", menus);
+    }
+
+    /**
+     * 운영 시간 유효성 검사.
+     * - openTime, closeTime 둘 중 하나만 입력된 경우 예외 (둘 다 null이거나 둘 다 non-null이어야 함)
+     * - 둘 다 입력된 경우 closeTime > openTime이어야 함
+     */
     private void validateBoothTime(LocalTime openTime, LocalTime closeTime) {
         boolean openProvided = openTime != null;
         boolean closeProvided = closeTime != null;

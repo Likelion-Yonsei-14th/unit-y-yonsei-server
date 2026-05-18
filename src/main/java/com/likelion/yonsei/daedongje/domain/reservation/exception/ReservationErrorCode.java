@@ -9,7 +9,8 @@ public enum ReservationErrorCode implements ErrorCode {
     BOOTH_NOT_RESERVABLE(HttpStatus.BAD_REQUEST, "R-002", "예약이 불가능한 부스입니다."),
     ALREADY_CANCELLED(HttpStatus.BAD_REQUEST, "R-003", "이미 취소된 예약입니다."),
     CANNOT_CONFIRM_CANCELLED(HttpStatus.BAD_REQUEST, "R-004", "취소된 예약은 입장 처리할 수 없습니다."),
-    INVALID_STATUS_TRANSITION(HttpStatus.BAD_REQUEST, "R-005", "유효하지 않은 상태 변경입니다.");
+    INVALID_STATUS_TRANSITION(HttpStatus.BAD_REQUEST, "R-005", "유효하지 않은 상태 변경입니다."),
+    CANNOT_UPDATE_NON_PENDING(HttpStatus.BAD_REQUEST, "R-006", "대기 중인 예약만 수정할 수 있습니다.");
 
     private final HttpStatus status;
     private final String code;
