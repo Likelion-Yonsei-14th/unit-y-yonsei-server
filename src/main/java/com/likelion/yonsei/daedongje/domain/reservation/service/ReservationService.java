@@ -100,8 +100,19 @@ public class ReservationService {
                 .findAllByBookerNameAndPhoneNumberWithFilter(bookerName, phoneNumber, status)
                 .stream()
                 .filter(r -> pinMatches(r.getPin(), pin))
-                .map(ReservationResponse::from)
+                .map(r -> ReservationResponse.of(r, calcAheadOfMe(r)))
                 .toList();
+    }
+
+    private long calcAheadOfMe(Reservation reservation) {
+        if (reservation.getStatus() != ReservationStatus.PENDING) {
+            return 0L;
+        }
+        return reservationRepository.countByBoothIdAndStatusAndReservationNumberLessThan(
+                reservation.getBooth().getId(),
+                ReservationStatus.PENDING,
+                reservation.getReservationNumber()
+        );
     }
 
     // 어드민 예약 상태 변경 (CONFIRMED: 입장 처리 / CANCELLED: 취소)

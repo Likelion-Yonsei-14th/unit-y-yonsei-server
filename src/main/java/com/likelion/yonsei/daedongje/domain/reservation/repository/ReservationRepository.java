@@ -21,6 +21,8 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
 
     long countByBoothIdAndStatus(Long boothId, ReservationStatus status);
 
+    long countByBoothIdAndStatusAndReservationNumberLessThan(Long boothId, ReservationStatus status, Integer reservationNumber);
+
     // 여러 부스의 PENDING 예약 수를 한 번에 조회 (N+1 방지)
     @Query("SELECT r.booth.id, COUNT(r) FROM Reservation r WHERE r.booth.id IN :boothIds AND r.status = :status GROUP BY r.booth.id")
     List<Object[]> countByBoothIdsAndStatus(@Param("boothIds") List<Long> boothIds, @Param("status") ReservationStatus status);
