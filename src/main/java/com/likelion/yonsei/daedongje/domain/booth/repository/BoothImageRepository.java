@@ -17,5 +17,10 @@ public interface BoothImageRepository extends JpaRepository<BoothImage, Long> {
     @Query("SELECT bi FROM BoothImage bi WHERE bi.id = :boothImageId")
     Optional<BoothImage> findByIdWithLock(@Param("boothImageId") Long boothImageId);
 
+    Optional<BoothImage> findByBoothIdAndDisplayOrder(Long boothId, Integer displayOrder);
+
+    @Query("SELECT bi FROM BoothImage bi WHERE bi.boothId IN :boothIds AND bi.displayOrder = 1")
+    List<BoothImage> findThumbnailsByBoothIds(@Param("boothIds") List<Long> boothIds);
+
     boolean existsByBoothIdAndDisplayOrder(Long boothId, Integer displayOrder);
 }
