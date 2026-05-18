@@ -3,6 +3,8 @@ package com.likelion.yonsei.daedongje.domain.performance.dto;
 import com.likelion.yonsei.daedongje.domain.performance.entity.PerformanceCategory;
 import com.likelion.yonsei.daedongje.domain.performance.entity.PerformanceStatus;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Size;
 
 import java.time.LocalTime;
@@ -20,7 +22,8 @@ public record PerformanceUpdateRequest(
         @Schema(description = "공연 설명", example = "대동제 메인 무대 공연입니다.", nullable = true)
         String performanceDescription,
 
-        @Schema(description = "공연 일차", example = "1", nullable = true)
+        @Schema(description = "공연 일차 (1=1일차 ~ 4=4일차)", example = "1", nullable = true)
+        @Min(1) @Max(4)
         Integer performanceDate,
 
         @Schema(description = "공연 시작 시간", example = "18:00", nullable = true)
