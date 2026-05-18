@@ -3,13 +3,17 @@ package com.likelion.yonsei.daedongje.domain.map.service;
 import com.likelion.yonsei.daedongje.common.exception.BusinessException;
 import com.likelion.yonsei.daedongje.common.exception.CommonErrorCode;
 import com.likelion.yonsei.daedongje.common.response.PageResponse;
+import com.likelion.yonsei.daedongje.domain.map.dto.MapLocationCreateRequest;
+import com.likelion.yonsei.daedongje.domain.map.dto.MapLocationDeleteResponse;
 import com.likelion.yonsei.daedongje.domain.map.dto.MapLocationResponse;
+import com.likelion.yonsei.daedongje.domain.map.dto.MapLocationUpdateRequest;
 import com.likelion.yonsei.daedongje.domain.map.entity.MapDisplayStatus;
 import com.likelion.yonsei.daedongje.domain.map.entity.MapLocation;
 import com.likelion.yonsei.daedongje.domain.map.entity.MapLocationType;
 import com.likelion.yonsei.daedongje.domain.map.exception.MapLocationErrorCode;
 import com.likelion.yonsei.daedongje.domain.map.repository.MapLocationRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +26,58 @@ public class MapLocationService {
     private static final int MAX_PAGE_SIZE = 100;
 
     private final MapLocationRepository mapLocationRepository;
+
+    @Transactional
+    public MapLocationResponse create(MapLocationCreateRequest request) {
+        MapLocation mapLocation = MapLocation.create(
+                request.locationName(),
+                request.sector(),
+                request.mapX(),
+                request.mapY(),
+                request.width(),
+                request.height(),
+                request.locationType(),
+                request.displayOrder(),
+                request.displayStatus()
+        );
+
+        return MapLocationResponse.from(mapLocationRepository.save(mapLocation));
+    }
+
+    @Transactional
+    public MapLocationResponse update(Long id, MapLocationUpdateRequest request) {
+        MapLocation mapLocation = mapLocationRepository.findById(id)
+                .orElseThrow(() -> new BusinessException(MapLocationErrorCode.MAP_LOCATION_NOT_FOUND));
+
+        mapLocation.update(
+                request.locationName(),
+                request.sector(),
+                request.mapX(),
+                request.mapY(),
+                request.width(),
+                request.height(),
+                request.locationType(),
+                request.displayOrder(),
+                request.displayStatus()
+        );
+
+        return MapLocationResponse.from(mapLocation);
+    }
+
+    @Transactional
+    public MapLocationDeleteResponse delete(Long id) {
+        MapLocation mapLocation = mapLocationRepository.findById(id)
+                .orElseThrow(() -> new BusinessException(MapLocationErrorCode.MAP_LOCATION_NOT_FOUND));
+
+        // TODO: performance 도메인 삭제 정책이 확정되면 performance.location_id 참조 여부도 함께 확인한다.
+        try {
+            mapLocationRepository.delete(mapLocation);
+            mapLocationRepository.flush();
+        } catch (DataIntegrityViolationException e) {
+            throw new BusinessException(MapLocationErrorCode.MAP_LOCATION_IN_USE);
+        }
+        return MapLocationDeleteResponse.of(id);
+    }
 
     public PageResponse<MapLocationResponse> getList(
             String sector,

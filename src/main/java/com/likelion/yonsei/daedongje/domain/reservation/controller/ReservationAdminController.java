@@ -73,7 +73,7 @@ public class ReservationAdminController {
             description = """
                     예약 상태를 변경한다.
                     - `CONFIRMED`: 예약자가 현장에 도착해 입장 처리. 이미 취소된 예약에는 적용 불가 (R-004).
-                    - `CANCELLED`: 예약 취소. cancelReason 함께 전달 가능. 이미 취소된 예약에는 적용 불가 (R-003).
+                    - `CANCELLED`: 예약 취소. 이미 취소된 예약에는 적용 불가 (R-003).
                     - `BOOTH` 권한은 본인 담당 부스의 예약만 변경 가능. 타 부스 접근 시 403 반환.
                     """
     )

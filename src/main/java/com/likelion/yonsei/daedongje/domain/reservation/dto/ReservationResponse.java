@@ -34,9 +34,6 @@ public class ReservationResponse {
     @Schema(description = "예약 상태", example = "PENDING")
     private ReservationStatus status;
 
-    @Schema(description = "예약 취소 사유", example = "일정 변경으로 인한 취소")
-    private String cancelReason;
-
     @Schema(description = "예약 생성 시간")
     private LocalDateTime createdAt;
 
@@ -52,7 +49,6 @@ public class ReservationResponse {
                 .phoneNumber(reservation.getPhoneNumber())
                 .partySize(reservation.getPartySize())
                 .status(reservation.getStatus())
-                .cancelReason(reservation.getCancelReason())
                 .createdAt(reservation.getCreatedAt())
                 .updatedAt(reservation.getUpdatedAt())
                 .build();

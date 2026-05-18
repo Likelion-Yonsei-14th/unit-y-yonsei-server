@@ -37,9 +37,6 @@ public class Reservation extends BaseEntity {
     @Column(length = 60)
     private String pin;
 
-    @Column(name = "cancel_reason", columnDefinition = "TEXT")
-    private String cancelReason;
-
     protected Reservation() {}
 
     private Reservation(Booth booth, Integer reservationNumber, String bookerName,
@@ -62,8 +59,7 @@ public class Reservation extends BaseEntity {
         this.status = ReservationStatus.CONFIRMED;
     }
 
-    public void cancel(String cancelReason) {
+    public void cancel() {
         this.status = ReservationStatus.CANCELLED;
-        this.cancelReason = cancelReason;
     }
 }
