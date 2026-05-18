@@ -22,6 +22,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.math.BigDecimal;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -124,6 +126,44 @@ class MapLocationControllerTest {
         mockMvc.perform(patch("/api/admin/map-locations/{id}", 1L)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void deleteMapLocationDeletesExistingLocation() throws Exception {
+        MapLocation mapLocation = mapLocationRepository.save(MapLocation.create(
+                "Main Stage",
+                "A",
+                new BigDecimal("123.4567"),
+                new BigDecimal("45.6789"),
+                null,
+                null,
+                MapLocationType.STAGE,
+                0,
+                MapDisplayStatus.VISIBLE
+        ));
+
+        mockMvc.perform(delete("/api/admin/map-locations/{id}", mapLocation.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.id").value(mapLocation.getId()))
+                .andExpect(jsonPath("$.data.deleted").value(true));
+
+        assertThat(mapLocationRepository.existsById(mapLocation.getId())).isFalse();
+    }
+
+    @Test
+    void deleteMapLocationReturnsNotFoundWhenLocationDoesNotExist() throws Exception {
+        mockMvc.perform(delete("/api/admin/map-locations/{id}", 999L))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void deleteMapLocationRejectsBoothRole() throws Exception {
+        Mockito.when(adminAuthContextService.getCurrentAdmin(any(HttpServletRequest.class)))
+                .thenReturn(new AdminSessionUser(2L, AdminRole.BOOTH, "booth-admin"));
+
+        mockMvc.perform(delete("/api/admin/map-locations/{id}", 1L))
                 .andExpect(status().isForbidden());
     }
 }
