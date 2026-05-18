@@ -145,7 +145,9 @@ class MapLocationControllerTest {
 
         mockMvc.perform(delete("/api/admin/map-locations/{id}", mapLocation.getId()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true));
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.id").value(mapLocation.getId()))
+                .andExpect(jsonPath("$.data.deleted").value(true));
 
         assertThat(mapLocationRepository.existsById(mapLocation.getId())).isFalse();
     }

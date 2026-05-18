@@ -4,6 +4,7 @@ import com.likelion.yonsei.daedongje.common.exception.BusinessException;
 import com.likelion.yonsei.daedongje.domain.map.entity.MapDisplayStatus;
 import com.likelion.yonsei.daedongje.domain.map.entity.MapLocation;
 import com.likelion.yonsei.daedongje.domain.map.entity.MapLocationType;
+import com.likelion.yonsei.daedongje.domain.map.dto.MapLocationDeleteResponse;
 import com.likelion.yonsei.daedongje.domain.map.exception.MapLocationErrorCode;
 import com.likelion.yonsei.daedongje.domain.map.repository.MapLocationRepository;
 import org.junit.jupiter.api.Test;
@@ -36,8 +37,10 @@ class MapLocationServiceTest {
         MapLocation mapLocation = mapLocation();
         when(mapLocationRepository.findById(1L)).thenReturn(Optional.of(mapLocation));
 
-        mapLocationService.delete(1L);
+        MapLocationDeleteResponse response = mapLocationService.delete(1L);
 
+        assertThat(response.getId()).isEqualTo(1L);
+        assertThat(response.getDeleted()).isTrue();
         verify(mapLocationRepository).delete(mapLocation);
         verify(mapLocationRepository).flush();
     }

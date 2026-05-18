@@ -4,6 +4,7 @@ import com.likelion.yonsei.daedongje.common.exception.BusinessException;
 import com.likelion.yonsei.daedongje.common.exception.CommonErrorCode;
 import com.likelion.yonsei.daedongje.common.response.PageResponse;
 import com.likelion.yonsei.daedongje.domain.map.dto.MapLocationCreateRequest;
+import com.likelion.yonsei.daedongje.domain.map.dto.MapLocationDeleteResponse;
 import com.likelion.yonsei.daedongje.domain.map.dto.MapLocationResponse;
 import com.likelion.yonsei.daedongje.domain.map.dto.MapLocationUpdateRequest;
 import com.likelion.yonsei.daedongje.domain.map.entity.MapDisplayStatus;
@@ -64,7 +65,7 @@ public class MapLocationService {
     }
 
     @Transactional
-    public void delete(Long id) {
+    public MapLocationDeleteResponse delete(Long id) {
         MapLocation mapLocation = mapLocationRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(MapLocationErrorCode.MAP_LOCATION_NOT_FOUND));
 
@@ -75,6 +76,7 @@ public class MapLocationService {
         } catch (DataIntegrityViolationException e) {
             throw new BusinessException(MapLocationErrorCode.MAP_LOCATION_IN_USE);
         }
+        return MapLocationDeleteResponse.of(id);
     }
 
     public PageResponse<MapLocationResponse> getList(

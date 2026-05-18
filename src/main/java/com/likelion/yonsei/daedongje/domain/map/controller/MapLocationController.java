@@ -5,6 +5,7 @@ import com.likelion.yonsei.daedongje.common.response.PageResponse;
 import com.likelion.yonsei.daedongje.domain.auth.entity.AdminRole;
 import com.likelion.yonsei.daedongje.domain.auth.support.RequireAdminRole;
 import com.likelion.yonsei.daedongje.domain.map.dto.MapLocationCreateRequest;
+import com.likelion.yonsei.daedongje.domain.map.dto.MapLocationDeleteResponse;
 import com.likelion.yonsei.daedongje.domain.map.dto.MapLocationResponse;
 import com.likelion.yonsei.daedongje.domain.map.dto.MapLocationUpdateRequest;
 import com.likelion.yonsei.daedongje.domain.map.entity.MapDisplayStatus;
@@ -59,9 +60,8 @@ public class MapLocationController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "참조 중인 지도 위치")
     @DeleteMapping("/{id}")
     @RequireAdminRole({AdminRole.SUPER, AdminRole.MASTER})
-    public ApiResponse<Void> delete(@PathVariable Long id) {
-        mapLocationService.delete(id);
-        return ApiResponse.successEmpty();
+    public ApiResponse<MapLocationDeleteResponse> delete(@PathVariable Long id) {
+        return ApiResponse.success(mapLocationService.delete(id));
     }
 
     @Operation(summary = "지도 위치 목록 조회", description = "관리자 페이지에서 지도 위치 목록을 필터와 페이지 조건으로 조회합니다.")
