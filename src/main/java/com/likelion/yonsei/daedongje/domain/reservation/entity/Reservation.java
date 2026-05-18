@@ -55,6 +55,12 @@ public class Reservation extends BaseEntity {
         return new Reservation(booth, reservationNumber, bookerName, phoneNumber, partySize, pin);
     }
 
+    public void update(String bookerName, String phoneNumber, Integer partySize) {
+        if (bookerName != null) this.bookerName = bookerName;
+        if (phoneNumber != null) this.phoneNumber = phoneNumber;
+        if (partySize != null) this.partySize = partySize;
+    }
+
     public void confirm() {
         this.status = ReservationStatus.CONFIRMED;
     }
