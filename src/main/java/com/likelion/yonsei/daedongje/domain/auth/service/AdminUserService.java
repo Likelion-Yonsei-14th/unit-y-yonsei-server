@@ -12,8 +12,11 @@ import com.likelion.yonsei.daedongje.domain.auth.exception.AuthErrorCode;
 import com.likelion.yonsei.daedongje.domain.auth.repository.AdminUserRepository;
 
 import com.likelion.yonsei.daedongje.domain.booth.dto.BoothCreateRequest;
+import com.likelion.yonsei.daedongje.domain.booth.entity.Booth;
 import com.likelion.yonsei.daedongje.domain.booth.entity.BoothStatus;
 import com.likelion.yonsei.daedongje.domain.booth.repository.BoothRepository;
+import com.likelion.yonsei.daedongje.domain.performance.entity.Performance;
+import com.likelion.yonsei.daedongje.domain.performance.repository.PerformanceRepository;
 import com.likelion.yonsei.daedongje.domain.booth.service.BoothService;
 import com.likelion.yonsei.daedongje.domain.performance.service.PerformanceService;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +28,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -35,6 +40,7 @@ public class AdminUserService {
     private final PasswordEncoder passwordEncoder;
     private final AdminSessionService adminSessionService;
     private final BoothRepository boothRepository;
+    private final PerformanceRepository performanceRepository;
     private final BoothService boothService;
     private final PerformanceService performanceService;
 
@@ -84,8 +90,40 @@ public class AdminUserService {
             ? adminUserRepository.findAll(sort)
             : adminUserRepository.findAllByRole(filterRole, sort);
 
+        if (adminUsers.isEmpty()) {
+            return List.of();
+        }
+
+        List<Long> adminIds = adminUsers.stream()
+                .map(AdminUser::getId)
+                .toList();
+
+        List<Long> boothAdminIds = adminUsers.stream()
+                .filter(adminUser -> adminUser.getRole() == AdminRole.BOOTH)
+                .map(AdminUser::getId)
+                .toList();
+        List<Long> performerAdminIds = adminUsers.stream()
+                .filter(adminUser -> adminUser.getRole() == AdminRole.PERFORMER)
+                .map(AdminUser::getId)
+                .toList();
+
+        Map<Long, List<Booth>> boothsByAdminId = (boothAdminIds.isEmpty() ? List.<Booth>of() : boothRepository.findAllByAdminIdIn(boothAdminIds)).stream()
+                .collect(Collectors.groupingBy(Booth::getAdminId));
+        Map<Long, List<Performance>> performancesByAdminId = (performerAdminIds.isEmpty() ? List.<Performance>of() : performanceRepository.findAllByAdminUser_IdIn(performerAdminIds)).stream()
+                .collect(Collectors.groupingBy(performance -> performance.getAdminUser().getId()));
+
         return adminUsers.stream()
-            .map(AdminUserListResponse::from)
+
+        // Role에 맞는 연관 정보(부스, 공연) 조회하여 응답 DTO에 포함시키기
+            .map(adminUser -> {
+                List<Booth> linkedBooths = adminUser.getRole() == AdminRole.BOOTH
+                        ? boothsByAdminId.getOrDefault(adminUser.getId(), List.of())
+                        : null;
+                List<Performance> linkedPerformances = adminUser.getRole() == AdminRole.PERFORMER
+                        ? performancesByAdminId.getOrDefault(adminUser.getId(), List.of())
+                        : null;
+                return AdminUserListResponse.from(adminUser, linkedBooths, linkedPerformances);
+            })
                 .toList();
     }
 
@@ -93,7 +131,14 @@ public class AdminUserService {
         AdminUser adminUser = adminUserRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(AuthErrorCode.ADMIN_USER_NOT_FOUND));
 
-        return AdminUserDetailResponse.fromDefault(adminUser);
+        List<Booth> linkedBooths = adminUser.getRole() == AdminRole.BOOTH
+                ? boothRepository.findAllByAdminIdIn(List.of(adminUser.getId()))
+                : null;
+        List<Performance> linkedPerformances = adminUser.getRole() == AdminRole.PERFORMER
+                ? performanceRepository.findAllByAdminUser_IdIn(List.of(adminUser.getId()))
+                : null;
+
+        return AdminUserDetailResponse.from(adminUser, linkedBooths, linkedPerformances);
     }
 
 

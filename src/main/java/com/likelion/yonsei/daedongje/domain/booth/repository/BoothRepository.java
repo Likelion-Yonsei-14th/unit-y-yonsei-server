@@ -23,6 +23,8 @@ public interface BoothRepository extends JpaRepository<Booth, Long> {
 
     boolean existsByAdminId(Long adminId);
 
+    List<Booth> findAllByAdminIdIn(List<Long> adminIds);
+
     List<Booth> findAllByDate(Integer date);
 
     List<Booth> findAllBySector(BoothSector sector);

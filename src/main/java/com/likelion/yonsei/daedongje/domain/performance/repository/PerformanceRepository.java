@@ -14,6 +14,8 @@ public interface PerformanceRepository extends JpaRepository<Performance, Long> 
 
     Optional<Performance> findByAdminUser(AdminUser adminUser);
 
+    List<Performance> findAllByAdminUser_IdIn(List<Long> adminIds);
+
     Optional<Performance> findByIdAndPerformanceStatusNot(Long id, PerformanceStatus performanceStatus);
 
     List<Performance> findAllByPerformanceStatus(PerformanceStatus performanceStatus);
