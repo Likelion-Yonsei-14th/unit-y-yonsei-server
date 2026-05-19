@@ -63,9 +63,6 @@ public class PerformanceService {
 
         String normalizedPerformanceName = request.performanceName().trim();
 
-        if (performanceRepository.existsByPerformanceName(normalizedPerformanceName)) {
-            throw new BusinessException(PerformanceErrorCode.PERFORMANCE_NAME_DUPLICATED);
-        }
 
         Performance performance = Performance.create(
                 adminUser,
