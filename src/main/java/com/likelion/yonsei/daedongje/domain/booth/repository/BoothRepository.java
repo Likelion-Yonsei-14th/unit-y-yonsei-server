@@ -23,6 +23,9 @@ public interface BoothRepository extends JpaRepository<Booth, Long> {
 
     boolean existsByAdminId(Long adminId);
 
+    // 계정당 부스 1개 정책 — 어드민이 소유한 부스 단건 조회
+    Optional<Booth> findByAdminId(Long adminId);
+
     List<Booth> findAllByAdminIdIn(List<Long> adminIds);
 
     List<Booth> findAllByDate(Integer date);
