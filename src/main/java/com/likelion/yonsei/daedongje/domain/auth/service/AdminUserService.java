@@ -455,7 +455,7 @@ public class AdminUserService {
             return;
         }
 
-        if (boothOperatingDate < 1 || boothOperatingDate > 3) {
+        if (boothOperatingDate < 2 || boothOperatingDate > 4) {
             throw new BusinessException(AuthErrorCode.INVALID_BOOTH_OPERATING_DATE);
         }
     }
@@ -475,7 +475,7 @@ public class AdminUserService {
         }
 
         Integer performanceDate = request.getPerformanceDate();
-        if (performanceDate != null && (performanceDate < 1 || performanceDate > 3)) {
+        if (performanceDate != null && (performanceDate < 2 || performanceDate > 4)) {
             throw new BusinessException(AuthErrorCode.INVALID_PERFORMANCE_DATE);
         }
 
