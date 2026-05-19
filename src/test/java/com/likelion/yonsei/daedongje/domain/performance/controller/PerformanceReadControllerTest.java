@@ -12,7 +12,10 @@ import com.likelion.yonsei.daedongje.domain.map.repository.MapLocationRepository
 import com.likelion.yonsei.daedongje.domain.performance.entity.Performance;
 import com.likelion.yonsei.daedongje.domain.performance.entity.PerformanceCategory;
 import com.likelion.yonsei.daedongje.domain.performance.entity.PerformanceStatus;
+import com.likelion.yonsei.daedongje.domain.performance.repository.PerformanceCheerMessageRepository;
+import com.likelion.yonsei.daedongje.domain.performance.repository.PerformanceImageRepository;
 import com.likelion.yonsei.daedongje.domain.performance.repository.PerformanceRepository;
+import com.likelion.yonsei.daedongje.domain.performance.repository.PerformanceSetlistRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -50,10 +53,22 @@ class PerformanceReadControllerTest {
     @Autowired
     private PerformanceRepository performanceRepository;
 
+    @Autowired
+    private PerformanceCheerMessageRepository performanceCheerMessageRepository;
+
+    @Autowired
+    private PerformanceSetlistRepository performanceSetlistRepository;
+
+    @Autowired
+    private PerformanceImageRepository performanceImageRepository;
+
     private int adminSequence;
 
     @BeforeEach
     void setUp() {
+        performanceCheerMessageRepository.deleteAll();
+        performanceSetlistRepository.deleteAll();
+        performanceImageRepository.deleteAll();
         performanceRepository.deleteAll();
         mapLocationRepository.deleteAll();
         adminUserRepository.deleteAll();
@@ -75,7 +90,7 @@ class PerformanceReadControllerTest {
         );
         performanceRepository.save(performance);
 
-        mockMvc.perform(get("/performances/current"))
+        mockMvc.perform(get("/api/performances/current"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.id").value(performance.getId()))
@@ -111,7 +126,7 @@ class PerformanceReadControllerTest {
                 PerformanceStatus.ONGOING
         ));
 
-        mockMvc.perform(get("/performances/current"))
+        mockMvc.perform(get("/api/performances/current"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.performanceName").value("Early Current"));
     }
@@ -129,7 +144,7 @@ class PerformanceReadControllerTest {
                 PerformanceStatus.SCHEDULED
         ));
 
-        mockMvc.perform(get("/performances/current"))
+        mockMvc.perform(get("/api/performances/current"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.error.code").value("P-006"));
@@ -150,7 +165,7 @@ class PerformanceReadControllerTest {
         );
         performanceRepository.save(performance);
 
-        mockMvc.perform(get("/performances/{id}", performance.getId()))
+        mockMvc.perform(get("/api/performances/{id}", performance.getId()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.id").value(performance.getId()))
                 .andExpect(jsonPath("$.data.performanceName").value("Detail Stage"))
@@ -168,8 +183,36 @@ class PerformanceReadControllerTest {
     }
 
     @Test
+    void getPerformanceDetail_includes_hashtags_and_sns_links() throws Exception {
+        Performance performance = performance(
+                "Detail Stage",
+                null,
+                1,
+                LocalTime.of(18, 0),
+                LocalTime.of(20, 0),
+                PerformanceCategory.CLUB,
+                "Lineup A",
+                PerformanceStatus.SCHEDULED,
+                "JPOP",
+                "인디",
+                "밴드",
+                "https://www.youtube.com/@yonsei",
+                "https://www.instagram.com/yonsei"
+        );
+        performanceRepository.save(performance);
+
+        mockMvc.perform(get("/api/performances/{id}", performance.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.hashtag1").value("JPOP"))
+                .andExpect(jsonPath("$.data.hashtag2").value("인디"))
+                .andExpect(jsonPath("$.data.hashtag3").value("밴드"))
+                .andExpect(jsonPath("$.data.youtubeUrl").value("https://www.youtube.com/@yonsei"))
+                .andExpect(jsonPath("$.data.instagramUrl").value("https://www.instagram.com/yonsei"));
+    }
+
+    @Test
     void getPerformanceDetail_fails_for_non_existing_id() throws Exception {
-        mockMvc.perform(get("/performances/{id}", 999999L))
+        mockMvc.perform(get("/api/performances/{id}", 999999L))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error.code").value("P-006"));
     }
@@ -178,7 +221,7 @@ class PerformanceReadControllerTest {
     void getPerformanceDetail_fails_for_hidden_performance() throws Exception {
         Performance hidden = performanceRepository.save(Performance.create(adminUser(), "Hidden Stage"));
 
-        mockMvc.perform(get("/performances/{id}", hidden.getId()))
+        mockMvc.perform(get("/api/performances/{id}", hidden.getId()))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error.code").value("P-006"));
     }
@@ -193,12 +236,39 @@ class PerformanceReadControllerTest {
                 PerformanceCategory.ARTIST, "Lineup A", PerformanceStatus.SCHEDULED));
         performanceRepository.save(Performance.create(adminUser(), "Hidden Stage"));
 
-        mockMvc.perform(get("/performances/timetable"))
+        mockMvc.perform(get("/api/performances/timetable"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.length()").value(3))
                 .andExpect(jsonPath("$.data[0].performanceName").value("Day1 Early"))
                 .andExpect(jsonPath("$.data[1].performanceName").value("Day1 Late"))
                 .andExpect(jsonPath("$.data[2].performanceName").value("Day2 Early"));
+    }
+
+    @Test
+    void getPerformanceTimetable_includes_hashtags_and_sns_links() throws Exception {
+        performanceRepository.save(performance(
+                "Day1 Early",
+                null,
+                1,
+                LocalTime.of(18, 0),
+                LocalTime.of(19, 0),
+                PerformanceCategory.ARTIST,
+                "Lineup A",
+                PerformanceStatus.SCHEDULED,
+                "JPOP",
+                "인디",
+                "밴드",
+                "https://www.youtube.com/@yonsei",
+                "https://www.instagram.com/yonsei"
+        ));
+
+        mockMvc.perform(get("/api/performances/timetable"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].hashtag1").value("JPOP"))
+                .andExpect(jsonPath("$.data[0].hashtag2").value("인디"))
+                .andExpect(jsonPath("$.data[0].hashtag3").value("밴드"))
+                .andExpect(jsonPath("$.data[0].youtubeUrl").value("https://www.youtube.com/@yonsei"))
+                .andExpect(jsonPath("$.data[0].instagramUrl").value("https://www.instagram.com/yonsei"));
     }
 
     @Test
@@ -211,7 +281,7 @@ class PerformanceReadControllerTest {
                 PerformanceCategory.ARTIST, "Lineup A", PerformanceStatus.SCHEDULED));
         performanceRepository.save(Performance.create(adminUser(), "Hidden Stage"));
 
-        mockMvc.perform(get("/performances"))
+        mockMvc.perform(get("/api/performances"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.length()").value(3))
                 .andExpect(jsonPath("$.data[0].performanceName").value("Day1 Early"))
@@ -220,8 +290,62 @@ class PerformanceReadControllerTest {
     }
 
     @Test
+    void getPerformances_includes_hashtags_and_sns_links() throws Exception {
+        performanceRepository.save(performance(
+                "Day1 Early",
+                null,
+                1,
+                LocalTime.of(18, 0),
+                LocalTime.of(19, 0),
+                PerformanceCategory.ARTIST,
+                "Lineup A",
+                PerformanceStatus.SCHEDULED,
+                "JPOP",
+                "인디",
+                "밴드",
+                "https://www.youtube.com/@yonsei",
+                "https://www.instagram.com/yonsei"
+        ));
+
+        mockMvc.perform(get("/api/performances"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].hashtag1").value("JPOP"))
+                .andExpect(jsonPath("$.data[0].hashtag2").value("인디"))
+                .andExpect(jsonPath("$.data[0].hashtag3").value("밴드"))
+                .andExpect(jsonPath("$.data[0].youtubeUrl").value("https://www.youtube.com/@yonsei"))
+                .andExpect(jsonPath("$.data[0].instagramUrl").value("https://www.instagram.com/yonsei"));
+    }
+
+    @Test
+    void getCurrentPerformance_includes_hashtags_and_sns_links() throws Exception {
+        performanceRepository.save(performance(
+                "Current Stage",
+                null,
+                1,
+                LocalTime.of(18, 0),
+                LocalTime.of(20, 0),
+                PerformanceCategory.ARTIST,
+                "Lineup A",
+                PerformanceStatus.ONGOING,
+                "JPOP",
+                "인디",
+                "밴드",
+                "https://www.youtube.com/@yonsei",
+                "https://www.instagram.com/yonsei"
+        ));
+
+        mockMvc.perform(get("/api/performances/current"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.hashtag1").value("JPOP"))
+                .andExpect(jsonPath("$.data.hashtag2").value("인디"))
+                .andExpect(jsonPath("$.data.hashtag3").value("밴드"))
+                .andExpect(jsonPath("$.data.youtubeUrl").value("https://www.youtube.com/@yonsei"))
+                .andExpect(jsonPath("$.data.instagramUrl").value("https://www.instagram.com/yonsei"));
+    }
+
+    @Test
     void readApis_work_without_admin_authentication() throws Exception {
-        mockMvc.perform(get("/performances"))
+        mockMvc.perform(get("/api/performances"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true));
     }
@@ -236,13 +360,13 @@ class PerformanceReadControllerTest {
         JsonNode paths = apiDocs.path("paths");
 
         assertThat(apiDocs.path("tags").toString()).contains("공연");
-        assertThat(paths.has("/performances")).isTrue();
-        assertThat(paths.has("/performances/{id}")).isTrue();
-        assertThat(paths.has("/performances/current")).isTrue();
-        assertThat(paths.has("/performances/timetable")).isTrue();
-        assertThat(paths.path("/performances").has("post")).isFalse();
+        assertThat(paths.has("/api/performances")).isTrue();
+        assertThat(paths.has("/api/performances/{id}")).isTrue();
+        assertThat(paths.has("/api/performances/current")).isTrue();
+        assertThat(paths.has("/api/performances/timetable")).isTrue();
+        assertThat(paths.path("/api/performances").has("post")).isFalse();
         assertThat(paths.path("/api/admin/performances").has("post")).isFalse();
-        assertThat(paths.path("/performances/{id}").has("post")).isFalse();
+        assertThat(paths.path("/api/performances/{id}").has("post")).isFalse();
     }
 
     private Performance performance(
@@ -255,6 +379,38 @@ class PerformanceReadControllerTest {
             String lineupName,
             PerformanceStatus performanceStatus
     ) {
+        return performance(
+                performanceName,
+                location,
+                performanceDate,
+                startTime,
+                endTime,
+                performanceCategory,
+                lineupName,
+                performanceStatus,
+                null,
+                null,
+                null,
+                null,
+                null
+        );
+    }
+
+    private Performance performance(
+            String performanceName,
+            MapLocation location,
+            Integer performanceDate,
+            LocalTime startTime,
+            LocalTime endTime,
+            PerformanceCategory performanceCategory,
+            String lineupName,
+            PerformanceStatus performanceStatus,
+            String hashtag1,
+            String hashtag2,
+            String hashtag3,
+            String youtubeUrl,
+            String instagramUrl
+    ) {
         Performance performance = Performance.create(adminUser(), performanceName);
         performance.updateBasicInfo(
                 location,
@@ -265,7 +421,12 @@ class PerformanceReadControllerTest {
                 endTime,
                 performanceCategory,
                 lineupName,
-                performanceStatus
+                performanceStatus,
+                hashtag1,
+                hashtag2,
+                hashtag3,
+                youtubeUrl,
+                instagramUrl
         );
         return performance;
     }

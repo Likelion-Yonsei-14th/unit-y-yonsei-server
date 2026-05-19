@@ -14,10 +14,13 @@ import com.likelion.yonsei.daedongje.domain.auth.support.RequireAdminRole;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import com.likelion.yonsei.daedongje.domain.auth.dto.AdminUserBulkCreateResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -41,6 +44,19 @@ public class AdminUserController {
     ) {
         AdminUserCreateResponse response = adminUserService.createAdminUser(request, currentAdmin.getId());
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(response));
+    }
+
+    @Operation(
+            summary = "어드민 계정 일괄 생성",
+            description = "Super Admin이 CSV 파일을 업로드하여 부스, 공연팀 계정을 일괄 생성합니다."
+    )
+    @RequireAdminRole(AdminRole.SUPER)
+    @PostMapping(value = "/bulk", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ApiResponse<AdminUserBulkCreateResponse>>  bulkCreateAdminUsers(
+            @RequestParam("file") MultipartFile file
+    ) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                 .body(ApiResponse.success(adminUserService.bulkCreateAdminUsers(file)));
     }
 
     @Operation(

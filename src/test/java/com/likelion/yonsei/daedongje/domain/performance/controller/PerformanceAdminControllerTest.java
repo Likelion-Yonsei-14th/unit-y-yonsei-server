@@ -268,6 +268,172 @@ class PerformanceAdminControllerTest {
     }
 
     @Test
+    void updateMyPerformance_updates_hashtags_and_sns_links() throws Exception {
+        Performance performance = performanceRepository.save(Performance.create(performerAdmin, "Main Stage"));
+
+        String requestBody = """
+                {
+                  "hashtag1": "JPOP",
+                  "hashtag2": "인디",
+                  "hashtag3": "밴드",
+                  "youtubeUrl": "https://www.youtube.com/@yonsei",
+                  "instagramUrl": "https://www.instagram.com/yonsei"
+                }
+                """;
+
+        mockMvc.perform(patch(MY_PERFORMANCE_URL)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.hashtag1").value("JPOP"))
+                .andExpect(jsonPath("$.data.hashtag2").value("인디"))
+                .andExpect(jsonPath("$.data.hashtag3").value("밴드"))
+                .andExpect(jsonPath("$.data.youtubeUrl").value("https://www.youtube.com/@yonsei"))
+                .andExpect(jsonPath("$.data.instagramUrl").value("https://www.instagram.com/yonsei"));
+
+        Performance updated = performanceRepository.findById(performance.getId()).orElseThrow();
+        assertThat(updated.getHashtag1()).isEqualTo("JPOP");
+        assertThat(updated.getHashtag2()).isEqualTo("인디");
+        assertThat(updated.getHashtag3()).isEqualTo("밴드");
+        assertThat(updated.getYoutubeUrl()).isEqualTo("https://www.youtube.com/@yonsei");
+        assertThat(updated.getInstagramUrl()).isEqualTo("https://www.instagram.com/yonsei");
+    }
+
+    @Test
+    void updateMyPerformance_accepts_hashtags_up_to_six_characters() throws Exception {
+        performanceRepository.save(Performance.create(performerAdmin, "Main Stage"));
+
+        String requestBody = """
+                {
+                  "hashtag1": "123456"
+                }
+                """;
+
+        mockMvc.perform(patch(MY_PERFORMANCE_URL)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.hashtag1").value("123456"));
+    }
+
+    @Test
+    void updateMyPerformance_rejects_hashtag_over_six_characters() throws Exception {
+        performanceRepository.save(Performance.create(performerAdmin, "Main Stage"));
+
+        String requestBody = """
+                {
+                  "hashtag1": "1234567"
+                }
+                """;
+
+        mockMvc.perform(patch(MY_PERFORMANCE_URL)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("COMMON-001"));
+    }
+
+    @Test
+    void updateMyPerformance_rejects_blank_hashtag() throws Exception {
+        performanceRepository.save(Performance.create(performerAdmin, "Main Stage"));
+
+        String requestBody = """
+                {
+                  "hashtag1": "   "
+                }
+                """;
+
+        mockMvc.perform(patch(MY_PERFORMANCE_URL)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("COMMON-001"));
+    }
+
+    @Test
+    void updateMyPerformance_preserves_hashtags_and_sns_links_when_fields_are_null() throws Exception {
+        Performance performance = Performance.create(performerAdmin, "Main Stage");
+        performance.updateBasicInfo(
+                null,
+                "Main Stage",
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                "JPOP",
+                "인디",
+                "밴드",
+                "https://www.youtube.com/@yonsei",
+                "https://www.instagram.com/yonsei"
+        );
+        performanceRepository.save(performance);
+
+        String requestBody = objectMapper.writeValueAsString(new EmptyRequest());
+
+        mockMvc.perform(patch(MY_PERFORMANCE_URL)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.hashtag1").value("JPOP"))
+                .andExpect(jsonPath("$.data.hashtag2").value("인디"))
+                .andExpect(jsonPath("$.data.hashtag3").value("밴드"))
+                .andExpect(jsonPath("$.data.youtubeUrl").value("https://www.youtube.com/@yonsei"))
+                .andExpect(jsonPath("$.data.instagramUrl").value("https://www.instagram.com/yonsei"));
+    }
+
+    @Test
+    void updateMyPerformance_allows_null_sns_links() throws Exception {
+        performanceRepository.save(Performance.create(performerAdmin, "Main Stage"));
+
+        String requestBody = """
+                {
+                  "youtubeUrl": null,
+                  "instagramUrl": null
+                }
+                """;
+
+        mockMvc.perform(patch(MY_PERFORMANCE_URL)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.youtubeUrl").doesNotExist())
+                .andExpect(jsonPath("$.data.instagramUrl").doesNotExist());
+    }
+
+    @Test
+    void getMyPerformance_includes_hashtags_and_sns_links() throws Exception {
+        Performance performance = Performance.create(performerAdmin, "Main Stage");
+        performance.updateBasicInfo(
+                null,
+                "Main Stage",
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                "JPOP",
+                "인디",
+                "밴드",
+                "https://www.youtube.com/@yonsei",
+                "https://www.instagram.com/yonsei"
+        );
+        performanceRepository.save(performance);
+
+        mockMvc.perform(get(MY_PERFORMANCE_URL))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.hashtag1").value("JPOP"))
+                .andExpect(jsonPath("$.data.hashtag2").value("인디"))
+                .andExpect(jsonPath("$.data.hashtag3").value("밴드"))
+                .andExpect(jsonPath("$.data.youtubeUrl").value("https://www.youtube.com/@yonsei"))
+                .andExpect(jsonPath("$.data.instagramUrl").value("https://www.instagram.com/yonsei"));
+    }
+
+    @Test
     void updateMyPerformance_allows_artist_and_club_categories() throws Exception {
         performanceRepository.save(Performance.create(performerAdmin, "Main Stage"));
 

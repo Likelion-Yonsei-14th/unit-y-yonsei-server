@@ -40,7 +40,14 @@ public class ReservationResponse {
     @Schema(description = "수정 시간")
     private LocalDateTime updatedAt;
 
+    @Schema(description = "내 앞 대기 팀 수 (PENDING 상태일 때만 유효, 그 외 0)", example = "3")
+    private long aheadOfMe;
+
     public static ReservationResponse from(Reservation reservation) {
+        return of(reservation, 0L);
+    }
+
+    public static ReservationResponse of(Reservation reservation, long aheadOfMe) {
         return ReservationResponse.builder()
                 .id(reservation.getId())
                 .boothId(reservation.getBooth().getId())
@@ -51,6 +58,7 @@ public class ReservationResponse {
                 .status(reservation.getStatus())
                 .createdAt(reservation.getCreatedAt())
                 .updatedAt(reservation.getUpdatedAt())
+                .aheadOfMe(aheadOfMe)
                 .build();
     }
 }

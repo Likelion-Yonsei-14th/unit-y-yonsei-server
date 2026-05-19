@@ -7,6 +7,7 @@ import com.likelion.yonsei.daedongje.domain.auth.support.CurrentAdmin;
 import com.likelion.yonsei.daedongje.domain.auth.support.RequireAdminRole;
 import com.likelion.yonsei.daedongje.domain.reservation.dto.ReservationAdminStatusRequest;
 import com.likelion.yonsei.daedongje.domain.reservation.dto.ReservationResponse;
+import com.likelion.yonsei.daedongje.domain.reservation.dto.ReservationSummaryResponse;
 import com.likelion.yonsei.daedongje.domain.reservation.entity.ReservationStatus;
 import com.likelion.yonsei.daedongje.domain.reservation.service.ReservationService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -48,6 +49,23 @@ public class ReservationAdminController {
             @CurrentAdmin AdminSessionUser currentAdmin
     ) {
         return ApiResponse.success(reservationService.getListByBooth(boothId, status, currentAdmin));
+    }
+
+    @Operation(
+            summary = "부스별 예약 현황 요약 조회",
+            description = """
+                    부스별 예약 상태 카운트(대기·완료·취소)와 조회 범위 전체의 합산을 반환한다.
+                    - `SUPER`, `MASTER`: 모든 부스의 현황 조회.
+                    - `BOOTH`: 본인이 담당하는 부스의 현황만 조회.
+                    예약이 0건인 부스는 응답 `booths`에서 생략된다. 빈 결과도 200으로 응답한다.
+                    """
+    )
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공")
+    @GetMapping("/summary")
+    public ApiResponse<ReservationSummaryResponse> getSummary(
+            @CurrentAdmin AdminSessionUser currentAdmin
+    ) {
+        return ApiResponse.success(reservationService.getSummary(currentAdmin));
     }
 
     @Operation(

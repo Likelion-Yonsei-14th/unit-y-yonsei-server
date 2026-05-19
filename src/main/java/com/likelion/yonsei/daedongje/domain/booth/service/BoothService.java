@@ -69,7 +69,9 @@ public class BoothService {
                 request.isReservable(),
                 request.account(),
                 request.locationId(),
-                toMenuString(request.representativeMenus())
+                toMenuString(request.representativeMenus()),
+                request.isFoodTruck(),
+                request.notice()
         );
 
         try {
@@ -86,8 +88,8 @@ public class BoothService {
         return BoothResponse.of(booth, 0L, fetchThumbnail(id), fetchMapLocation(booth));
     }
 
-    // 부스 전체 조회 (필터: 날짜, 구역, 음식 여부 — 모든 AND 조합 지원)
-    public List<BoothResponse> getList(Integer date, BoothSector sector, Boolean isFood) {
+    // 부스 전체 조회 (필터: 날짜, 구역, 음식 여부, 푸드트럭 여부 — 모든 AND 조합 지원)
+    public List<BoothResponse> getList(Integer date, BoothSector sector, Boolean isFood, Boolean isFoodTruck) {
         List<Booth> booths;
 
         if (date != null && sector != null && isFood != null) {
@@ -106,6 +108,12 @@ public class BoothService {
             booths = boothRepository.findAllByIsFood(isFood);
         } else {
             booths = boothRepository.findAll();
+        }
+
+        if (isFoodTruck != null) {
+            booths = booths.stream()
+                    .filter(b -> b.getIsFoodTruck().equals(isFoodTruck))
+                    .toList();
         }
 
         if (booths.isEmpty()) return List.of();
@@ -190,7 +198,9 @@ public class BoothService {
                     request.isReservable(),
                     request.account(),
                     request.locationId(),
-                    toMenuString(request.representativeMenus())
+                    toMenuString(request.representativeMenus()),
+                    request.isFoodTruck(),
+                    request.notice()
             );
             return BoothResponse.of(booth, 0L, fetchThumbnail(booth.getId()), fetchMapLocation(booth));
         } catch (DataIntegrityViolationException e) {
