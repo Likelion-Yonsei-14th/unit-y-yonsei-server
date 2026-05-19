@@ -20,6 +20,11 @@ public interface MenuRepository extends JpaRepository<Menu, Long> {
     @Query("SELECT m FROM Menu m WHERE m.id = :menuId")
     Optional<Menu> findByIdWithLock(@Param("menuId") Long menuId);
 
+    // 메뉴 재정렬 시 동시 수정 방지를 위한 부스 메뉴 전체 비관적 락 조회
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT m FROM Menu m WHERE m.booth.id = :boothId ORDER BY m.displayOrder ASC")
+    List<Menu> findByBoothIdForUpdate(@Param("boothId") Long boothId);
+
     // 같은 부스 안에서 특정 displayOrder가 이미 사용 중인지 확인
     boolean existsByBoothIdAndDisplayOrder(Long boothId, Integer displayOrder);
 }
