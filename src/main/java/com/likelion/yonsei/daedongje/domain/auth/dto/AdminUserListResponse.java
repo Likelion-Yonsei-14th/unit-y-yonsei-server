@@ -1,10 +1,17 @@
 package com.likelion.yonsei.daedongje.domain.auth.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.likelion.yonsei.daedongje.domain.auth.entity.AdminUser;
+import com.likelion.yonsei.daedongje.domain.booth.entity.Booth;
+import com.likelion.yonsei.daedongje.domain.performance.entity.Performance;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
+import java.util.List;
+
+@JsonInclude(JsonInclude.Include.NON_NULL)
 @Getter
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class AdminUserListResponse {
@@ -15,17 +22,57 @@ public class AdminUserListResponse {
     private String role;
     private String status;
     private String representativeName;
-//    private boolean infoCompleted;
+    @Schema(description = "정보 작성 완료 여부", example = "false")
+    private boolean infoCompleted;
+    @Schema(description = "연동된 부스 요약 목록")
+    private List<LinkedBoothSummary> linkedBooths;
+    @Schema(description = "연동된 공연 요약 정보 (계정당 최대 1개)")
+    private LinkedPerformanceSummary linkedPerformance;
 
-    public static AdminUserListResponse from(AdminUser adminUser) {
+    public static AdminUserListResponse from(
+            AdminUser adminUser,
+            boolean infoCompleted,
+            List<Booth> linkedBooths,
+            Performance linkedPerformance
+    ) {
         return new AdminUserListResponse(
                 adminUser.getId(),
                 adminUser.getLoginId(),
                 adminUser.getOrganization(),
                 adminUser.getRole().name(),
                 adminUser.getStatus().name(),
-                adminUser.getRepresentativeName()
-//                infoCompleted
+                adminUser.getRepresentativeName(),
+                infoCompleted,
+                linkedBooths == null ? null : linkedBooths.stream()
+                        .map(LinkedBoothSummary::from)
+                        .toList(),
+                linkedPerformance == null ? null : LinkedPerformanceSummary.from(linkedPerformance)
         );
+    }
+
+    @Getter
+    @AllArgsConstructor(access = AccessLevel.PRIVATE)
+    public static class LinkedBoothSummary {
+        @Schema(description = "부스 ID", example = "1")
+        private Long id;
+        @Schema(description = "부스 이름", example = "멋사 핫도그")
+        private String name;
+
+        public static LinkedBoothSummary from(Booth booth) {
+            return new LinkedBoothSummary(booth.getId(), booth.getName());
+        }
+    }
+
+    @Getter
+    @AllArgsConstructor(access = AccessLevel.PRIVATE)
+    public static class LinkedPerformanceSummary {
+        @Schema(description = "공연 ID", example = "1")
+        private Long id;
+        @Schema(description = "공연 이름", example = "AKARAKA 밴드")
+        private String performanceName;
+
+        public static LinkedPerformanceSummary from(Performance performance) {
+            return new LinkedPerformanceSummary(performance.getId(), performance.getPerformanceName());
+        }
     }
 }

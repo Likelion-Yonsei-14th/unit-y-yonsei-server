@@ -76,6 +76,12 @@ public class BoothResponse {
     @Schema(description = "썸네일 이미지 URL (display_order=1 이미지)", example = "https://example.com/thumbnail.jpg")
     private String thumbnailUrl;
 
+    @Schema(description = "푸드트럭 여부. 외부 업체가 운영하는 푸드트럭이면 true, 일반 부스면 false", example = "false")
+    private Boolean isFoodTruck;
+
+    @Schema(description = "부스 공지사항 (없으면 null)", example = "오늘은 18시에 조기 마감합니다.")
+    private String notice;
+
     public static BoothResponse from(Booth booth) {
         return of(booth, 0L, null);
     }
@@ -102,6 +108,8 @@ public class BoothResponse {
                 .representativeMenus(parseMenus(booth.getRepresentativeMenus()))
                 .waitingCount(waitingCount)
                 .thumbnailUrl(thumbnailUrl)
+                .isFoodTruck(booth.getIsFoodTruck())
+                .notice(booth.getNotice())
                 .build();
     }
 

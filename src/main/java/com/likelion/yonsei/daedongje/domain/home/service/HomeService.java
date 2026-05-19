@@ -8,6 +8,8 @@ import com.likelion.yonsei.daedongje.domain.booth.repository.BoothRepository;
 import com.likelion.yonsei.daedongje.domain.booth.repository.PopularBoothSummary;
 import com.likelion.yonsei.daedongje.domain.home.dto.HomeBannerResponse;
 import com.likelion.yonsei.daedongje.domain.home.dto.HomePopularBoothResponse;
+import com.likelion.yonsei.daedongje.domain.performance.dto.PerformanceCurrentResponse;
+import com.likelion.yonsei.daedongje.domain.performance.service.PerformanceReadService;
 import com.likelion.yonsei.daedongje.domain.reservation.entity.ReservationStatus;
 import com.likelion.yonsei.daedongje.domain.reservation.repository.ReservationRepository;
 import org.springframework.data.domain.PageRequest;
@@ -33,15 +35,18 @@ public class HomeService {
     private final BoothRepository boothRepository;
     private final BoothImageRepository boothImageRepository;
     private final ReservationRepository reservationRepository;
+    private final PerformanceReadService performanceReadService;
 
     public HomeService(BoothClickLogRepository boothClickLogRepository,
                        BoothRepository boothRepository,
                        BoothImageRepository boothImageRepository,
-                       ReservationRepository reservationRepository) {
+                       ReservationRepository reservationRepository,
+                       PerformanceReadService performanceReadService) {
         this.boothClickLogRepository = boothClickLogRepository;
         this.boothRepository = boothRepository;
         this.boothImageRepository = boothImageRepository;
         this.reservationRepository = reservationRepository;
+        this.performanceReadService = performanceReadService;
     }
 
     public List<HomeBannerResponse> getBanners() {
@@ -99,5 +104,9 @@ public class HomeService {
                     );
                 })
                 .toList();
+    }
+
+    public PerformanceCurrentResponse getCurrentPerformance() {
+        return performanceReadService.getCurrentPerformance();
     }
 }

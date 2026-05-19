@@ -4,6 +4,7 @@ import com.likelion.yonsei.daedongje.common.response.ApiResponse;
 import com.likelion.yonsei.daedongje.domain.home.dto.HomeBannerResponse;
 import com.likelion.yonsei.daedongje.domain.home.dto.HomePopularBoothResponse;
 import com.likelion.yonsei.daedongje.domain.home.service.HomeService;
+import com.likelion.yonsei.daedongje.domain.performance.dto.PerformanceCurrentResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -33,5 +34,13 @@ public class HomeController {
     @GetMapping("/popular-booths")
     public ApiResponse<List<HomePopularBoothResponse>> getPopularBooths() {
         return ApiResponse.success(homeService.getPopularBooths());
+    }
+
+    @Operation(summary = "현재 진행 중인 공연 조회", description = "홈 화면에 노출할 현재 진행 중인 공연 정보를 조회한다.")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "현재 진행 중인 공연 없음 (P-006)")
+    @GetMapping("/current-performance")
+    public ApiResponse<PerformanceCurrentResponse> getCurrentPerformance() {
+        return ApiResponse.success(homeService.getCurrentPerformance());
     }
 }

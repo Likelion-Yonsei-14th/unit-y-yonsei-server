@@ -33,6 +33,21 @@ public class PerformanceCurrentResponse {
     @Schema(description = "공연 구분", example = "ARTIST", allowableValues = {"ARTIST", "CLUB"})
     private PerformanceCategory performanceCategory;
 
+    @Schema(description = "공연 해시태그 1", example = "JPOP")
+    private String hashtag1;
+
+    @Schema(description = "공연 해시태그 2", example = "인디")
+    private String hashtag2;
+
+    @Schema(description = "공연 해시태그 3", example = "밴드")
+    private String hashtag3;
+
+    @Schema(description = "공연 유튜브 링크", example = "https://www.youtube.com/@yonsei")
+    private String youtubeUrl;
+
+    @Schema(description = "공연 인스타그램 링크", example = "https://www.instagram.com/yonsei")
+    private String instagramUrl;
+
     @Schema(description = "지도 위치 ID", example = "1")
     private Long locationId;
 
@@ -49,6 +64,11 @@ public class PerformanceCurrentResponse {
                 .endTime(performance.getEndTime())
                 .performanceStatus(performance.getPerformanceStatus())
                 .performanceCategory(performance.getPerformanceCategory())
+                .hashtag1(performance.getHashtag1())
+                .hashtag2(performance.getHashtag2())
+                .hashtag3(performance.getHashtag3())
+                .youtubeUrl(performance.getYoutubeUrl())
+                .instagramUrl(performance.getInstagramUrl())
                 .locationId(location != null ? location.getId() : null)
                 .locationName(location != null ? location.getLocationName() : null)
                 .build();

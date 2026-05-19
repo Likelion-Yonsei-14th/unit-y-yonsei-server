@@ -39,6 +39,21 @@ public class PerformanceDetailResponse {
     @Schema(description = "라인업명", example = "Lineup A")
     private String lineupName;
 
+    @Schema(description = "공연 해시태그 1", example = "JPOP")
+    private String hashtag1;
+
+    @Schema(description = "공연 해시태그 2", example = "인디")
+    private String hashtag2;
+
+    @Schema(description = "공연 해시태그 3", example = "밴드")
+    private String hashtag3;
+
+    @Schema(description = "공연 유튜브 링크", example = "https://www.youtube.com/@yonsei")
+    private String youtubeUrl;
+
+    @Schema(description = "공연 인스타그램 링크", example = "https://www.instagram.com/yonsei")
+    private String instagramUrl;
+
     @Schema(description = "공연 상태", example = "SCHEDULED")
     private PerformanceStatus performanceStatus;
 
@@ -60,6 +75,11 @@ public class PerformanceDetailResponse {
                 .endTime(performance.getEndTime())
                 .performanceCategory(performance.getPerformanceCategory())
                 .lineupName(performance.getLineupName())
+                .hashtag1(performance.getHashtag1())
+                .hashtag2(performance.getHashtag2())
+                .hashtag3(performance.getHashtag3())
+                .youtubeUrl(performance.getYoutubeUrl())
+                .instagramUrl(performance.getInstagramUrl())
                 .performanceStatus(performance.getPerformanceStatus())
                 .locationId(location != null ? location.getId() : null)
                 .locationName(location != null ? location.getLocationName() : null)

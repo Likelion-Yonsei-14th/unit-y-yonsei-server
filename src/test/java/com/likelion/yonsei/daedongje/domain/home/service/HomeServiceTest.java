@@ -9,6 +9,8 @@ import com.likelion.yonsei.daedongje.domain.booth.repository.BoothImageRepositor
 import com.likelion.yonsei.daedongje.domain.booth.repository.BoothRepository;
 import com.likelion.yonsei.daedongje.domain.booth.repository.PopularBoothSummary;
 import com.likelion.yonsei.daedongje.domain.home.dto.HomePopularBoothResponse;
+import com.likelion.yonsei.daedongje.domain.performance.dto.PerformanceCurrentResponse;
+import com.likelion.yonsei.daedongje.domain.performance.service.PerformanceReadService;
 import com.likelion.yonsei.daedongje.domain.reservation.entity.ReservationStatus;
 import com.likelion.yonsei.daedongje.domain.reservation.repository.ReservationRepository;
 import org.junit.jupiter.api.DisplayName;
@@ -43,6 +45,9 @@ class HomeServiceTest {
 
     @Mock
     private ReservationRepository reservationRepository;
+
+    @Mock
+    private PerformanceReadService performanceReadService;
 
     @InjectMocks
     private HomeService homeService;
@@ -130,6 +135,21 @@ class HomeServiceTest {
         assertThat(pageable.getPageSize()).isEqualTo(5);
     }
 
+    @Test
+    @DisplayName("현재 진행 중인 공연 조회는 공연 조회 서비스를 재사용한다")
+    void getCurrentPerformanceDelegatesToPerformanceReadService() {
+        PerformanceCurrentResponse response = PerformanceCurrentResponse.builder()
+                .id(1L)
+                .performanceName("연세 밴드부 YB")
+                .build();
+        when(performanceReadService.getCurrentPerformance()).thenReturn(response);
+
+        PerformanceCurrentResponse result = homeService.getCurrentPerformance();
+
+        assertThat(result).isSameAs(response);
+        verify(performanceReadService).getCurrentPerformance();
+    }
+
     private Booth booth(Long id, String name, String organization, BoothSector sector,
                         Integer location, String representativeMenus) {
         Booth booth = Booth.create(
@@ -148,7 +168,9 @@ class HomeServiceTest {
                 true,
                 null,
                 null,
-                representativeMenus
+                representativeMenus,
+                false,
+                null
         );
         org.springframework.test.util.ReflectionTestUtils.setField(booth, "id", id);
         return booth;
