@@ -63,7 +63,8 @@ public class BoothService {
                 request.isReservable(),
                 request.account(),
                 request.locationId(),
-                toMenuString(request.representativeMenus())
+                toMenuString(request.representativeMenus()),
+                request.notice()
         );
 
         try {
@@ -182,7 +183,8 @@ public class BoothService {
                     request.isReservable(),
                     request.account(),
                     request.locationId(),
-                    toMenuString(request.representativeMenus())
+                    toMenuString(request.representativeMenus()),
+                    request.notice()
             );
             return BoothResponse.from(booth);
         } catch (DataIntegrityViolationException e) {
