@@ -137,7 +137,12 @@ public class PerformanceService {
                 request.endTime(),
                 request.performanceCategory(),
                 request.lineupName(),
-                request.performanceStatus()
+                request.performanceStatus(),
+                request.hashtag1(),
+                request.hashtag2(),
+                request.hashtag3(),
+                request.youtubeUrl(),
+                request.instagramUrl()
         );
 
         return PerformanceMyResponse.from(performance);

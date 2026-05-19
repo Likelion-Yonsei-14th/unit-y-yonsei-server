@@ -66,6 +66,21 @@ public class Performance extends BaseEntity {
     @Column(name = "lineup_name", length = 100)
     private String lineupName;
 
+    @Column(name = "hashtag1", length = 6)
+    private String hashtag1;
+
+    @Column(name = "hashtag2", length = 6)
+    private String hashtag2;
+
+    @Column(name = "hashtag3", length = 6)
+    private String hashtag3;
+
+    @Column(name = "youtube_url", length = 255)
+    private String youtubeUrl;
+
+    @Column(name = "instagram_url", length = 255)
+    private String instagramUrl;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "performance_status", nullable = false, length = 20)
     private PerformanceStatus performanceStatus;
@@ -101,6 +116,40 @@ public class Performance extends BaseEntity {
             String lineupName,
             PerformanceStatus performanceStatus
     ) {
+        updateBasicInfo(
+                location,
+                performanceName,
+                performanceDescription,
+                performanceDate,
+                startTime,
+                endTime,
+                performanceCategory,
+                lineupName,
+                performanceStatus,
+                null,
+                null,
+                null,
+                null,
+                null
+        );
+    }
+
+    public void updateBasicInfo(
+            MapLocation location,
+            String performanceName,
+            String performanceDescription,
+            Integer performanceDate,
+            LocalTime startTime,
+            LocalTime endTime,
+            PerformanceCategory performanceCategory,
+            String lineupName,
+            PerformanceStatus performanceStatus,
+            String hashtag1,
+            String hashtag2,
+            String hashtag3,
+            String youtubeUrl,
+            String instagramUrl
+    ) {
         if (location != null) {
             this.location = location;
         }
@@ -126,6 +175,21 @@ public class Performance extends BaseEntity {
         }
         if (lineupName != null) {
             this.lineupName = lineupName;
+        }
+        if (hashtag1 != null) {
+            this.hashtag1 = hashtag1;
+        }
+        if (hashtag2 != null) {
+            this.hashtag2 = hashtag2;
+        }
+        if (hashtag3 != null) {
+            this.hashtag3 = hashtag3;
+        }
+        if (youtubeUrl != null) {
+            this.youtubeUrl = youtubeUrl;
+        }
+        if (instagramUrl != null) {
+            this.instagramUrl = instagramUrl;
         }
         if (performanceStatus != null) {
             this.performanceStatus = performanceStatus;

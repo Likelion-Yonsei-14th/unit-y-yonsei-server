@@ -1,0 +1,6 @@
+ALTER TABLE performances
+    ADD COLUMN hashtag1 VARCHAR(6) NULL,
+    ADD COLUMN hashtag2 VARCHAR(6) NULL,
+    ADD COLUMN hashtag3 VARCHAR(6) NULL,
+    ADD COLUMN youtube_url VARCHAR(255) NULL,
+    ADD COLUMN instagram_url VARCHAR(255) NULL;
