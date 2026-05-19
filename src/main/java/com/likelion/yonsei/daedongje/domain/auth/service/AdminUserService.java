@@ -371,6 +371,7 @@ public class AdminUserService {
                 null,                                  // account
                 null,                                  // locationId
                 null,                                  // representativeMenus
+                false,                                 // isFoodTruck
                 null                                   // notice
         );
 

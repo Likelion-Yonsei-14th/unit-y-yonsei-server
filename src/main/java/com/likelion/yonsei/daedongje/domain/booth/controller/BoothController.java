@@ -69,7 +69,7 @@ public class BoothController {
         return ApiResponse.successEmpty();
     }
 
-    @Operation(summary = "부스 목록 조회", description = "날짜·구역·음식 여부를 AND 조건으로 필터링한다. 파라미터를 생략하면 전체 조회.")
+    @Operation(summary = "부스 목록 조회", description = "날짜·구역·음식 여부·푸드트럭 여부를 AND 조건으로 필터링한다. 파라미터를 생략하면 전체 조회.")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공")
     @GetMapping
     public ApiResponse<List<BoothResponse>> getList(
@@ -78,8 +78,10 @@ public class BoothController {
             @Parameter(description = "구역 (한글탑 / 백양로 / 송도)", example = "한글탑")
             @RequestParam(required = false) BoothSector sector,
             @Parameter(description = "음식 부스만 조회", example = "true")
-            @RequestParam(required = false) Boolean isFood
+            @RequestParam(required = false) Boolean isFood,
+            @Parameter(description = "푸드트럭만 조회", example = "false")
+            @RequestParam(required = false) Boolean isFoodTruck
     ) {
-        return ApiResponse.success(boothService.getList(date, sector, isFood));
+        return ApiResponse.success(boothService.getList(date, sector, isFood, isFoodTruck));
     }
 }
