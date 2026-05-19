@@ -86,6 +86,31 @@ class HomeServiceTest {
     }
 
     @Test
+    @DisplayName("인기 상위 부스 중 삭제된 부스가 있으면 순위를 1부터 연속으로 다시 매긴다")
+    void getPopularBoothsReassignsRankWhenBoothDeleted() {
+        when(boothClickLogRepository.findPopularBooths(any(), any(), any()))
+                .thenReturn(List.of(summary(3L, 10L), summary(2L, 8L), summary(1L, 7L)));
+        // boothId 2L 은 삭제되어 findAllById 결과에 포함되지 않는다.
+        when(boothRepository.findAllById(List.of(3L, 2L, 1L)))
+                .thenReturn(List.of(
+                        booth(1L, "분식 한 접시", "국문학과", BoothSector.한글탑, 2, "떡볶이"),
+                        booth(3L, "호프 한 잔", "사회학과", BoothSector.백양로, 7, "치킨")
+                ));
+        when(reservationRepository.countByBoothIdsAndStatus(List.of(3L, 2L, 1L), ReservationStatus.PENDING))
+                .thenReturn(List.<Object[]>of());
+        when(boothImageRepository.findThumbnailsByBoothIds(List.of(3L, 2L, 1L)))
+                .thenReturn(List.of());
+
+        List<HomePopularBoothResponse> responses = homeService.getPopularBooths();
+
+        assertThat(responses).hasSize(2);
+        assertThat(responses).extracting(HomePopularBoothResponse::getRank)
+                .containsExactly(1, 2);
+        assertThat(responses).extracting(HomePopularBoothResponse::getBoothId)
+                .containsExactly(3L, 1L);
+    }
+
+    @Test
     @DisplayName("인기 부스는 TOP 5 제한으로 조회한다")
     void getPopularBoothsUsesTopFiveLimit() {
         when(boothClickLogRepository.findPopularBooths(any(), any(), any()))

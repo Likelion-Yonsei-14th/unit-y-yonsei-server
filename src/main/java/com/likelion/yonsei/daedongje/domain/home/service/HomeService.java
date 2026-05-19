@@ -19,7 +19,6 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -76,24 +75,29 @@ public class HomeService {
                         row -> (Long) row[1]
                 ));
         Map<Long, String> thumbnailMap = boothImageRepository.findThumbnailsByBoothIds(boothIds).stream()
-                .collect(Collectors.toMap(BoothImage::getBoothId, BoothImage::getImageUrl));
+                .collect(Collectors.toMap(
+                        BoothImage::getBoothId,
+                        BoothImage::getImageUrl,
+                        (existing, duplicate) -> existing
+                ));
 
-        return IntStream.range(0, summaries.size())
+        // 클릭 로그는 부스가 삭제돼도 남을 수 있으므로, 삭제된 부스를 먼저 걸러낸 뒤
+        // 순위를 1부터 다시 매겨 최종 응답 순위에 공백이 생기지 않도록 한다.
+        List<PopularBoothSummary> visibleSummaries = summaries.stream()
+                .filter(summary -> boothMap.containsKey(summary.getBoothId()))
+                .toList();
+
+        return IntStream.range(0, visibleSummaries.size())
                 .mapToObj(index -> {
-                    PopularBoothSummary summary = summaries.get(index);
-                    Booth booth = boothMap.get(summary.getBoothId());
-                    if (booth == null) {
-                        return null;
-                    }
+                    PopularBoothSummary summary = visibleSummaries.get(index);
                     return HomePopularBoothResponse.of(
                             index + 1,
                             summary,
-                            booth,
+                            boothMap.get(summary.getBoothId()),
                             waitingCountMap.getOrDefault(summary.getBoothId(), 0L),
                             thumbnailMap.get(summary.getBoothId())
                     );
                 })
-                .filter(Objects::nonNull)
                 .toList();
     }
 }
