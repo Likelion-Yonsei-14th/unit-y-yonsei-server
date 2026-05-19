@@ -130,7 +130,7 @@ public class BoothService {
         Map<Long, MapLocationResponse> mapLocationMap = fetchMapLocationMap(booths);
 
         return booths.stream()
-                .map(booth -> BoothResponse.of(booth, waitingCountMap.getOrDefault(booth.getId(), 0L), thumbnailMap.get(booth.getId()), mapLocationMap.get(booth.getLocationId())))
+                .map(booth -> BoothResponse.of(booth, waitingCountMap.getOrDefault(booth.getId(), 0L), thumbnailMap.get(booth.getId()), resolveMapLocation(booth, mapLocationMap)))
                 .toList();
     }
 
@@ -142,7 +142,7 @@ public class BoothService {
         Map<Long, String> thumbnailMap = fetchThumbnailMap(booths.stream().map(Booth::getId).toList());
         Map<Long, MapLocationResponse> mapLocationMap = fetchMapLocationMap(booths);
         return booths.stream()
-                .map(booth -> BoothResponse.of(booth, 0L, thumbnailMap.get(booth.getId()), mapLocationMap.get(booth.getLocationId())))
+                .map(booth -> BoothResponse.of(booth, 0L, thumbnailMap.get(booth.getId()), resolveMapLocation(booth, mapLocationMap)))
                 .toList();
     }
 
@@ -271,6 +271,18 @@ public class BoothService {
         if (locationIds.isEmpty()) return Map.of();
         return mapLocationRepository.findAllById(locationIds).stream()
                 .collect(Collectors.toMap(MapLocation::getId, MapLocationResponse::from));
+    }
+
+    /**
+     * 부스의 지도 위치를 맵에서 조회한다.
+     * locationId 가 null 이면 위치 미지정이므로 null 을 반환한다.
+     * mapLocationMap 이 비어 있을 때는 Map.of() 불변 맵이라 null 키로 get 하면 NPE 가 발생하므로,
+     * locationId null 검사를 먼저 해 .get(null) 호출 자체를 막는다.
+     */
+    private MapLocationResponse resolveMapLocation(Booth booth, Map<Long, MapLocationResponse> mapLocationMap) {
+        Long locationId = booth.getLocationId();
+        if (locationId == null) return null;
+        return mapLocationMap.get(locationId);
     }
 
     private String toMenuString(List<String> menus) {
