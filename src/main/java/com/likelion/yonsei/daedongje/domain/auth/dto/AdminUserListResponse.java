@@ -22,6 +22,7 @@ public class AdminUserListResponse {
     private String role;
     private String status;
     private String representativeName;
+    private String representativePhone;
     @Schema(description = "정보 작성 완료 여부", example = "false")
     private boolean infoCompleted;
     @Schema(description = "연동된 부스 요약 목록")
@@ -42,6 +43,7 @@ public class AdminUserListResponse {
                 adminUser.getRole().name(),
                 adminUser.getStatus().name(),
                 adminUser.getRepresentativeName(),
+                adminUser.getRepresentativePhone(),
                 infoCompleted,
                 linkedBooths == null ? null : linkedBooths.stream()
                         .map(LinkedBoothSummary::from)
