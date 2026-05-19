@@ -1,6 +1,7 @@
 package com.likelion.yonsei.daedongje.domain.reservation.service;
 
 import com.likelion.yonsei.daedongje.common.exception.BusinessException;
+import com.likelion.yonsei.daedongje.domain.auth.entity.AdminRole;
 import com.likelion.yonsei.daedongje.domain.auth.exception.AuthErrorCode;
 import com.likelion.yonsei.daedongje.domain.auth.support.AdminSessionUser;
 import com.likelion.yonsei.daedongje.domain.booth.entity.Booth;
@@ -10,6 +11,9 @@ import com.likelion.yonsei.daedongje.domain.reservation.dto.ReservationAdminStat
 import com.likelion.yonsei.daedongje.domain.reservation.dto.ReservationCreateRequest;
 import com.likelion.yonsei.daedongje.domain.reservation.dto.ReservationCreateResponse;
 import com.likelion.yonsei.daedongje.domain.reservation.dto.ReservationResponse;
+import com.likelion.yonsei.daedongje.domain.reservation.dto.ReservationSummaryResponse;
+import com.likelion.yonsei.daedongje.domain.reservation.dto.ReservationSummaryResponse.BoothSummary;
+import com.likelion.yonsei.daedongje.domain.reservation.dto.ReservationSummaryResponse.Totals;
 import com.likelion.yonsei.daedongje.domain.reservation.dto.ReservationUpdateRequest;
 import com.likelion.yonsei.daedongje.domain.reservation.dto.ReservationUserCancelRequest;
 import com.likelion.yonsei.daedongje.domain.reservation.entity.Reservation;
@@ -21,7 +25,10 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 
 @Service
 @RequiredArgsConstructor
@@ -77,6 +84,32 @@ public class ReservationService {
         return reservations.stream()
                 .map(ReservationResponse::from)
                 .toList();
+    }
+
+    // 부스별 예약 현황 요약 조회 (대기/완료/취소 카운트 + 전체 합산)
+    // SUPER·MASTER: 모든 부스 / BOOTH: 본인 담당 부스만
+    public ReservationSummaryResponse getSummary(AdminSessionUser currentAdmin) {
+        List<Long> boothIds = resolveAccessibleBoothIds(currentAdmin);
+        if (boothIds.isEmpty()) {
+            return ReservationSummaryResponse.of(List.of(), buildTotals(List.of()));
+        }
+
+        // 부스 ID 오름차순으로 정렬된 상태별 카운트 맵 구성
+        Map<Long, Map<ReservationStatus, Long>> countsByBooth = new TreeMap<>();
+        for (Object[] row : reservationRepository.countGroupedByBoothIdAndStatus(boothIds)) {
+            Long boothId = (Long) row[0];
+            ReservationStatus status = (ReservationStatus) row[1];
+            long count = (Long) row[2];
+            countsByBooth
+                    .computeIfAbsent(boothId, key -> new EnumMap<>(ReservationStatus.class))
+                    .put(status, count);
+        }
+
+        List<BoothSummary> booths = countsByBooth.entrySet().stream()
+                .map(entry -> toBoothSummary(entry.getKey(), entry.getValue()))
+                .toList();
+
+        return ReservationSummaryResponse.of(booths, buildTotals(booths));
     }
 
     // 어드민 예약 단건 조회
@@ -196,6 +229,44 @@ public class ReservationService {
         if (!booth.getAdminId().equals(currentAdmin.getId())) {
             throw new BusinessException(AuthErrorCode.FORBIDDEN);
         }
+    }
+
+    // 예약 현황 요약을 조회할 수 있는 부스 ID 목록
+    // BOOTH 권한은 본인 담당 부스만, SUPER·MASTER는 전체 부스
+    private List<Long> resolveAccessibleBoothIds(AdminSessionUser currentAdmin) {
+        List<Booth> booths = currentAdmin.hasRole(AdminRole.BOOTH)
+                ? boothRepository.findAllByAdminIdIn(List.of(currentAdmin.getId()))
+                : boothRepository.findAll();
+        return booths.stream()
+                .map(Booth::getId)
+                .toList();
+    }
+
+    // 상태별 카운트 맵을 부스 현황 DTO로 변환 (해당 상태 행이 없으면 0)
+    private BoothSummary toBoothSummary(Long boothId, Map<ReservationStatus, Long> counts) {
+        long pending = counts.getOrDefault(ReservationStatus.PENDING, 0L);
+        long confirmed = counts.getOrDefault(ReservationStatus.CONFIRMED, 0L);
+        long cancelled = counts.getOrDefault(ReservationStatus.CANCELLED, 0L);
+        return BoothSummary.builder()
+                .boothId(boothId)
+                .pending(pending)
+                .confirmed(confirmed)
+                .cancelled(cancelled)
+                .total(pending + confirmed + cancelled)
+                .build();
+    }
+
+    // 부스별 현황을 모두 합산해 전체 합계 DTO 생성
+    private Totals buildTotals(List<BoothSummary> booths) {
+        long pending = booths.stream().mapToLong(BoothSummary::getPending).sum();
+        long confirmed = booths.stream().mapToLong(BoothSummary::getConfirmed).sum();
+        long cancelled = booths.stream().mapToLong(BoothSummary::getCancelled).sum();
+        return Totals.builder()
+                .pending(pending)
+                .confirmed(confirmed)
+                .cancelled(cancelled)
+                .total(pending + confirmed + cancelled)
+                .build();
     }
 
     // PIN 없는 예약은 항상 통과, PIN 있는 예약은 BCrypt matches로 검증
