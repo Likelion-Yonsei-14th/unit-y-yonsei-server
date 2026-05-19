@@ -13,8 +13,5 @@ public record ReservationAdminStatusRequest(
                 allowableValues = {"CONFIRMED", "CANCELLED"}
         )
         @NotNull
-        ReservationStatus status,
-
-        @Schema(description = "예약 취소 사유. status가 CANCELLED일 때만 사용.", example = "노쇼로 인한 취소")
-        String cancelReason
+        ReservationStatus status
 ) {}

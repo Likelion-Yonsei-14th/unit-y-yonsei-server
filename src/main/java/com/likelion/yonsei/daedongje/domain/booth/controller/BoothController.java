@@ -2,13 +2,16 @@ package com.likelion.yonsei.daedongje.domain.booth.controller;
 
 import com.likelion.yonsei.daedongje.common.festival.FestivalDayService;
 import com.likelion.yonsei.daedongje.common.response.ApiResponse;
+import com.likelion.yonsei.daedongje.common.web.ClientIpResolver;
 import com.likelion.yonsei.daedongje.domain.booth.dto.BoothResponse;
 import com.likelion.yonsei.daedongje.domain.booth.dto.ReservableBoothResponse;
 import com.likelion.yonsei.daedongje.domain.booth.entity.BoothSector;
+import com.likelion.yonsei.daedongje.domain.booth.service.BoothClickLogService;
 import com.likelion.yonsei.daedongje.domain.booth.service.BoothService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -22,6 +25,7 @@ public class BoothController {
 
     private final BoothService boothService;
     private final FestivalDayService festivalDayService;
+    private final BoothClickLogService boothClickLogService;
 
     @Operation(summary = "현재 축제 일차 조회", description = "서버 현재 시간(KST) 기준으로 부스 필터에 적용할 축제 일차를 반환한다.\n\n- 2 = 2026년 5월 27일\n- 3 = 2026년 5월 28일\n- 4 = 2026년 5월 29일\n\n부스 운영 기간 이전이면 2, 이후면 4로 클램핑된다.")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공")
@@ -55,7 +59,17 @@ public class BoothController {
         return ApiResponse.success(boothService.getById(id));
     }
 
-    @Operation(summary = "부스 목록 조회", description = "날짜·구역·음식 여부를 AND 조건으로 필터링한다. 파라미터를 생략하면 전체 조회.")
+    @Operation(summary = "부스 클릭 로그 저장", description = "부스 상세 진입 이벤트를 저장한다. 동일 IP·부스 조합 기준 분당 10회로 요청을 제한한다.")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "저장 성공")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "존재하지 않는 부스 (B-001)")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "429", description = "클릭 로그 요청 한도 초과 (B-005)")
+    @PostMapping("/{boothId}/clicks")
+    public ApiResponse<Void> createClickLog(@PathVariable Long boothId, HttpServletRequest request) {
+        boothClickLogService.create(boothId, ClientIpResolver.resolve(request));
+        return ApiResponse.successEmpty();
+    }
+
+    @Operation(summary = "부스 목록 조회", description = "날짜·구역·음식 여부·푸드트럭 여부를 AND 조건으로 필터링한다. 파라미터를 생략하면 전체 조회.")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공")
     @GetMapping
     public ApiResponse<List<BoothResponse>> getList(
@@ -64,8 +78,10 @@ public class BoothController {
             @Parameter(description = "구역 (한글탑 / 백양로 / 송도)", example = "한글탑")
             @RequestParam(required = false) BoothSector sector,
             @Parameter(description = "음식 부스만 조회", example = "true")
-            @RequestParam(required = false) Boolean isFood
+            @RequestParam(required = false) Boolean isFood,
+            @Parameter(description = "푸드트럭만 조회", example = "false")
+            @RequestParam(required = false) Boolean isFoodTruck
     ) {
-        return ApiResponse.success(boothService.getList(date, sector, isFood));
+        return ApiResponse.success(boothService.getList(date, sector, isFood, isFoodTruck));
     }
 }

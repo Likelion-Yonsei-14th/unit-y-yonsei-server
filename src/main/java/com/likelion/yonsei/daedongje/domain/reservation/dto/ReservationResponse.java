@@ -34,16 +34,20 @@ public class ReservationResponse {
     @Schema(description = "예약 상태", example = "PENDING")
     private ReservationStatus status;
 
-    @Schema(description = "예약 취소 사유", example = "일정 변경으로 인한 취소")
-    private String cancelReason;
-
     @Schema(description = "예약 생성 시간")
     private LocalDateTime createdAt;
 
     @Schema(description = "수정 시간")
     private LocalDateTime updatedAt;
 
+    @Schema(description = "내 앞 대기 팀 수 (PENDING 상태일 때만 유효, 그 외 0)", example = "3")
+    private long aheadOfMe;
+
     public static ReservationResponse from(Reservation reservation) {
+        return of(reservation, 0L);
+    }
+
+    public static ReservationResponse of(Reservation reservation, long aheadOfMe) {
         return ReservationResponse.builder()
                 .id(reservation.getId())
                 .boothId(reservation.getBooth().getId())
@@ -52,9 +56,9 @@ public class ReservationResponse {
                 .phoneNumber(reservation.getPhoneNumber())
                 .partySize(reservation.getPartySize())
                 .status(reservation.getStatus())
-                .cancelReason(reservation.getCancelReason())
                 .createdAt(reservation.getCreatedAt())
                 .updatedAt(reservation.getUpdatedAt())
+                .aheadOfMe(aheadOfMe)
                 .build();
     }
 }

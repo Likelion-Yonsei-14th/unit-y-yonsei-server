@@ -3,11 +3,14 @@ package com.likelion.yonsei.daedongje.domain.booth.dto;
 import com.likelion.yonsei.daedongje.domain.booth.entity.Booth;
 import com.likelion.yonsei.daedongje.domain.booth.entity.BoothSector;
 import com.likelion.yonsei.daedongje.domain.booth.entity.BoothStatus;
+import com.likelion.yonsei.daedongje.domain.map.dto.MapLocationResponse;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 import lombok.Getter;
 
 import java.time.LocalTime;
+import java.util.Arrays;
+import java.util.List;
 
 @Schema(description = "부스 응답")
 @Getter
@@ -59,16 +62,32 @@ public class BoothResponse {
     @Schema(description = "계좌 정보", example = "카카오뱅크 1234-5678")
     private String account;
 
-    @Schema(description = "지도 위치 엔티티 ID", example = "10")
-    private Long locationId;
-
     @Schema(description = "부스 프로필 작성 완료 여부. organization·date·openTime·closeTime·sector·location 이 모두 입력된 경우 true.", example = "false")
     private boolean profileComplete;
+
+    @Schema(description = "대표 메뉴 카테고리 목록", example = "[\"치킨\", \"맥주\"]")
+    private List<String> representativeMenus;
 
     @Schema(description = "현재 대기 팀 수", example = "3")
     private long waitingCount;
 
-    public static BoothResponse of(Booth booth, long waitingCount) {
+    @Schema(description = "썸네일 이미지 URL (display_order=1 이미지)", example = "https://example.com/thumbnail.jpg")
+    private String thumbnailUrl;
+
+    @Schema(description = "부스의 지도 위치 상세 정보. 위치가 설정되지 않은 경우 null. 위치 설정은 생성·수정 요청의 locationId로 지정.")
+    private MapLocationResponse mapLocation;
+
+    @Schema(description = "푸드트럭 여부. 외부 업체가 운영하는 푸드트럭이면 true, 일반 부스면 false", example = "false")
+    private Boolean isFoodTruck;
+
+    @Schema(description = "부스 공지사항 (없으면 null)", example = "오늘은 18시에 조기 마감합니다.")
+    private String notice;
+
+    public static BoothResponse from(Booth booth) {
+        return of(booth, 0L, null, null);
+    }
+
+    public static BoothResponse of(Booth booth, long waitingCount, String thumbnailUrl, MapLocationResponse mapLocation) {
         return BoothResponse.builder()
                 .id(booth.getId())
                 .adminId(booth.getAdminId())
@@ -85,13 +104,18 @@ public class BoothResponse {
                 .instagram(booth.getInstagram())
                 .isReservable(booth.getIsReservable())
                 .account(booth.getAccount())
-                .locationId(booth.getLocationId())
                 .profileComplete(booth.isProfileComplete())
+                .representativeMenus(parseMenus(booth.getRepresentativeMenus()))
                 .waitingCount(waitingCount)
+                .thumbnailUrl(thumbnailUrl)
+                .mapLocation(mapLocation)
+                .isFoodTruck(booth.getIsFoodTruck())
+                .notice(booth.getNotice())
                 .build();
     }
 
-    public static BoothResponse from(Booth booth) {
-        return of(booth, 0L);
+    private static List<String> parseMenus(String raw) {
+        if (raw == null || raw.isBlank()) return List.of();
+        return Arrays.stream(raw.split(",")).map(String::trim).filter(s -> !s.isBlank()).toList();
     }
 }

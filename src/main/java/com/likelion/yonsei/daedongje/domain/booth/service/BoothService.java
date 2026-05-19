@@ -11,7 +11,12 @@ import com.likelion.yonsei.daedongje.domain.booth.entity.Booth;
 import com.likelion.yonsei.daedongje.domain.booth.entity.BoothSector;
 import com.likelion.yonsei.daedongje.domain.booth.entity.BoothStatus;
 import com.likelion.yonsei.daedongje.domain.booth.exception.BoothErrorCode;
+import com.likelion.yonsei.daedongje.domain.booth.entity.BoothImage;
+import com.likelion.yonsei.daedongje.domain.booth.repository.BoothImageRepository;
 import com.likelion.yonsei.daedongje.domain.booth.repository.BoothRepository;
+import com.likelion.yonsei.daedongje.domain.map.dto.MapLocationResponse;
+import com.likelion.yonsei.daedongje.domain.map.entity.MapLocation;
+import com.likelion.yonsei.daedongje.domain.map.repository.MapLocationRepository;
 import com.likelion.yonsei.daedongje.domain.reservation.entity.ReservationStatus;
 import com.likelion.yonsei.daedongje.domain.reservation.repository.ReservationRepository;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -21,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -28,11 +34,15 @@ import java.util.stream.Collectors;
 public class BoothService {
 
     private final BoothRepository boothRepository;
+    private final BoothImageRepository boothImageRepository;
     private final ReservationRepository reservationRepository;
+    private final MapLocationRepository mapLocationRepository;
 
-    public BoothService(BoothRepository boothRepository, ReservationRepository reservationRepository) {
+    public BoothService(BoothRepository boothRepository, BoothImageRepository boothImageRepository, ReservationRepository reservationRepository, MapLocationRepository mapLocationRepository) {
         this.boothRepository = boothRepository;
+        this.boothImageRepository = boothImageRepository;
         this.reservationRepository = reservationRepository;
+        this.mapLocationRepository = mapLocationRepository;
     }
 
     // 부스 생성
@@ -58,7 +68,10 @@ public class BoothService {
                 request.instagram(),
                 request.isReservable(),
                 request.account(),
-                request.locationId()
+                request.locationId(),
+                toMenuString(request.representativeMenus()),
+                request.isFoodTruck(),
+                request.notice()
         );
 
         try {
@@ -72,11 +85,11 @@ public class BoothService {
     public BoothResponse getById(Long id) {
         Booth booth = boothRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(BoothErrorCode.BOOTH_NOT_FOUND));
-        return BoothResponse.from(booth);
+        return BoothResponse.of(booth, 0L, fetchThumbnail(id), fetchMapLocation(booth));
     }
 
-    // 부스 전체 조회 (필터: 날짜, 구역, 음식 여부 — 모든 AND 조합 지원)
-    public List<BoothResponse> getList(Integer date, BoothSector sector, Boolean isFood) {
+    // 부스 전체 조회 (필터: 날짜, 구역, 음식 여부, 푸드트럭 여부 — 모든 AND 조합 지원)
+    public List<BoothResponse> getList(Integer date, BoothSector sector, Boolean isFood, Boolean isFoodTruck) {
         List<Booth> booths;
 
         if (date != null && sector != null && isFood != null) {
@@ -97,6 +110,12 @@ public class BoothService {
             booths = boothRepository.findAll();
         }
 
+        if (isFoodTruck != null) {
+            booths = booths.stream()
+                    .filter(b -> b.getIsFoodTruck().equals(isFoodTruck))
+                    .toList();
+        }
+
         if (booths.isEmpty()) return List.of();
 
         List<Long> boothIds = booths.stream().map(Booth::getId).toList();
@@ -107,16 +126,23 @@ public class BoothService {
                         row -> (Long) row[0],
                         row -> (Long) row[1]
                 ));
+        Map<Long, String> thumbnailMap = fetchThumbnailMap(boothIds);
+        Map<Long, MapLocationResponse> mapLocationMap = fetchMapLocationMap(booths);
 
         return booths.stream()
-                .map(booth -> BoothResponse.of(booth, waitingCountMap.getOrDefault(booth.getId(), 0L)))
+                .map(booth -> BoothResponse.of(booth, waitingCountMap.getOrDefault(booth.getId(), 0L), thumbnailMap.get(booth.getId()), resolveMapLocation(booth, mapLocationMap)))
                 .toList();
     }
 
-    // 부스명·단체명 키워드 검색
+    // 부스명·단체명·메뉴명 키워드 검색
     public List<BoothResponse> search(String keyword) {
-        return boothRepository.searchByKeyword(keyword).stream()
-                .map(BoothResponse::from)
+        List<Booth> booths = boothRepository.searchByKeyword(keyword);
+        if (booths.isEmpty()) return List.of();
+
+        Map<Long, String> thumbnailMap = fetchThumbnailMap(booths.stream().map(Booth::getId).toList());
+        Map<Long, MapLocationResponse> mapLocationMap = fetchMapLocationMap(booths);
+        return booths.stream()
+                .map(booth -> BoothResponse.of(booth, 0L, thumbnailMap.get(booth.getId()), resolveMapLocation(booth, mapLocationMap)))
                 .toList();
     }
 
@@ -133,9 +159,14 @@ public class BoothService {
                         row -> (Long) row[0],
                         row -> (Long) row[1]
                 ));
+        Map<Long, String> thumbnailMap = fetchThumbnailMap(boothIds);
 
         return booths.stream()
-                .map(booth -> ReservableBoothResponse.of(booth, waitingCountMap.getOrDefault(booth.getId(), 0L)))
+                .map(booth -> ReservableBoothResponse.of(
+                        booth,
+                        waitingCountMap.getOrDefault(booth.getId(), 0L),
+                        thumbnailMap.get(booth.getId())
+                ))
                 .toList();
     }
 
@@ -166,9 +197,12 @@ public class BoothService {
                     request.instagram(),
                     request.isReservable(),
                     request.account(),
-                    request.locationId()
+                    request.locationId(),
+                    toMenuString(request.representativeMenus()),
+                    request.isFoodTruck(),
+                    request.notice()
             );
-            return BoothResponse.from(booth);
+            return BoothResponse.of(booth, 0L, fetchThumbnail(booth.getId()), fetchMapLocation(booth));
         } catch (DataIntegrityViolationException e) {
             throw new BusinessException(BoothErrorCode.DUPLICATE_BOOTH_NAME);
         }
@@ -185,7 +219,7 @@ public class BoothService {
         }
 
         booth.updateStatus(status);
-        return BoothResponse.from(booth);
+        return BoothResponse.of(booth, 0L, fetchThumbnail(booth.getId()), fetchMapLocation(booth));
     }
 
     // 예약 접수 On/Off (BOOTH 역할은 본인 담당 부스만 변경 가능)
@@ -199,7 +233,7 @@ public class BoothService {
         }
 
         booth.updateIsReservable(isReservable);
-        return BoothResponse.from(booth);
+        return BoothResponse.of(booth, 0L, fetchThumbnail(booth.getId()), fetchMapLocation(booth));
     }
 
     // 부스 삭제
@@ -208,6 +242,52 @@ public class BoothService {
         Booth booth = boothRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(BoothErrorCode.BOOTH_NOT_FOUND));
         boothRepository.delete(booth);
+    }
+
+    private String fetchThumbnail(Long boothId) {
+        return boothImageRepository.findByBoothIdAndDisplayOrder(boothId, 1)
+                .map(BoothImage::getImageUrl)
+                .orElse(null);
+    }
+
+    private Map<Long, String> fetchThumbnailMap(List<Long> boothIds) {
+        return boothImageRepository.findThumbnailsByBoothIds(boothIds).stream()
+                .collect(Collectors.toMap(BoothImage::getBoothId, BoothImage::getImageUrl));
+    }
+
+    private MapLocationResponse fetchMapLocation(Booth booth) {
+        if (booth.getLocationId() == null) return null;
+        return mapLocationRepository.findById(booth.getLocationId())
+                .map(MapLocationResponse::from)
+                .orElse(null);
+    }
+
+    private Map<Long, MapLocationResponse> fetchMapLocationMap(List<Booth> booths) {
+        List<Long> locationIds = booths.stream()
+                .map(Booth::getLocationId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        if (locationIds.isEmpty()) return Map.of();
+        return mapLocationRepository.findAllById(locationIds).stream()
+                .collect(Collectors.toMap(MapLocation::getId, MapLocationResponse::from));
+    }
+
+    /**
+     * 부스의 지도 위치를 맵에서 조회한다.
+     * locationId 가 null 이면 위치 미지정이므로 null 을 반환한다.
+     * mapLocationMap 이 비어 있을 때는 Map.of() 불변 맵이라 null 키로 get 하면 NPE 가 발생하므로,
+     * locationId null 검사를 먼저 해 .get(null) 호출 자체를 막는다.
+     */
+    private MapLocationResponse resolveMapLocation(Booth booth, Map<Long, MapLocationResponse> mapLocationMap) {
+        Long locationId = booth.getLocationId();
+        if (locationId == null) return null;
+        return mapLocationMap.get(locationId);
+    }
+
+    private String toMenuString(List<String> menus) {
+        if (menus == null || menus.isEmpty()) return null;
+        return String.join(",", menus);
     }
 
     /**

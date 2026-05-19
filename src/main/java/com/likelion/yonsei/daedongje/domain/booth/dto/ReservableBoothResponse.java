@@ -8,6 +8,8 @@ import lombok.Builder;
 import lombok.Getter;
 
 import java.time.LocalTime;
+import java.util.Arrays;
+import java.util.List;
 
 @Schema(description = "예약 가능 부스 응답")
 @Getter
@@ -50,7 +52,19 @@ public class ReservableBoothResponse {
     @Schema(description = "현재 대기 팀 수", example = "5")
     private long waitingCount;
 
-    public static ReservableBoothResponse of(Booth booth, long waitingCount) {
+    @Schema(description = "대표 메뉴 카테고리 목록", example = "[\"치킨\", \"맥주\"]")
+    private List<String> representativeMenus;
+
+    @Schema(description = "썸네일 이미지 URL (display_order=1 이미지)", example = "https://example.com/thumbnail.jpg")
+    private String thumbnailUrl;
+
+    @Schema(description = "푸드트럭 여부. 외부 업체가 운영하는 푸드트럭이면 true, 일반 부스면 false", example = "false")
+    private Boolean isFoodTruck;
+
+    @Schema(description = "부스 공지사항 (없으면 null)", example = "오늘은 18시에 조기 마감합니다.")
+    private String notice;
+
+    public static ReservableBoothResponse of(Booth booth, long waitingCount, String thumbnailUrl) {
         return ReservableBoothResponse.builder()
                 .id(booth.getId())
                 .name(booth.getName())
@@ -64,6 +78,15 @@ public class ReservableBoothResponse {
                 .status(booth.getStatus())
                 .isFood(booth.getIsFood())
                 .waitingCount(waitingCount)
+                .representativeMenus(parseMenus(booth.getRepresentativeMenus()))
+                .thumbnailUrl(thumbnailUrl)
+                .isFoodTruck(booth.getIsFoodTruck())
+                .notice(booth.getNotice())
                 .build();
+    }
+
+    private static List<String> parseMenus(String raw) {
+        if (raw == null || raw.isBlank()) return List.of();
+        return Arrays.stream(raw.split(",")).map(String::trim).filter(s -> !s.isBlank()).toList();
     }
 }

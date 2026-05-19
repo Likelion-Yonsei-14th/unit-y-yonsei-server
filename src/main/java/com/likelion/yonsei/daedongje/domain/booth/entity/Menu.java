@@ -112,4 +112,9 @@ public class Menu extends BaseEntity {
     public void updateSoldOut(Boolean isSoldOut) {
         this.isSoldOut = isSoldOut != null ? isSoldOut : false;
     }
+
+    // 표시 순서만 변경 (메뉴 재정렬 전용)
+    public void changeDisplayOrder(Integer displayOrder) {
+        this.displayOrder = displayOrder;
+    }
 }

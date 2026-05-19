@@ -23,6 +23,11 @@ public interface BoothRepository extends JpaRepository<Booth, Long> {
 
     boolean existsByAdminId(Long adminId);
 
+    // 계정당 부스 1개 정책 — 어드민이 소유한 부스 단건 조회
+    Optional<Booth> findByAdminId(Long adminId);
+
+    List<Booth> findAllByAdminIdIn(List<Long> adminIds);
+
     List<Booth> findAllByDate(Integer date);
 
     List<Booth> findAllBySector(BoothSector sector);
@@ -37,7 +42,11 @@ public interface BoothRepository extends JpaRepository<Booth, Long> {
 
     List<Booth> findAllByDateAndSectorAndIsFood(Integer date, BoothSector sector, Boolean isFood);
 
-    @Query("SELECT b FROM Booth b WHERE LOWER(b.name) LIKE LOWER(CONCAT('%', :keyword, '%')) OR LOWER(b.organization) LIKE LOWER(CONCAT('%', :keyword, '%'))")
+    @Query("SELECT DISTINCT b FROM Booth b WHERE " +
+            "LOWER(b.name) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+            "LOWER(b.organization) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+            "LOWER(b.representativeMenus) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+            "EXISTS (SELECT m FROM Menu m WHERE m.booth = b AND LOWER(m.name) LIKE LOWER(CONCAT('%', :keyword, '%')))")
     List<Booth> searchByKeyword(@Param("keyword") String keyword);
     List<Booth> findAllByIsReservable(Boolean isReservable);
 

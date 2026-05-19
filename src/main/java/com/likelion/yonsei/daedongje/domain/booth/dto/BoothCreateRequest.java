@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.*;
 
 import java.time.LocalTime;
+import java.util.List;
 
 @Schema(description = "부스 생성 요청")
 public record BoothCreateRequest(
@@ -61,5 +62,15 @@ public record BoothCreateRequest(
         String account,
 
         @Schema(description = "지도 위치 엔티티 ID", example = "10")
-        Long locationId
+        Long locationId,
+
+        @Schema(description = "대표 메뉴 카테고리 목록 (예: [\"치킨\", \"맥주\"])", example = "[\"치킨\", \"맥주\"]")
+        List<String> representativeMenus,
+
+        @Schema(description = "푸드트럭 여부. 외부 업체가 운영하는 푸드트럭이면 true, 일반 부스면 false", example = "false")
+        @NotNull
+        Boolean isFoodTruck,
+
+        @Schema(description = "부스 공지사항. 생략 가능 (null 허용)", example = "오늘은 18시에 조기 마감합니다.", nullable = true)
+        String notice
 ) {}
