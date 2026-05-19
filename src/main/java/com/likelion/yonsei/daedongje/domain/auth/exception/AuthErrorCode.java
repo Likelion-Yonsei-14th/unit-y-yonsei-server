@@ -22,9 +22,10 @@ public enum AuthErrorCode implements ErrorCode {
     SUPER_ADMIN_DELETE_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "A-013", "Super Admin 계정은 삭제할 수 없습니다."),
     ADMIN_HAS_OWNED_BOOTHS(HttpStatus.BAD_REQUEST, "A-014", "소유한 부스가 있어 어드민 계정을 삭제할 수 없습니다. 먼저 부스를 정리해주세요."),
     INVALID_BOOTH_OPERATING_DATE(HttpStatus.BAD_REQUEST, "A-015", "부스 운영 날짜는 1~3 사이의 숫자여야 합니다."),
-    INVALID_PERFORMANCE_NAME_LENGTH(HttpStatus.BAD_REQUEST, "A-016", "공연 이름은 100자 이하로 입력해주세요."),
-    INVALID_PERFORMANCE_DATE(HttpStatus.BAD_REQUEST, "A-017", "공연 일자는 1~3 사이의 숫자여야 합니다."),
-    INVALID_PERFORMANCE_TIME(HttpStatus.BAD_REQUEST, "A-018", "공연 시작 시간은 종료 시간보다 빨라야 합니다.");
+    ADMIN_HAS_OWNED_PERFORMANCES(HttpStatus.BAD_REQUEST, "A-016", "소유한 공연이 있어 어드민 계정을 삭제할 수 없습니다. 먼저 공연을 정리해주세요."),
+    INVALID_PERFORMANCE_NAME_LENGTH(HttpStatus.BAD_REQUEST, "A-017", "공연 이름은 100자 이하로 입력해주세요."),
+    INVALID_PERFORMANCE_DATE(HttpStatus.BAD_REQUEST, "A-018", "공연 일자는 1~3 사이의 숫자여야 합니다."),
+    INVALID_PERFORMANCE_TIME(HttpStatus.BAD_REQUEST, "A-019", "공연 시작 시간은 종료 시간보다 빨라야 합니다.");
 
 
     private final HttpStatus status;

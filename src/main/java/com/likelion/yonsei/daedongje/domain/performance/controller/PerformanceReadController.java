@@ -18,7 +18,7 @@ import java.util.List;
 
 @Tag(name = "공연", description = "사용자용 공연 조회 API")
 @RestController
-@RequestMapping("/performances")
+@RequestMapping("/api/performances")
 @RequiredArgsConstructor
 public class PerformanceReadController {
 
