@@ -18,6 +18,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -79,4 +80,29 @@ class BoothControllerTest {
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.error.code").value("B-005"));
     }
+
+    @Test
+    @DisplayName("부스 ID path variable이 숫자가 아니면 400을 반환한다")
+    void returnsBadRequestWhenBoothIdIsNotNumber() throws Exception {
+        mockMvc.perform(get("/api/booths/abc"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("date 쿼리 파라미터가 숫자가 아니면 400을 반환한다")
+    void returnsBadRequestWhenDateQueryParameterIsNotNumber() throws Exception {
+        mockMvc.perform(get("/api/booths")
+                        .param("date", "abc"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("sector 쿼리 파라미터가 유효한 enum 값이 아니면 400을 반환한다")
+    void returnsBadRequestWhenSectorQueryParameterIsInvalidEnumValue() throws Exception {
+        mockMvc.perform(get("/api/booths")
+                        .param("sector", "NOPE"))
+                .andExpect(status().isBadRequest());
+    }
+
+
 }
