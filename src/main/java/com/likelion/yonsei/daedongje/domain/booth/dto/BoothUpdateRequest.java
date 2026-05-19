@@ -65,5 +65,8 @@ public record BoothUpdateRequest(
 
         @Schema(description = "푸드트럭 여부. 외부 업체가 운영하는 푸드트럭이면 true, 일반 부스면 false", example = "false")
         @NotNull
-        Boolean isFoodTruck
+        Boolean isFoodTruck,
+
+        @Schema(description = "부스 공지사항. 생략 시 null로 저장", example = "오늘은 18시에 조기 마감합니다.", nullable = true)
+        String notice
 ) {}

@@ -64,7 +64,8 @@ public class BoothService {
                 request.account(),
                 request.locationId(),
                 toMenuString(request.representativeMenus()),
-                request.isFoodTruck()
+                request.isFoodTruck(),
+                request.notice()
         );
 
         try {
@@ -190,7 +191,8 @@ public class BoothService {
                     request.account(),
                     request.locationId(),
                     toMenuString(request.representativeMenus()),
-                    request.isFoodTruck()
+                    request.isFoodTruck(),
+                    request.notice()
             );
             return BoothResponse.from(booth);
         } catch (DataIntegrityViolationException e) {

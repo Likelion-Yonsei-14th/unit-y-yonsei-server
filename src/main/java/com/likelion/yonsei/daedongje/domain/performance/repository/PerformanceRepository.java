@@ -20,6 +20,7 @@ public interface PerformanceRepository extends JpaRepository<Performance, Long> 
 
     List<Performance> findAllByPerformanceStatus(PerformanceStatus performanceStatus);
 
+
     // 목록·타임테이블 조회는 공연마다 location 을 지연 로딩하면 N+1 이 발생하므로 fetch join 으로 함께 조회한다.
     @Query("SELECT p FROM Performance p LEFT JOIN FETCH p.location WHERE p.performanceStatus <> :status")
     List<Performance> findAllWithLocationByPerformanceStatusNot(@Param("status") PerformanceStatus status);

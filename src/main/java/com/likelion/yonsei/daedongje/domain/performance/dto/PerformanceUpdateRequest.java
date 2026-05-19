@@ -5,6 +5,7 @@ import com.likelion.yonsei.daedongje.domain.performance.entity.PerformanceStatus
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 import java.time.LocalTime;
@@ -38,6 +39,29 @@ public record PerformanceUpdateRequest(
         @Schema(description = "라인업명", example = "Lineup A", nullable = true)
         @Size(max = 100)
         String lineupName,
+
+        @Schema(description = "공연 해시태그 1", example = "JPOP", nullable = true)
+        @Size(max = 6)
+        @Pattern(regexp = ".*\\S.*", message = "hashtag1은 공백만으로 입력할 수 없습니다.")
+        String hashtag1,
+
+        @Schema(description = "공연 해시태그 2", example = "인디", nullable = true)
+        @Size(max = 6)
+        @Pattern(regexp = ".*\\S.*", message = "hashtag2는 공백만으로 입력할 수 없습니다.")
+        String hashtag2,
+
+        @Schema(description = "공연 해시태그 3", example = "밴드", nullable = true)
+        @Size(max = 6)
+        @Pattern(regexp = ".*\\S.*", message = "hashtag3은 공백만으로 입력할 수 없습니다.")
+        String hashtag3,
+
+        @Schema(description = "공연 유튜브 링크", example = "https://www.youtube.com/@yonsei", nullable = true)
+        @Size(max = 255)
+        String youtubeUrl,
+
+        @Schema(description = "공연 인스타그램 링크", example = "https://www.instagram.com/yonsei", nullable = true)
+        @Size(max = 255)
+        String instagramUrl,
 
         @Schema(description = "공연 상태", example = "SCHEDULED", nullable = true)
         PerformanceStatus performanceStatus

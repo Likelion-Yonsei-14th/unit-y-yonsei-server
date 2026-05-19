@@ -1,0 +1,2 @@
+ALTER TABLE booths
+    ADD COLUMN notice TEXT NULL;
