@@ -14,12 +14,16 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 @Service
 @Transactional(readOnly = true)
 public class BoothClickLogService {
 
     private static final Logger log = LoggerFactory.getLogger(BoothClickLogService.class);
+
+    /** 클릭 로그 적재 시각은 인기 부스 집계 윈도우와 동일한 축제 기준 시간대로 기록한다. */
+    private static final ZoneId FESTIVAL_ZONE = ZoneId.of("Asia/Seoul");
 
     /** 동일 IP·부스 조합당 1분 동안 허용하는 최대 클릭 로그 요청 수. */
     private static final int MAX_CLICKS_PER_WINDOW = 10;
@@ -51,7 +55,7 @@ public class BoothClickLogService {
             throw new BusinessException(BoothErrorCode.BOOTH_NOT_FOUND);
         }
 
-        boothClickLogRepository.save(BoothClickLog.create(boothId, LocalDateTime.now()));
+        boothClickLogRepository.save(BoothClickLog.create(boothId, LocalDateTime.now(FESTIVAL_ZONE)));
     }
 
     /**
