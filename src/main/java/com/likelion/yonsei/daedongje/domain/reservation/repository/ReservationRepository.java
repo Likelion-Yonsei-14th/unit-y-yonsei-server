@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -44,4 +45,16 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
             @Param("bookerName") String bookerName,
             @Param("phoneNumber") String phoneNumber,
             @Param("status") ReservationStatus status);
+
+    // 광클 멱등 처리: 같은 부스·전화번호로 since 이후 생성된 예약을 최신순으로 조회
+    @Query("SELECT r FROM Reservation r " +
+            "WHERE r.booth.id = :boothId " +
+            "AND r.phoneNumber = :phoneNumber " +
+            "AND r.status = :status " +
+            "AND r.createdAt >= :since " +
+            "ORDER BY r.createdAt DESC")
+    List<Reservation> findRecentDuplicates(@Param("boothId") Long boothId,
+                                           @Param("phoneNumber") String phoneNumber,
+                                           @Param("status") ReservationStatus status,
+                                           @Param("since") LocalDateTime since);
 }
