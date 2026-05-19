@@ -6,10 +6,15 @@ import com.likelion.yonsei.daedongje.domain.auth.dto.AdminLoginRequest;
 import com.likelion.yonsei.daedongje.domain.auth.dto.AdminLoginResponse;
 import com.likelion.yonsei.daedongje.domain.auth.dto.CurrentAdminUserResponse;
 import com.likelion.yonsei.daedongje.domain.auth.entity.AdminUser;
+import com.likelion.yonsei.daedongje.domain.auth.entity.AdminRole;
 import com.likelion.yonsei.daedongje.domain.auth.entity.AdminStatus;
 import com.likelion.yonsei.daedongje.domain.auth.exception.AuthErrorCode;
 import com.likelion.yonsei.daedongje.domain.auth.repository.AdminUserRepository;
 import com.likelion.yonsei.daedongje.domain.auth.support.AdminAuthContextService;
+import com.likelion.yonsei.daedongje.domain.booth.entity.Booth;
+import com.likelion.yonsei.daedongje.domain.booth.repository.BoothRepository;
+import com.likelion.yonsei.daedongje.domain.performance.entity.Performance;
+import com.likelion.yonsei.daedongje.domain.performance.repository.PerformanceRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +32,8 @@ public class AdminAuthService {
     private final AdminUserRepository adminUserRepository;
     private final PasswordEncoder passwordEncoder;
     private final AdminAuthContextService adminAuthContextService;
+    private final BoothRepository boothRepository;
+    private final PerformanceRepository performanceRepository;
 
     @Transactional
     public AdminLoginResponse login(AdminLoginRequest request, HttpServletRequest httpRequest) {
@@ -65,7 +72,20 @@ public class AdminAuthService {
     @Transactional(readOnly = true)
     public CurrentAdminUserResponse getCurrentAdminUser(HttpSession session) {
         AdminUser adminUser = adminAuthContextService.getCurrentAdminUserEntity(session);
-        return CurrentAdminUserResponse.from(adminUser);
+
+        Long boothId = null;
+        Long performanceTeamId = null;
+        if (adminUser.getRole() == AdminRole.BOOTH) {
+            boothId = boothRepository.findByAdminId(adminUser.getId())
+                    .map(Booth::getId)
+                    .orElse(null);
+        } else if (adminUser.getRole() == AdminRole.PERFORMER) {
+            performanceTeamId = performanceRepository.findByAdminUser(adminUser)
+                    .map(Performance::getId)
+                    .orElse(null);
+        }
+
+        return CurrentAdminUserResponse.from(adminUser, boothId, performanceTeamId);
     }
 
     private void validatePassword(String rawPassword, String passwordHash) {
