@@ -25,6 +25,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
@@ -34,6 +36,9 @@ import java.util.TreeMap;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class ReservationService {
+
+    /** 같은 전화번호의 동일 부스 예약을 광클로 간주해 멱등 처리하는 시간 윈도우. */
+    private static final Duration DUPLICATE_WINDOW = Duration.ofSeconds(10);
 
     private final ReservationRepository reservationRepository;
     private final BoothRepository boothRepository;
@@ -48,6 +53,18 @@ public class ReservationService {
 
         if (!booth.getIsReservable()) {
             throw new BusinessException(ReservationErrorCode.BOOTH_NOT_RESERVABLE);
+        }
+
+        // 광클 멱등 처리: 같은 전화번호로 최근 DUPLICATE_WINDOW 안에 동일 부스 PENDING 예약이 있으면
+        // 신규 생성 없이 그 예약을 그대로 반환한다. 부스 비관적 락이 create 를 직렬화하므로 경합은 없다.
+        LocalDateTime since = LocalDateTime.now().minus(DUPLICATE_WINDOW);
+        List<Reservation> recentDuplicates = reservationRepository.findRecentDuplicates(
+                boothId, request.phoneNumber(), ReservationStatus.PENDING, since);
+        if (!recentDuplicates.isEmpty()) {
+            Reservation existing = recentDuplicates.get(0);
+            long aheadOfExisting =
+                    reservationRepository.countByBoothIdAndStatus(boothId, ReservationStatus.PENDING) - 1;
+            return ReservationCreateResponse.of(existing, aheadOfExisting);
         }
 
         int nextNumber = reservationRepository.findMaxReservationNumberByBoothId(boothId)
