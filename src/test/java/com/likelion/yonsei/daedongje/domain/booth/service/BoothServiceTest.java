@@ -6,6 +6,7 @@ import com.likelion.yonsei.daedongje.domain.booth.entity.Booth;
 import com.likelion.yonsei.daedongje.domain.booth.entity.BoothSector;
 import com.likelion.yonsei.daedongje.domain.booth.entity.BoothStatus;
 import com.likelion.yonsei.daedongje.domain.booth.exception.BoothErrorCode;
+import com.likelion.yonsei.daedongje.domain.booth.repository.BoothClickLogRepository;
 import com.likelion.yonsei.daedongje.domain.booth.repository.BoothImageRepository;
 import com.likelion.yonsei.daedongje.domain.booth.repository.BoothRepository;
 import com.likelion.yonsei.daedongje.domain.booth.repository.MenuRepository;
@@ -35,9 +36,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import org.mockito.InOrder;
 
 @ExtendWith(MockitoExtension.class)
 class BoothServiceTest {
@@ -47,6 +50,9 @@ class BoothServiceTest {
 
     @Mock
     private BoothImageRepository boothImageRepository;
+
+    @Mock
+    private BoothClickLogRepository boothClickLogRepository;
 
     @Mock
     private ReservationRepository reservationRepository;
@@ -155,6 +161,43 @@ class BoothServiceTest {
                         assertThat(e.getErrorCode()).isEqualTo(BoothErrorCode.BOOTH_HAS_NOTICES));
 
         verify(boothRepository, never()).delete(any(Booth.class));
+    }
+
+    @Test
+    @DisplayName("부스 삭제 시 자식 가드 통과 후 클릭로그·이미지가 application-level 에서 정리된 뒤 부스가 삭제된다")
+    void deleteCascadesClickLogsAndImagesBeforeRemovingBooth() {
+        // BAC-111 — 운영 DB 의 FK 가 ON DELETE CASCADE 가 아닌 경우에도 정리되도록
+        // BoothClickLog·BoothImage 를 application-level 에서 명시적으로 삭제한다.
+        Booth booth = booth(7L, null);
+        when(boothRepository.findById(7L)).thenReturn(Optional.of(booth));
+        when(reservationRepository.existsByBoothId(7L)).thenReturn(false);
+        when(menuRepository.existsByBoothId(7L)).thenReturn(false);
+        when(noticeRepository.existsByBoothId(7L)).thenReturn(false);
+
+        boothService.delete(7L);
+
+        // 순서 보장 — 자식 정리는 부스 삭제 *전에* 일어나야 한다. FK 가 RESTRICT 인
+        // 환경에서 순서가 뒤집히면 boothRepository.delete 가 즉시 FK 위반으로 실패한다.
+        InOrder inOrder = inOrder(boothClickLogRepository, boothImageRepository, boothRepository);
+        inOrder.verify(boothClickLogRepository).deleteByBoothId(7L);
+        inOrder.verify(boothImageRepository).deleteByBoothId(7L);
+        inOrder.verify(boothRepository).delete(booth);
+    }
+
+    @Test
+    @DisplayName("자식 가드(예약·메뉴·공지) 에 걸려 삭제가 차단되면 클릭로그·이미지도 정리되지 않는다")
+    void deleteSkipsCascadeWhenGuardBlocks() {
+        // 자식 가드 통과 *후* cascade — 가드에서 막혔다면 cascade 도 건너뛰어야 한다.
+        // 그렇지 않으면 "삭제 실패" 응답인데 이미지/로그만 사라지는 일관성 깨짐이 발생한다.
+        Booth booth = booth(7L, null);
+        when(boothRepository.findById(7L)).thenReturn(Optional.of(booth));
+        when(reservationRepository.existsByBoothId(7L)).thenReturn(true);
+
+        assertThatThrownBy(() -> boothService.delete(7L))
+                .isInstanceOf(BusinessException.class);
+
+        verify(boothClickLogRepository, never()).deleteByBoothId(any());
+        verify(boothImageRepository, never()).deleteByBoothId(any());
     }
 
     @Test
