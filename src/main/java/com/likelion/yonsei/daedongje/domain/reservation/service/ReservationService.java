@@ -62,6 +62,8 @@ public class ReservationService {
                 boothId, request.phoneNumber(), ReservationStatus.PENDING, since);
         if (!recentDuplicates.isEmpty()) {
             Reservation existing = recentDuplicates.get(0);
+            // findRecentDuplicates 가 status=PENDING 으로 필터링한 결과라 existing 은 PENDING 카운트에 반드시 포함된다.
+            // 본인(existing)을 빼기 위해 -1 — 신규 생성 경로의 aheadOfMe 와 동일한 규칙.
             long aheadOfExisting =
                     reservationRepository.countByBoothIdAndStatus(boothId, ReservationStatus.PENDING) - 1;
             return ReservationCreateResponse.of(existing, aheadOfExisting);
