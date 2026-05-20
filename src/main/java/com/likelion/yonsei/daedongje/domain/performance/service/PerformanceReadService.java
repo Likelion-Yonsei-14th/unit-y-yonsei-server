@@ -41,12 +41,16 @@ public class PerformanceReadService {
         return PerformanceDetailResponse.from(performance);
     }
 
+    /**
+     * 현재 진행 중(ONGOING) 인 공연 중 가장 이른 1건을 반환한다.
+     * 진행 중 공연이 없으면 null 을 반환 — "지금 공연 없음" 은 정상 상태로 표현 (LivePerformanceService.getLivePerformance 와 동일 패턴).
+     */
     public PerformanceCurrentResponse getCurrentPerformance() {
-        Performance performance = performanceRepository.findAllByPerformanceStatus(PerformanceStatus.ONGOING).stream()
+        return performanceRepository.findAllByPerformanceStatus(PerformanceStatus.ONGOING).stream()
                 .sorted(PERFORMANCE_ORDER)
                 .findFirst()
-                .orElseThrow(() -> new BusinessException(PerformanceErrorCode.PERFORMANCE_NOT_FOUND));
-        return PerformanceCurrentResponse.from(performance);
+                .map(PerformanceCurrentResponse::from)
+                .orElse(null);
     }
 
     public List<PerformanceTimetableResponse> getPerformanceTimetable() {

@@ -6,6 +6,7 @@ import com.likelion.yonsei.daedongje.domain.auth.dto.AdminUserCreateRequest;
 import com.likelion.yonsei.daedongje.domain.auth.dto.AdminUserCreateResponse;
 import com.likelion.yonsei.daedongje.domain.auth.dto.AdminUserDetailResponse;
 import com.likelion.yonsei.daedongje.domain.auth.dto.AdminUserListResponse;
+import com.likelion.yonsei.daedongje.domain.auth.dto.AdminUserPasswordChangeRequest;
 import com.likelion.yonsei.daedongje.domain.auth.dto.AdminUserPasswordResetRequest;
 import com.likelion.yonsei.daedongje.domain.auth.entity.AdminRole;
 import com.likelion.yonsei.daedongje.domain.auth.entity.AdminUser;
@@ -26,6 +27,8 @@ import org.springframework.data.domain.Sort;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -305,6 +308,24 @@ public class AdminUserService {
         return AdminUserDetailResponse.from(adminUser, infoCompleted, linkedBooths, linkedPerformance);
     }
 
+    private void changePasswordAndInvalidate(AdminUser adminUser, String rawPassword) {
+        adminUser.changePassword(passwordEncoder.encode(rawPassword));    // encoder에 의해 해시로 저장
+        invalidateSessionsAfterCommit(adminUser.getId());  // 비밀번호 변경 커밋 후 세션 무효화
+    }
+
+    // 커밋 이후(비밀번호 변경 확정) 세션 무효화 흐름으로 교체
+    private void invalidateSessionsAfterCommit(Long adminUserId) {
+        if (!TransactionSynchronizationManager.isActualTransactionActive()) {
+            adminSessionService.invalidateAdminSessions(adminUserId);
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                adminSessionService.invalidateAdminSessions(adminUserId);
+            }
+        });
+    }
 
     // 어드민 비밀번호 강제 재설정, 입력받은 비밀번호로 변경
     @Transactional
@@ -314,9 +335,22 @@ public class AdminUserService {
         if (adminUser.getRole() == AdminRole.SUPER) {
             throw new BusinessException(AuthErrorCode.SUPER_PASSWORD_RESET_FORBIDDEN);
         }
-        adminUser.changePassword(passwordEncoder.encode(request.getPassword()));    // encoder에 의해 해시로 저장
-        adminSessionService.invalidateAdminSessions(adminUser.getId());  // 비밀번호 변경 시 기존 세션 무효화(삭제)하여 강제 로그아웃
+        changePasswordAndInvalidate(adminUser, request.getPassword());  // 새로 작성된 메서드로 변경
     }
+
+    // 세션 정보로 부터 로그인한 계정의 비밀번호 변경
+    @Transactional
+    public void changeOwnPassword(AdminUser adminUser, AdminUserPasswordChangeRequest request) {
+        if (!passwordEncoder.matches(request.getCurrentPassword(), adminUser.getPasswordHash())) {
+            throw new BusinessException(AuthErrorCode.INVALID_CURRENT_PASSWORD);
+        }
+        if (passwordEncoder.matches(request.getNewPassword(), adminUser.getPasswordHash())) {
+            throw new BusinessException(AuthErrorCode.PASSWORD_SAME_AS_CURRENT);
+        }
+        changePasswordAndInvalidate(adminUser, request.getNewPassword());
+    }
+
+    
 
     // role이 null이거나 빈 문자열인 경우 null을 반환하여 필터링 없이 전체 조회하도록 함
     private AdminRole parseRoleOrNull(String role) {
