@@ -23,8 +23,8 @@ public record PerformanceUpdateRequest(
         @Schema(description = "공연 설명", example = "대동제 메인 무대 공연입니다.", nullable = true)
         String performanceDescription,
 
-        @Schema(description = "공연 일차 (1=1일차 ~ 4=4일차)", example = "1", nullable = true)
-        @Min(1) @Max(4)
+        @Schema(description = "공연 일차 (2~4 — 축제 일차 체계, bac-97 정합)", example = "2", nullable = true)
+        @Min(2) @Max(4)
         Integer performanceDate,
 
         @Schema(description = "공연 시작 시간", example = "18:00", nullable = true)
