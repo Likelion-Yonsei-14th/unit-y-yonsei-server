@@ -46,15 +46,8 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
             @Param("phoneNumber") String phoneNumber,
             @Param("status") ReservationStatus status);
 
-    // 광클 멱등 처리: 같은 부스·전화번호로 since 이후 생성된 예약을 최신순으로 조회
-    @Query("SELECT r FROM Reservation r " +
-            "WHERE r.booth.id = :boothId " +
-            "AND r.phoneNumber = :phoneNumber " +
-            "AND r.status = :status " +
-            "AND r.createdAt >= :since " +
-            "ORDER BY r.createdAt DESC")
-    List<Reservation> findRecentDuplicates(@Param("boothId") Long boothId,
-                                           @Param("phoneNumber") String phoneNumber,
-                                           @Param("status") ReservationStatus status,
-                                           @Param("since") LocalDateTime since);
+    // 광클 멱등 처리: 같은 부스·전화번호로 since 이후 생성된 PENDING 예약 중 가장 최근 1건을 조회.
+    // Spring Data 파생 쿼리로 LIMIT 1·정렬·조건을 모두 표현 — 별도 @Query 불필요. 메서드 이름이 길지만 표준 idiom.
+    Optional<Reservation> findFirstByBooth_IdAndPhoneNumberAndStatusAndCreatedAtGreaterThanEqualOrderByCreatedAtDesc(
+            Long boothId, String phoneNumber, ReservationStatus status, LocalDateTime since);
 }

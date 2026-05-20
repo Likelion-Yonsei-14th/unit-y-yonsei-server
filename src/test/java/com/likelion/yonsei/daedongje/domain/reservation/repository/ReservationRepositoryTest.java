@@ -13,15 +13,15 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * {@link ReservationRepository#findRecentDuplicates} 의 JPQL 동작을 검증.
+ * 예약 광클 멱등 조회(파생 쿼리)의 JPQL 동작을 검증한다.
  *
  * <p>서비스 단위 테스트(모킹)는 "올바른 인자로 호출하는가" 까지만 검증할 수 있다.
- * 윈도우 경계 · status=PENDING 필터 · 정렬은 실제 SQL 동작이라 {@code @DataJpaTest} 로만 확인 가능.
+ * 윈도우 경계 · status=PENDING 필터 · 정렬 · LIMIT 1 동작은 실제 SQL 동작이라 {@code @DataJpaTest} 로만 확인 가능.
  *
  * <p>JPA Auditing 은 {@code DaedongjeApplication} 의 {@code @EnableJpaAuditing} 으로 활성화되어 있고,
  * {@code @DataJpaTest} 가 해당 메인 설정을 자동 탐지하므로 별도 어노테이션은 필요 없다.
@@ -42,11 +42,12 @@ class ReservationRepositoryTest {
         Reservation reservation = reservationRepository.save(
                 Reservation.create(booth, 1, "홍길동", "010-1234-5678", 2, null));
 
-        List<Reservation> result = reservationRepository.findRecentDuplicates(
-                booth.getId(), "010-1234-5678", ReservationStatus.PENDING,
-                LocalDateTime.now().minusSeconds(10));
+        Optional<Reservation> result = reservationRepository
+                .findFirstByBooth_IdAndPhoneNumberAndStatusAndCreatedAtGreaterThanEqualOrderByCreatedAtDesc(
+                        booth.getId(), "010-1234-5678", ReservationStatus.PENDING,
+                        LocalDateTime.now().minusSeconds(10));
 
-        assertThat(result).extracting(Reservation::getId).containsExactly(reservation.getId());
+        assertThat(result).map(Reservation::getId).contains(reservation.getId());
     }
 
     @Test
@@ -57,9 +58,10 @@ class ReservationRepositoryTest {
                 Reservation.create(booth, 1, "홍길동", "010-1234-5678", 2, null));
 
         // since 를 미래로 두어 윈도우 밖 상황 시뮬레이션 (createdAt < since 가 되어 매치되지 않음)
-        List<Reservation> result = reservationRepository.findRecentDuplicates(
-                booth.getId(), "010-1234-5678", ReservationStatus.PENDING,
-                LocalDateTime.now().plusMinutes(1));
+        Optional<Reservation> result = reservationRepository
+                .findFirstByBooth_IdAndPhoneNumberAndStatusAndCreatedAtGreaterThanEqualOrderByCreatedAtDesc(
+                        booth.getId(), "010-1234-5678", ReservationStatus.PENDING,
+                        LocalDateTime.now().plusMinutes(1));
 
         assertThat(result).isEmpty();
     }
@@ -72,9 +74,10 @@ class ReservationRepositoryTest {
         reservation.cancel();
         reservationRepository.save(reservation);
 
-        List<Reservation> result = reservationRepository.findRecentDuplicates(
-                booth.getId(), "010-1234-5678", ReservationStatus.PENDING,
-                LocalDateTime.now().minusSeconds(10));
+        Optional<Reservation> result = reservationRepository
+                .findFirstByBooth_IdAndPhoneNumberAndStatusAndCreatedAtGreaterThanEqualOrderByCreatedAtDesc(
+                        booth.getId(), "010-1234-5678", ReservationStatus.PENDING,
+                        LocalDateTime.now().minusSeconds(10));
 
         assertThat(result).isEmpty();
     }
@@ -86,9 +89,10 @@ class ReservationRepositoryTest {
         reservationRepository.save(
                 Reservation.create(booth, 1, "홍길동", "010-1234-5678", 2, null));
 
-        List<Reservation> result = reservationRepository.findRecentDuplicates(
-                booth.getId(), "010-9999-9999", ReservationStatus.PENDING,
-                LocalDateTime.now().minusSeconds(10));
+        Optional<Reservation> result = reservationRepository
+                .findFirstByBooth_IdAndPhoneNumberAndStatusAndCreatedAtGreaterThanEqualOrderByCreatedAtDesc(
+                        booth.getId(), "010-9999-9999", ReservationStatus.PENDING,
+                        LocalDateTime.now().minusSeconds(10));
 
         assertThat(result).isEmpty();
     }
@@ -101,29 +105,31 @@ class ReservationRepositoryTest {
         reservationRepository.save(
                 Reservation.create(boothA, 1, "홍길동", "010-1234-5678", 2, null));
 
-        List<Reservation> result = reservationRepository.findRecentDuplicates(
-                boothB.getId(), "010-1234-5678", ReservationStatus.PENDING,
-                LocalDateTime.now().minusSeconds(10));
+        Optional<Reservation> result = reservationRepository
+                .findFirstByBooth_IdAndPhoneNumberAndStatusAndCreatedAtGreaterThanEqualOrderByCreatedAtDesc(
+                        boothB.getId(), "010-1234-5678", ReservationStatus.PENDING,
+                        LocalDateTime.now().minusSeconds(10));
 
         assertThat(result).isEmpty();
     }
 
     @Test
-    @DisplayName("같은 phone+booth 의 PENDING 예약이 여러 건이면 createdAt 내림차순으로 정렬된다")
-    void ordersByCreatedAtDesc() throws InterruptedException {
+    @DisplayName("같은 phone+booth 의 PENDING 예약이 여러 건이면 가장 최근(createdAt 내림차순 1번째) 예약만 반환된다")
+    void returnsOnlyMostRecentWhenMultipleMatches() throws InterruptedException {
         Booth booth = boothRepository.save(booth("테스트 부스"));
-        Reservation older = reservationRepository.save(
+        reservationRepository.save(
                 Reservation.create(booth, 1, "홍길동", "010-1234-5678", 2, null));
         Thread.sleep(20);  // createdAt 분리 보장 (DATETIME(6) 마이크로초)
         Reservation newer = reservationRepository.save(
                 Reservation.create(booth, 2, "홍길동", "010-1234-5678", 2, null));
 
-        List<Reservation> result = reservationRepository.findRecentDuplicates(
-                booth.getId(), "010-1234-5678", ReservationStatus.PENDING,
-                LocalDateTime.now().minusSeconds(10));
+        Optional<Reservation> result = reservationRepository
+                .findFirstByBooth_IdAndPhoneNumberAndStatusAndCreatedAtGreaterThanEqualOrderByCreatedAtDesc(
+                        booth.getId(), "010-1234-5678", ReservationStatus.PENDING,
+                        LocalDateTime.now().minusSeconds(10));
 
-        assertThat(result).extracting(Reservation::getId)
-                .containsExactly(newer.getId(), older.getId());
+        // ORDER BY createdAt DESC + LIMIT 1 → 가장 최근 한 건만 반환
+        assertThat(result).map(Reservation::getId).contains(newer.getId());
     }
 
     private Booth booth(String name) {

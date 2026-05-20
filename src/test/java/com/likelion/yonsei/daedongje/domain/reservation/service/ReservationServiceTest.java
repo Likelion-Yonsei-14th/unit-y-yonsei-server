@@ -23,7 +23,6 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -59,9 +58,10 @@ class ReservationServiceTest {
     void createsNewReservationWhenNoRecentDuplicate() {
         Booth booth = booth(3L);
         when(boothRepository.findByIdWithLock(3L)).thenReturn(Optional.of(booth));
-        when(reservationRepository.findRecentDuplicates(eq(3L), eq("010-1234-5678"),
-                eq(ReservationStatus.PENDING), any(LocalDateTime.class)))
-                .thenReturn(List.of());
+        when(reservationRepository
+                .findFirstByBooth_IdAndPhoneNumberAndStatusAndCreatedAtGreaterThanEqualOrderByCreatedAtDesc(
+                        eq(3L), eq("010-1234-5678"), eq(ReservationStatus.PENDING), any(LocalDateTime.class)))
+                .thenReturn(Optional.empty());
         when(reservationRepository.findMaxReservationNumberByBoothId(3L)).thenReturn(Optional.of(4));
         when(reservationRepository.save(any(Reservation.class))).thenAnswer(inv -> inv.getArgument(0));
         when(reservationRepository.countByBoothIdAndStatus(3L, ReservationStatus.PENDING)).thenReturn(5L);
@@ -79,9 +79,10 @@ class ReservationServiceTest {
         Reservation existing = Reservation.create(booth, 7, "홍길동", "010-1234-5678", 2, null);
         ReflectionTestUtils.setField(existing, "id", 99L);
         when(boothRepository.findByIdWithLock(3L)).thenReturn(Optional.of(booth));
-        when(reservationRepository.findRecentDuplicates(eq(3L), eq("010-1234-5678"),
-                eq(ReservationStatus.PENDING), any(LocalDateTime.class)))
-                .thenReturn(List.of(existing));
+        when(reservationRepository
+                .findFirstByBooth_IdAndPhoneNumberAndStatusAndCreatedAtGreaterThanEqualOrderByCreatedAtDesc(
+                        eq(3L), eq("010-1234-5678"), eq(ReservationStatus.PENDING), any(LocalDateTime.class)))
+                .thenReturn(Optional.of(existing));
         when(reservationRepository.countByBoothIdAndStatus(3L, ReservationStatus.PENDING)).thenReturn(5L);
 
         ReservationCreateResponse response = reservationService.create(3L, request());
@@ -97,8 +98,10 @@ class ReservationServiceTest {
     void queriesDuplicatesWithPendingStatusAndTenSecondWindow() {
         Booth booth = booth(3L);
         when(boothRepository.findByIdWithLock(3L)).thenReturn(Optional.of(booth));
-        when(reservationRepository.findRecentDuplicates(any(), any(), any(), any()))
-                .thenReturn(List.of());
+        when(reservationRepository
+                .findFirstByBooth_IdAndPhoneNumberAndStatusAndCreatedAtGreaterThanEqualOrderByCreatedAtDesc(
+                        any(), any(), any(), any()))
+                .thenReturn(Optional.empty());
         when(reservationRepository.findMaxReservationNumberByBoothId(3L)).thenReturn(Optional.empty());
         when(reservationRepository.save(any(Reservation.class))).thenAnswer(inv -> inv.getArgument(0));
         when(reservationRepository.countByBoothIdAndStatus(3L, ReservationStatus.PENDING)).thenReturn(1L);
@@ -109,8 +112,9 @@ class ReservationServiceTest {
 
         ArgumentCaptor<ReservationStatus> statusCaptor = ArgumentCaptor.forClass(ReservationStatus.class);
         ArgumentCaptor<LocalDateTime> sinceCaptor = ArgumentCaptor.forClass(LocalDateTime.class);
-        verify(reservationRepository).findRecentDuplicates(eq(3L), eq("010-1234-5678"),
-                statusCaptor.capture(), sinceCaptor.capture());
+        verify(reservationRepository)
+                .findFirstByBooth_IdAndPhoneNumberAndStatusAndCreatedAtGreaterThanEqualOrderByCreatedAtDesc(
+                        eq(3L), eq("010-1234-5678"), statusCaptor.capture(), sinceCaptor.capture());
 
         assertThat(statusCaptor.getValue()).isEqualTo(ReservationStatus.PENDING);
         assertThat(sinceCaptor.getValue())
