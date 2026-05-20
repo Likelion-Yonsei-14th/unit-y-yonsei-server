@@ -1,11 +1,15 @@
 package com.likelion.yonsei.daedongje.domain.booth.service;
 
+import com.likelion.yonsei.daedongje.common.exception.BusinessException;
 import com.likelion.yonsei.daedongje.domain.booth.dto.BoothResponse;
 import com.likelion.yonsei.daedongje.domain.booth.entity.Booth;
 import com.likelion.yonsei.daedongje.domain.booth.entity.BoothSector;
 import com.likelion.yonsei.daedongje.domain.booth.entity.BoothStatus;
+import com.likelion.yonsei.daedongje.domain.booth.exception.BoothErrorCode;
 import com.likelion.yonsei.daedongje.domain.booth.repository.BoothImageRepository;
 import com.likelion.yonsei.daedongje.domain.booth.repository.BoothRepository;
+import com.likelion.yonsei.daedongje.domain.booth.repository.MenuRepository;
+import com.likelion.yonsei.daedongje.domain.info.repository.NoticeRepository;
 import com.likelion.yonsei.daedongje.domain.map.entity.MapDisplayStatus;
 import com.likelion.yonsei.daedongje.domain.map.entity.MapLocation;
 import com.likelion.yonsei.daedongje.domain.map.entity.MapLocationType;
@@ -23,8 +27,16 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.math.BigDecimal;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Optional;
+
+import org.springframework.dao.DataIntegrityViolationException;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -41,6 +53,12 @@ class BoothServiceTest {
 
     @Mock
     private MapLocationRepository mapLocationRepository;
+
+    @Mock
+    private MenuRepository menuRepository;
+
+    @Mock
+    private NoticeRepository noticeRepository;
 
     @InjectMocks
     private BoothService boothService;
@@ -78,6 +96,83 @@ class BoothServiceTest {
         assertThat(responses).hasSize(1);
         assertThat(responses.get(0).getMapLocation()).isNotNull();
         assertThat(responses.get(0).getMapLocation().getId()).isEqualTo(10L);
+    }
+
+    @Test
+    @DisplayName("자식 데이터가 없는 부스는 정상적으로 삭제된다")
+    void deleteRemovesBoothWhenNoChildData() {
+        Booth booth = booth(7L, null);
+        when(boothRepository.findById(7L)).thenReturn(Optional.of(booth));
+        when(reservationRepository.existsByBoothId(7L)).thenReturn(false);
+        when(menuRepository.existsByBoothId(7L)).thenReturn(false);
+        when(noticeRepository.existsByBoothId(7L)).thenReturn(false);
+
+        boothService.delete(7L);
+
+        verify(boothRepository).delete(booth);
+    }
+
+    @Test
+    @DisplayName("예약이 있는 부스는 BOOTH_HAS_RESERVATIONS 로 삭제가 차단된다")
+    void deleteBlocksWhenReservationsExist() {
+        Booth booth = booth(7L, null);
+        when(boothRepository.findById(7L)).thenReturn(Optional.of(booth));
+        when(reservationRepository.existsByBoothId(7L)).thenReturn(true);
+
+        assertThatThrownBy(() -> boothService.delete(7L))
+                .isInstanceOfSatisfying(BusinessException.class, e ->
+                        assertThat(e.getErrorCode()).isEqualTo(BoothErrorCode.BOOTH_HAS_RESERVATIONS));
+
+        verify(boothRepository, never()).delete(any(Booth.class));
+    }
+
+    @Test
+    @DisplayName("메뉴가 있는 부스는 BOOTH_HAS_MENUS 로 삭제가 차단된다")
+    void deleteBlocksWhenMenusExist() {
+        Booth booth = booth(7L, null);
+        when(boothRepository.findById(7L)).thenReturn(Optional.of(booth));
+        when(reservationRepository.existsByBoothId(7L)).thenReturn(false);
+        when(menuRepository.existsByBoothId(7L)).thenReturn(true);
+
+        assertThatThrownBy(() -> boothService.delete(7L))
+                .isInstanceOfSatisfying(BusinessException.class, e ->
+                        assertThat(e.getErrorCode()).isEqualTo(BoothErrorCode.BOOTH_HAS_MENUS));
+
+        verify(boothRepository, never()).delete(any(Booth.class));
+    }
+
+    @Test
+    @DisplayName("공지가 있는 부스는 BOOTH_HAS_NOTICES 로 삭제가 차단된다")
+    void deleteBlocksWhenNoticesExist() {
+        Booth booth = booth(7L, null);
+        when(boothRepository.findById(7L)).thenReturn(Optional.of(booth));
+        when(reservationRepository.existsByBoothId(7L)).thenReturn(false);
+        when(menuRepository.existsByBoothId(7L)).thenReturn(false);
+        when(noticeRepository.existsByBoothId(7L)).thenReturn(true);
+
+        assertThatThrownBy(() -> boothService.delete(7L))
+                .isInstanceOfSatisfying(BusinessException.class, e ->
+                        assertThat(e.getErrorCode()).isEqualTo(BoothErrorCode.BOOTH_HAS_NOTICES));
+
+        verify(boothRepository, never()).delete(any(Booth.class));
+    }
+
+    @Test
+    @DisplayName("검사 통과 후 race 로 예약이 생겨 FK 위반이 나면 BusinessException 으로 변환된다")
+    void deleteConvertsFkViolationToBusinessExceptionOnRace() {
+        Booth booth = booth(7L, null);
+        when(boothRepository.findById(7L)).thenReturn(Optional.of(booth));
+        // 1차 검사(verifyNoChildData) — 자식 없음. 2차 recheck — 예약이 race 로 생김.
+        when(reservationRepository.existsByBoothId(7L)).thenReturn(false, true);
+        when(menuRepository.existsByBoothId(7L)).thenReturn(false);
+        when(noticeRepository.existsByBoothId(7L)).thenReturn(false);
+        // 1차 통과 후 boothRepository.delete 가 race 로 FK 위반 (또는 flush 시점에 위반)
+        doThrow(new DataIntegrityViolationException("FK violation: reservations.fk_reservations_booth"))
+                .when(boothRepository).delete(booth);
+
+        assertThatThrownBy(() -> boothService.delete(7L))
+                .isInstanceOfSatisfying(BusinessException.class, e ->
+                        assertThat(e.getErrorCode()).isEqualTo(BoothErrorCode.BOOTH_HAS_RESERVATIONS));
     }
 
     private Booth booth(Long id, Long locationId) {

@@ -22,6 +22,9 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
 
     long countByBoothIdAndStatus(Long boothId, ReservationStatus status);
 
+    // 부스 삭제 가드 — 해당 부스에 예약이 1건이라도 있는지 확인 (BAC-109)
+    boolean existsByBoothId(Long boothId);
+
     long countByBoothIdAndStatusAndReservationNumberLessThan(Long boothId, ReservationStatus status, Integer reservationNumber);
 
     // 여러 부스의 PENDING 예약 수를 한 번에 조회 (N+1 방지)

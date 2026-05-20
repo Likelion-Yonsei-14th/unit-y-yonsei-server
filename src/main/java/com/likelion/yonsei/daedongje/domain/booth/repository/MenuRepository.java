@@ -27,4 +27,7 @@ public interface MenuRepository extends JpaRepository<Menu, Long> {
 
     // 같은 부스 안에서 특정 displayOrder가 이미 사용 중인지 확인
     boolean existsByBoothIdAndDisplayOrder(Long boothId, Integer displayOrder);
+
+    // 부스 삭제 가드 — 해당 부스에 메뉴가 1건이라도 있는지 확인 (BAC-109)
+    boolean existsByBoothId(Long boothId);
 }

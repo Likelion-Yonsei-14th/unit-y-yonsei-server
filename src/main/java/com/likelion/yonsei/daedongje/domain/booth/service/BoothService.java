@@ -14,6 +14,8 @@ import com.likelion.yonsei.daedongje.domain.booth.exception.BoothErrorCode;
 import com.likelion.yonsei.daedongje.domain.booth.entity.BoothImage;
 import com.likelion.yonsei.daedongje.domain.booth.repository.BoothImageRepository;
 import com.likelion.yonsei.daedongje.domain.booth.repository.BoothRepository;
+import com.likelion.yonsei.daedongje.domain.booth.repository.MenuRepository;
+import com.likelion.yonsei.daedongje.domain.info.repository.NoticeRepository;
 import com.likelion.yonsei.daedongje.domain.map.dto.MapLocationResponse;
 import com.likelion.yonsei.daedongje.domain.map.entity.MapLocation;
 import com.likelion.yonsei.daedongje.domain.map.repository.MapLocationRepository;
@@ -37,12 +39,18 @@ public class BoothService {
     private final BoothImageRepository boothImageRepository;
     private final ReservationRepository reservationRepository;
     private final MapLocationRepository mapLocationRepository;
+    private final MenuRepository menuRepository;
+    private final NoticeRepository noticeRepository;
 
-    public BoothService(BoothRepository boothRepository, BoothImageRepository boothImageRepository, ReservationRepository reservationRepository, MapLocationRepository mapLocationRepository) {
+    public BoothService(BoothRepository boothRepository, BoothImageRepository boothImageRepository,
+                        ReservationRepository reservationRepository, MapLocationRepository mapLocationRepository,
+                        MenuRepository menuRepository, NoticeRepository noticeRepository) {
         this.boothRepository = boothRepository;
         this.boothImageRepository = boothImageRepository;
         this.reservationRepository = reservationRepository;
         this.mapLocationRepository = mapLocationRepository;
+        this.menuRepository = menuRepository;
+        this.noticeRepository = noticeRepository;
     }
 
     // 부스 생성
@@ -236,12 +244,37 @@ public class BoothService {
         return BoothResponse.of(booth, 0L, fetchThumbnail(booth.getId()), fetchMapLocation(booth));
     }
 
-    // 부스 삭제
+    // 부스 삭제 — 자식 데이터(예약·메뉴·공지) 가 남아 있으면 차단해 실수 삭제 방지 (BAC-109).
+    // booth_images / booth_click_logs 는 DB FK 가 ON DELETE CASCADE 라 자동 정리되므로 가드 불필요.
     @Transactional
     public void delete(Long id) {
         Booth booth = boothRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(BoothErrorCode.BOOTH_NOT_FOUND));
-        boothRepository.delete(booth);
+
+        verifyNoChildData(id);
+
+        try {
+            boothRepository.delete(booth);
+            // FK 검증을 트랜잭션 커밋이 아닌 *여기서* 실행 — 아래 catch 로 잡을 수 있게 함
+            boothRepository.flush();
+        } catch (DataIntegrityViolationException e) {
+            // 검사 시점과 삭제 시점 사이 race — 자식 데이터가 새로 생성됐을 가능성.
+            // 어떤 자식이 막혔는지 다시 확인해 의미 있는 BusinessException 으로 변환한다.
+            verifyNoChildData(id);
+            throw e;  // 알려진 자식이 아니면 원본 FK 위반을 유지 (다른 미지의 FK)
+        }
+    }
+
+    private void verifyNoChildData(Long boothId) {
+        if (reservationRepository.existsByBoothId(boothId)) {
+            throw new BusinessException(BoothErrorCode.BOOTH_HAS_RESERVATIONS);
+        }
+        if (menuRepository.existsByBoothId(boothId)) {
+            throw new BusinessException(BoothErrorCode.BOOTH_HAS_MENUS);
+        }
+        if (noticeRepository.existsByBoothId(boothId)) {
+            throw new BusinessException(BoothErrorCode.BOOTH_HAS_NOTICES);
+        }
     }
 
     private String fetchThumbnail(Long boothId) {
