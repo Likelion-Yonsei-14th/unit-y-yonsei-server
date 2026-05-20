@@ -342,7 +342,7 @@ public class AdminUserService {
     @Transactional
     public void changeOwnPassword(AdminUser adminUser, AdminUserPasswordChangeRequest request) {
         if (!passwordEncoder.matches(request.getCurrentPassword(), adminUser.getPasswordHash())) {
-            throw new BusinessException(AuthErrorCode.ADMIN_LOGIN_FAILED);
+            throw new BusinessException(AuthErrorCode.INVALID_CURRENT_PASSWORD);
         }
         if (passwordEncoder.matches(request.getNewPassword(), adminUser.getPasswordHash())) {
             throw new BusinessException(AuthErrorCode.PASSWORD_SAME_AS_CURRENT);

@@ -23,8 +23,6 @@ import org.springframework.session.FindByIndexNameSessionRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 
 @Service
@@ -96,23 +94,6 @@ public class AdminAuthService {
     public void changeMyPassword(AdminUserPasswordChangeRequest request, HttpSession session) {
         AdminUser adminUser = adminAuthContextService.getCurrentAdminUserEntity(session);
         adminUserService.changeOwnPassword(adminUser, request);
-        invalidateSessionAfterCommit(session);
-    }
-
-    private void invalidateSessionAfterCommit(HttpSession session) {
-        if (session == null) {
-            return;
-        }
-        if (!TransactionSynchronizationManager.isActualTransactionActive()) {
-            session.invalidate();
-            return;
-        }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
-                session.invalidate();
-            }
-        });
     }
 
     private void validatePassword(String rawPassword, String passwordHash) {
