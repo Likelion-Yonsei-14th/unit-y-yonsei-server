@@ -29,9 +29,12 @@ import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.dao.DataIntegrityViolationException;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -152,6 +155,24 @@ class BoothServiceTest {
                         assertThat(e.getErrorCode()).isEqualTo(BoothErrorCode.BOOTH_HAS_NOTICES));
 
         verify(boothRepository, never()).delete(any(Booth.class));
+    }
+
+    @Test
+    @DisplayName("검사 통과 후 race 로 예약이 생겨 FK 위반이 나면 BusinessException 으로 변환된다")
+    void deleteConvertsFkViolationToBusinessExceptionOnRace() {
+        Booth booth = booth(7L, null);
+        when(boothRepository.findById(7L)).thenReturn(Optional.of(booth));
+        // 1차 검사(verifyNoChildData) — 자식 없음. 2차 recheck — 예약이 race 로 생김.
+        when(reservationRepository.existsByBoothId(7L)).thenReturn(false, true);
+        when(menuRepository.existsByBoothId(7L)).thenReturn(false);
+        when(noticeRepository.existsByBoothId(7L)).thenReturn(false);
+        // 1차 통과 후 boothRepository.delete 가 race 로 FK 위반 (또는 flush 시점에 위반)
+        doThrow(new DataIntegrityViolationException("FK violation: reservations.fk_reservations_booth"))
+                .when(boothRepository).delete(booth);
+
+        assertThatThrownBy(() -> boothService.delete(7L))
+                .isInstanceOfSatisfying(BusinessException.class, e ->
+                        assertThat(e.getErrorCode()).isEqualTo(BoothErrorCode.BOOTH_HAS_RESERVATIONS));
     }
 
     private Booth booth(Long id, Long locationId) {

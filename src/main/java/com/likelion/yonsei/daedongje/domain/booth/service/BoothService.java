@@ -251,17 +251,30 @@ public class BoothService {
         Booth booth = boothRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(BoothErrorCode.BOOTH_NOT_FOUND));
 
-        if (reservationRepository.existsByBoothId(id)) {
+        verifyNoChildData(id);
+
+        try {
+            boothRepository.delete(booth);
+            // FK 검증을 트랜잭션 커밋이 아닌 *여기서* 실행 — 아래 catch 로 잡을 수 있게 함
+            boothRepository.flush();
+        } catch (DataIntegrityViolationException e) {
+            // 검사 시점과 삭제 시점 사이 race — 자식 데이터가 새로 생성됐을 가능성.
+            // 어떤 자식이 막혔는지 다시 확인해 의미 있는 BusinessException 으로 변환한다.
+            verifyNoChildData(id);
+            throw e;  // 알려진 자식이 아니면 원본 FK 위반을 유지 (다른 미지의 FK)
+        }
+    }
+
+    private void verifyNoChildData(Long boothId) {
+        if (reservationRepository.existsByBoothId(boothId)) {
             throw new BusinessException(BoothErrorCode.BOOTH_HAS_RESERVATIONS);
         }
-        if (menuRepository.existsByBoothId(id)) {
+        if (menuRepository.existsByBoothId(boothId)) {
             throw new BusinessException(BoothErrorCode.BOOTH_HAS_MENUS);
         }
-        if (noticeRepository.existsByBoothId(id)) {
+        if (noticeRepository.existsByBoothId(boothId)) {
             throw new BusinessException(BoothErrorCode.BOOTH_HAS_NOTICES);
         }
-
-        boothRepository.delete(booth);
     }
 
     private String fetchThumbnail(Long boothId) {
