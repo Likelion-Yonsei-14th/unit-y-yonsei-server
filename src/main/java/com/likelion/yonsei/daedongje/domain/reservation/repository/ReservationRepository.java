@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -44,4 +45,9 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
             @Param("bookerName") String bookerName,
             @Param("phoneNumber") String phoneNumber,
             @Param("status") ReservationStatus status);
+
+    // 광클 멱등 처리: 같은 부스·전화번호로 since 이후 생성된 PENDING 예약 중 가장 최근 1건을 조회.
+    // Spring Data 파생 쿼리로 LIMIT 1·정렬·조건을 모두 표현 — 별도 @Query 불필요. 메서드 이름이 길지만 표준 idiom.
+    Optional<Reservation> findFirstByBooth_IdAndPhoneNumberAndStatusAndCreatedAtGreaterThanEqualOrderByCreatedAtDesc(
+            Long boothId, String phoneNumber, ReservationStatus status, LocalDateTime since);
 }
