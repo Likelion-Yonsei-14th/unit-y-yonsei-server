@@ -60,7 +60,8 @@ public class AdminAuthService {
 
         adminUser.updateLastLoginAt();
 
-        return AdminLoginResponse.from(adminUser);
+        LinkedIds linked = resolveLinkedIds(adminUser);
+        return AdminLoginResponse.from(adminUser, linked.boothId(), linked.performanceTeamId());
     }
 
     public void logout(HttpServletRequest httpRequest) {
@@ -74,7 +75,23 @@ public class AdminAuthService {
     @Transactional(readOnly = true)
     public CurrentAdminUserResponse getCurrentAdminUser(HttpSession session) {
         AdminUser adminUser = adminAuthContextService.getCurrentAdminUserEntity(session);
+        LinkedIds linked = resolveLinkedIds(adminUser);
+        return CurrentAdminUserResponse.from(adminUser, linked.boothId(), linked.performanceTeamId());
+    }
 
+    /**
+     * 어드민 역할별 소유 리소스(부스/공연) ID 묶음.
+     * login·getCurrentAdminUser 가 동일한 lookup 로직을 공유하기 위한 헬퍼 반환 타입.
+     */
+    private record LinkedIds(Long boothId, Long performanceTeamId) {}
+
+    /**
+     * 어드민 역할에 따라 소유 리소스 ID 를 조회한다.
+     * - BOOTH → boothId 채움, performanceTeamId 는 null
+     * - PERFORMER → performanceTeamId 채움, boothId 는 null
+     * - 그 외(SUPER/MASTER) 또는 소유 리소스가 없으면 → 둘 다 null
+     */
+    private LinkedIds resolveLinkedIds(AdminUser adminUser) {
         Long boothId = null;
         Long performanceTeamId = null;
         if (adminUser.getRole() == AdminRole.BOOTH) {
@@ -86,8 +103,7 @@ public class AdminAuthService {
                     .map(Performance::getId)
                     .orElse(null);
         }
-
-        return CurrentAdminUserResponse.from(adminUser, boothId, performanceTeamId);
+        return new LinkedIds(boothId, performanceTeamId);
     }
 
     @Transactional
