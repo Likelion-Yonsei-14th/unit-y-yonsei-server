@@ -27,6 +27,8 @@ import org.springframework.data.domain.Sort;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -308,7 +310,21 @@ public class AdminUserService {
 
     private void changePasswordAndInvalidate(AdminUser adminUser, String rawPassword) {
         adminUser.changePassword(passwordEncoder.encode(rawPassword));    // encoder에 의해 해시로 저장
-        adminSessionService.invalidateAdminSessions(adminUser.getId());  // 비밀번호 변경 시 기존 세션 무효화(삭제)하여 강제 로그아웃
+        invalidateSessionsAfterCommit(adminUser.getId());  // 비밀번호 변경 커밋 후 세션 무효화
+    }
+
+    // 커밋 이후(비밀번호 변경 확정) 세션 무효화 흐름으로 교체
+    private void invalidateSessionsAfterCommit(Long adminUserId) {
+        if (!TransactionSynchronizationManager.isActualTransactionActive()) {
+            adminSessionService.invalidateAdminSessions(adminUserId);
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                adminSessionService.invalidateAdminSessions(adminUserId);
+            }
+        });
     }
 
     // 어드민 비밀번호 강제 재설정, 입력받은 비밀번호로 변경
