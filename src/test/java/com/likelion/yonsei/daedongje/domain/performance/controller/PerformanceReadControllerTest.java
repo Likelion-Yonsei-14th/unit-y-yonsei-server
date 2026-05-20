@@ -132,7 +132,8 @@ class PerformanceReadControllerTest {
     }
 
     @Test
-    void getCurrentPerformance_returns_not_found_when_no_ongoing_performance_exists() throws Exception {
+    void getCurrentPerformance_returns_null_data_when_no_ongoing_performance_exists() throws Exception {
+        // SCHEDULED·ENDED 등 ONGOING 이 아닌 공연만 있는 경우 — 정상 상태로 간주, 200 + data: null
         performanceRepository.save(performance(
                 "Scheduled Stage",
                 null,
@@ -145,9 +146,10 @@ class PerformanceReadControllerTest {
         ));
 
         mockMvc.perform(get("/api/performances/current"))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.error.code").value("P-006"));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data").doesNotExist())
+                .andExpect(jsonPath("$.error").doesNotExist());
     }
 
     @Test
