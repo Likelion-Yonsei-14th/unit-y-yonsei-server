@@ -2,15 +2,19 @@ package com.likelion.yonsei.daedongje.domain.info.service;
 
 import com.likelion.yonsei.daedongje.common.exception.BusinessException;
 import com.likelion.yonsei.daedongje.domain.info.dto.NoticeCreateRequest;
+import com.likelion.yonsei.daedongje.domain.info.dto.NoticeImageRequest;
 import com.likelion.yonsei.daedongje.domain.info.dto.NoticeResponse;
 import com.likelion.yonsei.daedongje.domain.info.dto.NoticeUpdateRequest;
 import com.likelion.yonsei.daedongje.domain.info.entity.Notice;
+import com.likelion.yonsei.daedongje.domain.info.entity.NoticeImage;
 import com.likelion.yonsei.daedongje.domain.info.exception.NoticeErrorCode;
 import com.likelion.yonsei.daedongje.domain.info.repository.NoticeRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -31,14 +35,14 @@ public class NoticeService {
         Notice notice = Notice.create(
                 request.title(),
                 request.content(),
-                resolveImageUrl(request.imageUrl(), request.hasImage()),
                 Boolean.TRUE.equals(request.isPinned()),
                 request.category(),
                 request.performanceId(),
                 request.boothId()
         );
+        notice.replaceImages(toNoticeImages(request.images(), request.imageUrl(), request.hasImage()));
 
-        return NoticeResponse.from(noticeRepository.save(notice));
+        return NoticeResponse.from(noticeRepository.saveAndFlush(notice));
     }
 
     @Transactional
@@ -47,13 +51,13 @@ public class NoticeService {
         notice.update(
                 request.title(),
                 request.content(),
-                resolveImageUrl(request.imageUrl(), request.hasImage()),
                 request.isPinned(),
                 request.category(),
                 request.performanceId(),
                 request.boothId()
         );
-        return NoticeResponse.from(notice);
+        notice.replaceImages(toNoticeImages(request.images(), request.imageUrl(), request.hasImage()));
+        return NoticeResponse.from(noticeRepository.saveAndFlush(notice));
     }
 
     @Transactional
@@ -67,8 +71,23 @@ public class NoticeService {
                 .orElseThrow(() -> new BusinessException(NoticeErrorCode.NOTICE_NOT_FOUND));
     }
 
-    private String resolveImageUrl(String imageUrl, Boolean hasImage) {
-        if (imageUrl != null && !imageUrl.trim().isEmpty()) {
+    private List<NoticeImage> toNoticeImages(List<NoticeImageRequest> imageRequests, String imageUrl, Boolean hasImage) {
+        if (imageRequests != null && !imageRequests.isEmpty()) {
+            return imageRequests.stream()
+                    .map(request -> NoticeImage.create(request.imageUrl().trim(), request.displayOrder()))
+                    .toList();
+        }
+
+        List<NoticeImage> fallbackImages = new ArrayList<>();
+        String resolvedFallbackImageUrl = resolveFallbackImageUrl(imageUrl, hasImage);
+        if (resolvedFallbackImageUrl != null) {
+            fallbackImages.add(NoticeImage.create(resolvedFallbackImageUrl, 1));
+        }
+        return fallbackImages;
+    }
+
+    private String resolveFallbackImageUrl(String imageUrl, Boolean hasImage) {
+        if (StringUtils.hasText(imageUrl)) {
             return imageUrl.trim();
         }
 
