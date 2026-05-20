@@ -311,12 +311,16 @@ class PerformanceServiceTest {
         when(performanceImageRepository.existsByPerformanceId(7L)).thenReturn(false, true);
         when(performanceSetlistRepository.existsByPerformanceId(7L)).thenReturn(false);
         when(noticeRepository.existsByPerformanceId(7L)).thenReturn(false);
+        // 실 운영에서는 delete() 자체가 아닌 flush() 에서 FK 위반이 발생. flush() 를 throw 시키는 형태로
+        // 단언해야 production 코드에서 flush() 가 빠질 경우 이 테스트가 실패한다.
         doThrow(new DataIntegrityViolationException("FK violation: fk_performance_images_performance"))
-                .when(performanceRepository).delete(performance);
+                .when(performanceRepository).flush();
 
         assertThatThrownBy(() -> performanceService.deletePerformance(7L))
                 .isInstanceOfSatisfying(BusinessException.class, e ->
                         assertThat(e.getErrorCode()).isEqualTo(PerformanceErrorCode.PERFORMANCE_HAS_IMAGES));
+
+        verify(performanceRepository).flush();
     }
 
     private AdminUser adminUser() {
