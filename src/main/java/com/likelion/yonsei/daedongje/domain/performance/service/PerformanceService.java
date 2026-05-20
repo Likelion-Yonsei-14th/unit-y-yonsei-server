@@ -126,8 +126,23 @@ public class PerformanceService {
     @Transactional
     public PerformanceMyResponse updateMyPerformance(AdminSessionUser currentAdmin, PerformanceUpdateRequest request) {
         Performance performance = findMyPerformance(currentAdmin);
-        MapLocation location = findLocationOrNull(request.locationId());
+        applyBasicInfoUpdate(performance, request);
+        return PerformanceMyResponse.from(performance);
+    }
 
+    /**
+     * 운영진(SUPER/MASTER)이 임의 공연의 기본 정보를 부분 갱신한다.
+     * updateMyPerformance 와 갱신 로직은 동일 — "어떤 공연을 찾는가" 만 다르다.
+     */
+    @Transactional
+    public PerformanceMyResponse updatePerformance(Long id, PerformanceUpdateRequest request) {
+        Performance performance = findById(id);
+        applyBasicInfoUpdate(performance, request);
+        return PerformanceMyResponse.from(performance);
+    }
+
+    private void applyBasicInfoUpdate(Performance performance, PerformanceUpdateRequest request) {
+        MapLocation location = findLocationOrNull(request.locationId());
         performance.updateBasicInfo(
                 location,
                 request.performanceName(),
@@ -144,8 +159,11 @@ public class PerformanceService {
                 request.youtubeUrl(),
                 request.instagramUrl()
         );
+    }
 
-        return PerformanceMyResponse.from(performance);
+    private Performance findById(Long id) {
+        return performanceRepository.findById(id)
+                .orElseThrow(() -> new BusinessException(PerformanceErrorCode.PERFORMANCE_NOT_FOUND));
     }
 
     @Transactional

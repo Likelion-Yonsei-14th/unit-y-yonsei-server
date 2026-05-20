@@ -15,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -52,5 +53,21 @@ public class PerformanceAdminController {
     ) {
         performanceService.deleteMyPerformance(currentAdmin);
         return ApiResponse.successEmpty();
+    }
+
+    @Operation(
+            summary = "공연 정보 운영진 수정",
+            description = "SUPER·MASTER 운영진이 임의 공연 ID 의 기본 정보를 수정합니다. 클래스 기본 권한을 메서드 레벨에서 덮어쓰며 PERFORMER 는 차단됩니다."
+    )
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "수정 성공")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "권한 없음 (PERFORMER 차단)")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "존재하지 않는 공연 (P-006)")
+    @RequireAdminRole({AdminRole.SUPER, AdminRole.MASTER})
+    @PatchMapping("/{id}")
+    public ApiResponse<PerformanceMyResponse> updatePerformance(
+            @PathVariable Long id,
+            @Valid @RequestBody PerformanceUpdateRequest request
+    ) {
+        return ApiResponse.success(performanceService.updatePerformance(id, request));
     }
 }

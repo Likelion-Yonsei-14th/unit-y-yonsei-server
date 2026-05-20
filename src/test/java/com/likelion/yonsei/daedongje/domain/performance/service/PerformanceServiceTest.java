@@ -10,6 +10,7 @@ import com.likelion.yonsei.daedongje.domain.map.entity.MapLocationType;
 import com.likelion.yonsei.daedongje.domain.map.exception.MapLocationErrorCode;
 import com.likelion.yonsei.daedongje.domain.map.repository.MapLocationRepository;
 import com.likelion.yonsei.daedongje.domain.performance.dto.PerformanceCreateServiceRequest;
+import com.likelion.yonsei.daedongje.domain.performance.dto.PerformanceUpdateRequest;
 import com.likelion.yonsei.daedongje.domain.performance.entity.Performance;
 import com.likelion.yonsei.daedongje.domain.performance.entity.PerformanceStatus;
 import com.likelion.yonsei.daedongje.domain.performance.exception.PerformanceErrorCode;
@@ -180,6 +181,38 @@ class PerformanceServiceTest {
 
         assertThatThrownBy(() -> performanceService.createPerformanceForAdmin(adminUser, "Main Stage"))
                 .isInstanceOf(BusinessException.class);
+    }
+
+    @Test
+    void updatePerformance_applies_partial_update_when_id_exists() {
+        AdminUser adminUser = adminUser();
+        Performance performance = Performance.create(adminUser, adminUser, "Original Stage");
+        ReflectionTestUtils.setField(performance, "id", 7L);
+        when(performanceRepository.findById(7L)).thenReturn(Optional.of(performance));
+
+        PerformanceUpdateRequest request = new PerformanceUpdateRequest(
+                null, "Updated Stage", null, null, null, null, null, null,
+                null, null, null, null, null, null
+        );
+
+        performanceService.updatePerformance(7L, request);
+
+        // updateBasicInfo 가 non-null 필드만 갱신 — performanceName 만 적용됐는지 확인
+        assertThat(performance.getPerformanceName()).isEqualTo("Updated Stage");
+    }
+
+    @Test
+    void updatePerformance_throws_performance_not_found_when_id_missing() {
+        when(performanceRepository.findById(999L)).thenReturn(Optional.empty());
+
+        PerformanceUpdateRequest request = new PerformanceUpdateRequest(
+                null, "Updated Stage", null, null, null, null, null, null,
+                null, null, null, null, null, null
+        );
+
+        assertThatThrownBy(() -> performanceService.updatePerformance(999L, request))
+                .isInstanceOfSatisfying(BusinessException.class, exception ->
+                        assertThat(exception.getErrorCode()).isEqualTo(PerformanceErrorCode.PERFORMANCE_NOT_FOUND));
     }
 
     private AdminUser adminUser() {
