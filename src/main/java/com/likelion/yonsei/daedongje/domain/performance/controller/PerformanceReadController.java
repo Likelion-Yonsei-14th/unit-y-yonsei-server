@@ -32,7 +32,7 @@ public class PerformanceReadController {
         return ApiResponse.success(performanceReadService.getPerformances());
     }
 
-    @Operation(summary = "현재 공연 조회", description = "현재 진행 중인 공연 정보를 조회합니다.")
+    @Operation(summary = "현재 공연 조회", description = "현재 진행 중인 공연 정보를 조회합니다. 진행 중인 공연이 없으면 data 는 null 입니다.")
     @GetMapping("/current")
     public ApiResponse<PerformanceCurrentResponse> getCurrentPerformance() {
         return ApiResponse.success(performanceReadService.getCurrentPerformance());

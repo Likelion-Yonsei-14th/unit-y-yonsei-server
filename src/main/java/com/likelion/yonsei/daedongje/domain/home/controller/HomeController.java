@@ -36,9 +36,8 @@ public class HomeController {
         return ApiResponse.success(homeService.getPopularBooths());
     }
 
-    @Operation(summary = "현재 진행 중인 공연 조회", description = "홈 화면에 노출할 현재 진행 중인 공연 정보를 조회한다.")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "현재 진행 중인 공연 없음 (P-006)")
+    @Operation(summary = "현재 진행 중인 공연 조회", description = "홈 화면에 노출할 현재 진행 중인 공연 정보를 조회한다. 진행 중인 공연이 없으면 data 는 null 이다.")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공 (진행 중 공연 없으면 data: null)")
     @GetMapping("/current-performance")
     public ApiResponse<PerformanceCurrentResponse> getCurrentPerformance() {
         return ApiResponse.success(homeService.getCurrentPerformance());
