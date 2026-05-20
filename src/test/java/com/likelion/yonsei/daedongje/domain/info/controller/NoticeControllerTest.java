@@ -156,6 +156,74 @@ class NoticeControllerTest {
     }
 
     @Test
+    void updateNotice_preservesExistingImages_whenImagesFieldIsOmitted() throws Exception {
+        String createBody = """
+                {
+                  "title": "Original title",
+                  "content": "Original content",
+                  "isPinned": false,
+                  "images": [
+                    {
+                      "image_url": "https://example.com/original.png",
+                      "display_order": 1
+                    }
+                  ]
+                }
+                """;
+
+        mockMvc.perform(post("/api/admin/notices")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(createBody))
+                .andExpect(status().isCreated());
+
+        Long noticeId = noticeRepository.findAll().get(0).getId();
+
+        String updateBody = """
+                {
+                  "title": "Updated title",
+                  "content": "Updated content",
+                  "hasImage": true,
+                  "isPinned": true,
+                  "category": "EVENT"
+                }
+                """;
+
+        mockMvc.perform(put("/api/admin/notices/{noticeId}", noticeId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(updateBody))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.images", hasSize(1)))
+                .andExpect(jsonPath("$.data.images[0].imageUrl").value("https://example.com/original.png"))
+                .andExpect(jsonPath("$.data.imageUrl").value("https://example.com/original.png"));
+    }
+
+    @Test
+    void createNotice_rejectsDuplicateImageDisplayOrder() throws Exception {
+        String requestBody = """
+                {
+                  "title": "Notice title",
+                  "content": "Notice content",
+                  "isPinned": false,
+                  "images": [
+                    {
+                      "image_url": "https://example.com/notice-1.png",
+                      "display_order": 1
+                    },
+                    {
+                      "image_url": "https://example.com/notice-2.png",
+                      "display_order": 1
+                    }
+                  ]
+                }
+                """;
+
+        mockMvc.perform(post("/api/admin/notices")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void adminSessionMissing_rejectsNoticeWriteApi() throws Exception {
         Mockito.when(adminAuthContextService.getCurrentAdmin(any(HttpServletRequest.class)))
                 .thenThrow(new BusinessException(AuthErrorCode.UNAUTHORIZED));
