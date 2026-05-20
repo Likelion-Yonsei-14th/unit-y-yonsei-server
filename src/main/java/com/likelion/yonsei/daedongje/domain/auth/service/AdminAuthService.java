@@ -4,6 +4,7 @@ import com.likelion.yonsei.daedongje.common.exception.BusinessException;
 import com.likelion.yonsei.daedongje.domain.auth.session.AdminSessionConst;
 import com.likelion.yonsei.daedongje.domain.auth.dto.AdminLoginRequest;
 import com.likelion.yonsei.daedongje.domain.auth.dto.AdminLoginResponse;
+import com.likelion.yonsei.daedongje.domain.auth.dto.AdminUserPasswordChangeRequest;
 import com.likelion.yonsei.daedongje.domain.auth.dto.CurrentAdminUserResponse;
 import com.likelion.yonsei.daedongje.domain.auth.entity.AdminUser;
 import com.likelion.yonsei.daedongje.domain.auth.entity.AdminRole;
@@ -32,6 +33,7 @@ public class AdminAuthService {
     private final AdminUserRepository adminUserRepository;
     private final PasswordEncoder passwordEncoder;
     private final AdminAuthContextService adminAuthContextService;
+    private final AdminUserService adminUserService;
     private final BoothRepository boothRepository;
     private final PerformanceRepository performanceRepository;
 
@@ -102,6 +104,12 @@ public class AdminAuthService {
                     .orElse(null);
         }
         return new LinkedIds(boothId, performanceTeamId);
+    }
+
+    @Transactional
+    public void changeMyPassword(AdminUserPasswordChangeRequest request, HttpSession session) {
+        AdminUser adminUser = adminAuthContextService.getCurrentAdminUserEntity(session);
+        adminUserService.changeOwnPassword(adminUser, request);
     }
 
     private void validatePassword(String rawPassword, String passwordHash) {

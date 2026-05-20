@@ -3,6 +3,7 @@ package com.likelion.yonsei.daedongje.domain.auth.controller;
 import com.likelion.yonsei.daedongje.common.response.ApiResponse;
 import com.likelion.yonsei.daedongje.domain.auth.dto.AdminLoginRequest;
 import com.likelion.yonsei.daedongje.domain.auth.dto.AdminLoginResponse;
+import com.likelion.yonsei.daedongje.domain.auth.dto.AdminUserPasswordChangeRequest;
 import com.likelion.yonsei.daedongje.domain.auth.dto.CurrentAdminUserResponse;
 import com.likelion.yonsei.daedongje.domain.auth.service.AdminAuthService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -63,6 +64,20 @@ public class AdminAuthController {
         HttpSession session = httpRequest.getSession(false);
         CurrentAdminUserResponse response = adminAuthService.getCurrentAdminUser(session);
         return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @Operation(
+            summary = "현재 로그인한 어드민 비밀번호 변경",
+            description = "현재 로그인한 어드민 계정의 비밀번호를 변경합니다. 변경 후 모든 세션이 무효화됩니다."
+    )
+    @PatchMapping("/me/password")
+    public ResponseEntity<ApiResponse<Void>> changeMyPassword(
+            @Valid @RequestBody AdminUserPasswordChangeRequest request,
+            @Parameter(hidden = true) HttpServletRequest httpRequest
+    ) {
+        HttpSession session = httpRequest.getSession(false);
+        adminAuthService.changeMyPassword(request, session);
+        return ResponseEntity.ok(ApiResponse.successEmpty());
     }
 
     @Operation(
