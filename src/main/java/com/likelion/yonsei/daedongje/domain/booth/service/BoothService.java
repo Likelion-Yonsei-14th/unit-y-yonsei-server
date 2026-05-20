@@ -12,6 +12,7 @@ import com.likelion.yonsei.daedongje.domain.booth.entity.BoothSector;
 import com.likelion.yonsei.daedongje.domain.booth.entity.BoothStatus;
 import com.likelion.yonsei.daedongje.domain.booth.exception.BoothErrorCode;
 import com.likelion.yonsei.daedongje.domain.booth.entity.BoothImage;
+import com.likelion.yonsei.daedongje.domain.booth.repository.BoothClickLogRepository;
 import com.likelion.yonsei.daedongje.domain.booth.repository.BoothImageRepository;
 import com.likelion.yonsei.daedongje.domain.booth.repository.BoothRepository;
 import com.likelion.yonsei.daedongje.domain.booth.repository.MenuRepository;
@@ -37,16 +38,19 @@ public class BoothService {
 
     private final BoothRepository boothRepository;
     private final BoothImageRepository boothImageRepository;
+    private final BoothClickLogRepository boothClickLogRepository;
     private final ReservationRepository reservationRepository;
     private final MapLocationRepository mapLocationRepository;
     private final MenuRepository menuRepository;
     private final NoticeRepository noticeRepository;
 
     public BoothService(BoothRepository boothRepository, BoothImageRepository boothImageRepository,
+                        BoothClickLogRepository boothClickLogRepository,
                         ReservationRepository reservationRepository, MapLocationRepository mapLocationRepository,
                         MenuRepository menuRepository, NoticeRepository noticeRepository) {
         this.boothRepository = boothRepository;
         this.boothImageRepository = boothImageRepository;
+        this.boothClickLogRepository = boothClickLogRepository;
         this.reservationRepository = reservationRepository;
         this.mapLocationRepository = mapLocationRepository;
         this.menuRepository = menuRepository;
@@ -244,14 +248,20 @@ public class BoothService {
         return BoothResponse.of(booth, 0L, fetchThumbnail(booth.getId()), fetchMapLocation(booth));
     }
 
-    // 부스 삭제 — 자식 데이터(예약·메뉴·공지) 가 남아 있으면 차단해 실수 삭제 방지 (BAC-109).
-    // booth_images / booth_click_logs 는 DB FK 가 ON DELETE CASCADE 라 자동 정리되므로 가드 불필요.
+    // 부스 삭제 — 운영 데이터(예약·메뉴·공지) 가 남아 있으면 차단해 실수 삭제 방지 (BAC-109).
+    // 분석·코스메틱 자식(booth_images / booth_click_logs) 은 사용자 입력이 아니므로 차단하지 않고
+    // application-level cascade 로 명시적으로 정리한다 — 운영 DB 의 FK 가 ON DELETE CASCADE
+    // 가 아닌 환경에서도 동일하게 동작하기 위한 안전망 (BAC-111).
     @Transactional
     public void delete(Long id) {
         Booth booth = boothRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(BoothErrorCode.BOOTH_NOT_FOUND));
 
         verifyNoChildData(id);
+
+        // 분석·코스메틱 자식 application-level cascade — DB FK 의 ON DELETE 동작과 무관하게 항상 정리됨 (BAC-111).
+        boothClickLogRepository.deleteByBoothId(id);
+        boothImageRepository.deleteByBoothId(id);
 
         try {
             boothRepository.delete(booth);
