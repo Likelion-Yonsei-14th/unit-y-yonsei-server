@@ -9,6 +9,7 @@ import com.likelion.yonsei.daedongje.domain.reservation.dto.ReservationCreateRes
 import com.likelion.yonsei.daedongje.domain.reservation.entity.Reservation;
 import com.likelion.yonsei.daedongje.domain.reservation.entity.ReservationStatus;
 import com.likelion.yonsei.daedongje.domain.reservation.repository.ReservationRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -19,6 +20,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
@@ -45,6 +47,12 @@ class ReservationServiceTest {
 
     @InjectMocks
     private ReservationService reservationService;
+
+    @BeforeEach
+    void setUp() {
+        // @Value 로 주입되는 duplicateWindow 는 Mockito @InjectMocks 가 채우지 못하므로 테스트에서 직접 세팅.
+        ReflectionTestUtils.setField(reservationService, "duplicateWindow", Duration.ofSeconds(10));
+    }
 
     @Test
     @DisplayName("최근 중복 예약이 없으면 신규 예약을 생성한다")

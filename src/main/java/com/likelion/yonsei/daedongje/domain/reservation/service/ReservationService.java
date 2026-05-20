@@ -21,6 +21,7 @@ import com.likelion.yonsei.daedongje.domain.reservation.entity.ReservationStatus
 import com.likelion.yonsei.daedongje.domain.reservation.exception.ReservationErrorCode;
 import com.likelion.yonsei.daedongje.domain.reservation.repository.ReservationRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,12 +38,13 @@ import java.util.TreeMap;
 @Transactional(readOnly = true)
 public class ReservationService {
 
-    /** 같은 전화번호의 동일 부스 예약을 광클로 간주해 멱등 처리하는 시간 윈도우. */
-    private static final Duration DUPLICATE_WINDOW = Duration.ofSeconds(10);
-
     private final ReservationRepository reservationRepository;
     private final BoothRepository boothRepository;
     private final PasswordEncoder passwordEncoder;
+
+    /** 같은 전화번호의 동일 부스 예약을 광클로 간주해 멱등 처리하는 시간 윈도우. application.yaml 의 app.reservation.duplicate-window 로 조정. */
+    @Value("${app.reservation.duplicate-window:10s}")
+    private Duration duplicateWindow;
 
     // 예약 생성
     // 부스 행에 비관적 락을 걸어 부스별 예약 순번 중복을 방지한다.
@@ -55,9 +57,9 @@ public class ReservationService {
             throw new BusinessException(ReservationErrorCode.BOOTH_NOT_RESERVABLE);
         }
 
-        // 광클 멱등 처리: 같은 전화번호로 최근 DUPLICATE_WINDOW 안에 동일 부스 PENDING 예약이 있으면
+        // 광클 멱등 처리: 같은 전화번호로 최근 duplicateWindow 안에 동일 부스 PENDING 예약이 있으면
         // 신규 생성 없이 그 예약을 그대로 반환한다. 부스 비관적 락이 create 를 직렬화하므로 경합은 없다.
-        LocalDateTime since = LocalDateTime.now().minus(DUPLICATE_WINDOW);
+        LocalDateTime since = LocalDateTime.now().minus(duplicateWindow);
         List<Reservation> recentDuplicates = reservationRepository.findRecentDuplicates(
                 boothId, request.phoneNumber(), ReservationStatus.PENDING, since);
         if (!recentDuplicates.isEmpty()) {
