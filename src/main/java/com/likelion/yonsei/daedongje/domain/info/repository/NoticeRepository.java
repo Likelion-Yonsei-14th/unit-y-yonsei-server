@@ -11,4 +11,7 @@ public interface NoticeRepository extends JpaRepository<Notice, Long> {
 
     // 부스 삭제 가드 — 해당 부스에 공지가 1건이라도 걸려 있는지 확인 (BAC-109)
     boolean existsByBoothId(Long boothId);
+
+    // 공연 삭제 가드 — 해당 공연에 공지가 1건이라도 걸려 있는지 확인 (BAC-110)
+    boolean existsByPerformanceId(Long performanceId);
 }
