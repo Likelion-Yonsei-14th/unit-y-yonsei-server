@@ -3,6 +3,7 @@ package com.likelion.yonsei.daedongje.domain.reservation.controller;
 import com.likelion.yonsei.daedongje.common.response.ApiResponse;
 import com.likelion.yonsei.daedongje.domain.reservation.dto.ReservationCreateRequest;
 import com.likelion.yonsei.daedongje.domain.reservation.dto.ReservationCreateResponse;
+import com.likelion.yonsei.daedongje.domain.reservation.dto.MyReservationResponse;
 import com.likelion.yonsei.daedongje.domain.reservation.dto.ReservationMyRequest;
 import com.likelion.yonsei.daedongje.domain.reservation.dto.ReservationResponse;
 import com.likelion.yonsei.daedongje.domain.reservation.dto.ReservationUpdateRequest;
@@ -55,7 +56,7 @@ public class ReservationController {
     )
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공")
     @PostMapping("/my")
-    public ApiResponse<List<ReservationResponse>> getMyList(
+    public ApiResponse<List<MyReservationResponse>> getMyList(
             @RequestBody @Valid ReservationMyRequest request
     ) {
         return ApiResponse.success(
