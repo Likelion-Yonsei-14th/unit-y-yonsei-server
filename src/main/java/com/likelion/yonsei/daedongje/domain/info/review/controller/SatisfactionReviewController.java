@@ -1,11 +1,13 @@
 package com.likelion.yonsei.daedongje.domain.info.review.controller;
 
 import com.likelion.yonsei.daedongje.common.response.ApiResponse;
+import com.likelion.yonsei.daedongje.common.web.ClientIpResolver;
 import com.likelion.yonsei.daedongje.domain.info.review.dto.SatisfactionReviewCreateRequest;
 import com.likelion.yonsei.daedongje.domain.info.review.dto.SatisfactionReviewCreateResponse;
 import com.likelion.yonsei.daedongje.domain.info.review.service.SatisfactionReviewService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -29,9 +31,11 @@ public class SatisfactionReviewController {
     @PostMapping("/api/info/reviews")
     @ResponseStatus(HttpStatus.CREATED)
     public ResponseEntity<ApiResponse<SatisfactionReviewCreateResponse>> createReview(
-            @Valid @RequestBody SatisfactionReviewCreateRequest request
+            @Valid @RequestBody SatisfactionReviewCreateRequest request,
+            HttpServletRequest httpRequest
     ) {
-        SatisfactionReviewCreateResponse response = satisfactionReviewService.createReview(request);
+        SatisfactionReviewCreateResponse response =
+                satisfactionReviewService.createReview(request, ClientIpResolver.resolve(httpRequest));
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(response));
     }
 }
