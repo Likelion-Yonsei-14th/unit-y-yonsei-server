@@ -1,6 +1,5 @@
 package com.likelion.yonsei.daedongje.domain.info.controller;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.likelion.yonsei.daedongje.common.exception.BusinessException;
 import com.likelion.yonsei.daedongje.domain.auth.entity.AdminRole;
 import com.likelion.yonsei.daedongje.domain.auth.exception.AuthErrorCode;
@@ -37,9 +36,6 @@ class NoticeControllerTest {
     private MockMvc mockMvc;
 
     @Autowired
-    private ObjectMapper objectMapper;
-
-    @Autowired
     private NoticeRepository noticeRepository;
 
     @MockBean
@@ -54,14 +50,23 @@ class NoticeControllerTest {
     }
 
     @Test
-    void 공지사항을_등록하고_목록에서_조회할_수_있다() throws Exception {
+    void createNoticeWithImages_andReadFromList() throws Exception {
         String requestBody = """
                 {
-                  "title": "부스 운영 안내",
-                  "content": "공지사항 본문입니다.",
-                  "hasImage": true,
+                  "title": "Notice title",
+                  "content": "Notice content",
                   "isPinned": true,
-                  "category": "GENERAL"
+                  "category": "GENERAL",
+                  "images": [
+                    {
+                      "image_url": "https://example.com/notice-1.png",
+                      "display_order": 1
+                    },
+                    {
+                      "image_url": "https://example.com/notice-2.png",
+                      "display_order": 2
+                    }
+                  ]
                 }
                 """;
 
@@ -70,45 +75,114 @@ class NoticeControllerTest {
                         .content(requestBody))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.title").value("부스 운영 안내"))
+                .andExpect(jsonPath("$.data.title").value("Notice title"))
                 .andExpect(jsonPath("$.data.hasImage").value(true))
-                .andExpect(jsonPath("$.data.imageUrl").value("pending-upload"))
-                .andExpect(jsonPath("$.data.isPinned").value(true));
+                .andExpect(jsonPath("$.data.imageUrl").value("https://example.com/notice-1.png"))
+                .andExpect(jsonPath("$.data.images", hasSize(2)))
+                .andExpect(jsonPath("$.data.images[0].imageUrl").value("https://example.com/notice-1.png"))
+                .andExpect(jsonPath("$.data.images[0].displayOrder").value(1))
+                .andExpect(jsonPath("$.data.images[1].imageUrl").value("https://example.com/notice-2.png"))
+                .andExpect(jsonPath("$.data.images[1].displayOrder").value(2));
 
         mockMvc.perform(get("/api/notices"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data", hasSize(1)))
-                .andExpect(jsonPath("$.data[0].title").value("부스 운영 안내"));
+                .andExpect(jsonPath("$.data[0].images", hasSize(2)))
+                .andExpect(jsonPath("$.data[0].imageUrl").value("https://example.com/notice-1.png"));
     }
 
     @Test
-    void 공지사항을_수정하고_삭제할_수_있다() throws Exception {
+    void updateNotice_replacesImageList() throws Exception {
         String createBody = """
                 {
-                  "title": "수정 전",
-                  "content": "초기 본문",
-                  "hasImage": false,
-                  "isPinned": false
+                  "title": "Original title",
+                  "content": "Original content",
+                  "isPinned": false,
+                  "images": [
+                    {
+                      "image_url": "https://example.com/original.png",
+                      "display_order": 1
+                    }
+                  ]
                 }
                 """;
 
-        String response = mockMvc.perform(post("/api/admin/notices")
+        mockMvc.perform(post("/api/admin/notices")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(createBody))
-                .andExpect(status().isCreated())
-                .andReturn()
-                .getResponse()
-                .getContentAsString();
+                .andExpect(status().isCreated());
 
-        Long noticeId = objectMapper.readTree(response).path("data").path("id").asLong();
+        Long noticeId = noticeRepository.findAll().get(0).getId();
 
         String updateBody = """
                 {
-                  "title": "수정 후",
-                  "content": "수정된 본문",
+                  "title": "Updated title",
+                  "content": "Updated content",
                   "hasImage": true,
-                  "imageUrl": "https://example.com/notice.png",
+                  "isPinned": true,
+                  "category": "EVENT",
+                  "images": [
+                    {
+                      "image_url": "https://example.com/updated-1.png",
+                      "display_order": 1
+                    },
+                    {
+                      "image_url": "https://example.com/updated-2.png",
+                      "display_order": 2
+                    }
+                  ]
+                }
+                """;
+
+        mockMvc.perform(put("/api/admin/notices/{noticeId}", noticeId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(updateBody))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.title").value("Updated title"))
+                .andExpect(jsonPath("$.data.isPinned").value(true))
+                .andExpect(jsonPath("$.data.category").value("EVENT"))
+                .andExpect(jsonPath("$.data.images", hasSize(2)))
+                .andExpect(jsonPath("$.data.images[0].imageUrl").value("https://example.com/updated-1.png"))
+                .andExpect(jsonPath("$.data.images[1].imageUrl").value("https://example.com/updated-2.png"));
+
+        mockMvc.perform(delete("/api/admin/notices/{noticeId}", noticeId))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/notices"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data", hasSize(0)));
+    }
+
+    @Test
+    void updateNotice_preservesExistingImages_whenImagesFieldIsOmitted() throws Exception {
+        String createBody = """
+                {
+                  "title": "Original title",
+                  "content": "Original content",
+                  "isPinned": false,
+                  "images": [
+                    {
+                      "image_url": "https://example.com/original.png",
+                      "display_order": 1
+                    }
+                  ]
+                }
+                """;
+
+        mockMvc.perform(post("/api/admin/notices")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(createBody))
+                .andExpect(status().isCreated());
+
+        Long noticeId = noticeRepository.findAll().get(0).getId();
+
+        String updateBody = """
+                {
+                  "title": "Updated title",
+                  "content": "Updated content",
+                  "hasImage": true,
                   "isPinned": true,
                   "category": "EVENT"
                 }
@@ -118,30 +192,46 @@ class NoticeControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(updateBody))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.title").value("수정 후"))
-                .andExpect(jsonPath("$.data.imageUrl").value("https://example.com/notice.png"))
-                .andExpect(jsonPath("$.data.isPinned").value(true))
-                .andExpect(jsonPath("$.data.category").value("EVENT"));
-
-        mockMvc.perform(delete("/api/admin/notices/{noticeId}", noticeId))
-                .andExpect(status().isNoContent())
-                .andExpect(jsonPath("$.success").value(true));
-
-        mockMvc.perform(get("/api/notices"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data", hasSize(0)));
+                .andExpect(jsonPath("$.data.images", hasSize(1)))
+                .andExpect(jsonPath("$.data.images[0].imageUrl").value("https://example.com/original.png"))
+                .andExpect(jsonPath("$.data.imageUrl").value("https://example.com/original.png"));
     }
 
     @Test
-    void 관리자_세션이_없으면_공지사항_쓰기_API는_거부된다() throws Exception {
+    void createNotice_rejectsDuplicateImageDisplayOrder() throws Exception {
+        String requestBody = """
+                {
+                  "title": "Notice title",
+                  "content": "Notice content",
+                  "isPinned": false,
+                  "images": [
+                    {
+                      "image_url": "https://example.com/notice-1.png",
+                      "display_order": 1
+                    },
+                    {
+                      "image_url": "https://example.com/notice-2.png",
+                      "display_order": 1
+                    }
+                  ]
+                }
+                """;
+
+        mockMvc.perform(post("/api/admin/notices")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void adminSessionMissing_rejectsNoticeWriteApi() throws Exception {
         Mockito.when(adminAuthContextService.getCurrentAdmin(any(HttpServletRequest.class)))
                 .thenThrow(new BusinessException(AuthErrorCode.UNAUTHORIZED));
 
         String requestBody = """
                 {
-                  "title": "권한 테스트",
-                  "content": "본문",
+                  "title": "Unauthorized title",
+                  "content": "Unauthorized content",
                   "hasImage": false,
                   "isPinned": false
                 }

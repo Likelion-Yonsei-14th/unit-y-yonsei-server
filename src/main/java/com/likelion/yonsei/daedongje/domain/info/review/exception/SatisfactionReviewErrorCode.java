@@ -1,18 +1,18 @@
-package com.likelion.yonsei.daedongje.domain.info.exception;
+package com.likelion.yonsei.daedongje.domain.info.review.exception;
 
 import com.likelion.yonsei.daedongje.common.exception.ErrorCode;
 import org.springframework.http.HttpStatus;
 
-public enum NoticeErrorCode implements ErrorCode {
+public enum SatisfactionReviewErrorCode implements ErrorCode {
 
-    NOTICE_NOT_FOUND(HttpStatus.NOT_FOUND, "I-001", "공지사항을 찾을 수 없습니다."),
-    INVALID_NOTICE_IMAGE_DISPLAY_ORDER(HttpStatus.BAD_REQUEST, "I-002", "공지 이미지 순서는 중복될 수 없습니다.");
+    SATISFACTION_REVIEW_RATE_LIMITED(HttpStatus.TOO_MANY_REQUESTS, "I-004",
+            "만족도 리뷰 제출 요청이 너무 많습니다. 잠시 후 다시 시도해주세요.");
 
     private final HttpStatus status;
     private final String code;
     private final String message;
 
-    NoticeErrorCode(HttpStatus status, String code, String message) {
+    SatisfactionReviewErrorCode(HttpStatus status, String code, String message) {
         this.status = status;
         this.code = code;
         this.message = message;

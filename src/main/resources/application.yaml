@@ -64,6 +64,8 @@ server:
 app:
   cors:
     allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:5173}
+  social:
+    instagram-url: ${APP_SOCIAL_INSTAGRAM_URL:https://www.instagram.com/likelion_yonsei}
   reservation:
     # 같은 전화번호의 동일 부스 예약을 광클로 간주해 멱등 처리하는 시간 윈도우.
     # 운영 중 광클 패턴이 바뀌면 이 값만 조정.
