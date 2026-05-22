@@ -1,8 +1,12 @@
 package com.likelion.yonsei.daedongje.domain.info.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+
+import java.util.List;
 
 public record NoticeUpdateRequest(
         @NotBlank(message = "title은 비어 있을 수 없습니다.")
@@ -15,7 +19,7 @@ public record NoticeUpdateRequest(
         @NotNull(message = "hasImage는 필수입니다.")
         Boolean hasImage,
 
-        @Size(max = 255, message = "imageUrl은 255자를 넘을 수 없습니다.")
+        @Size(max = 1000, message = "imageUrl은 1000자를 넘을 수 없습니다.")
         String imageUrl,
 
         @NotNull(message = "isPinned는 필수입니다.")
@@ -26,6 +30,10 @@ public record NoticeUpdateRequest(
 
         Long performanceId,
 
-        Long boothId
+        Long boothId,
+
+        @JsonProperty("images")
+        @Valid
+        List<NoticeImageRequest> images
 ) {
 }

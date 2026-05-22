@@ -1,13 +1,12 @@
 package com.likelion.yonsei.daedongje.domain.info.entity;
 
 import com.likelion.yonsei.daedongje.common.entity.BaseEntity;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import org.springframework.util.StringUtils;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 @Entity
 @Table(name = "notice")
@@ -22,9 +21,6 @@ public class Notice extends BaseEntity {
 
     @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
-
-    @Column(name = "image_url", length = 255)
-    private String imageUrl;
 
     @Column(name = "is_pinned", nullable = false)
     private boolean pinned;
@@ -41,13 +37,16 @@ public class Notice extends BaseEntity {
     @Column(name = "booth_id")
     private Long boothId;
 
+    @OneToMany(mappedBy = "notice", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("displayOrder ASC, id ASC")
+    private final List<NoticeImage> images = new ArrayList<>();
+
     protected Notice() {
     }
 
     private Notice(
             String title,
             String content,
-            String imageUrl,
             boolean pinned,
             String category,
             Long performanceId,
@@ -55,7 +54,6 @@ public class Notice extends BaseEntity {
     ) {
         this.title = title;
         this.content = content;
-        this.imageUrl = imageUrl;
         this.pinned = pinned;
         this.category = category;
         this.performanceId = performanceId;
@@ -66,7 +64,6 @@ public class Notice extends BaseEntity {
     public static Notice create(
             String title,
             String content,
-            String imageUrl,
             boolean pinned,
             String category,
             Long performanceId,
@@ -75,7 +72,6 @@ public class Notice extends BaseEntity {
         return new Notice(
                 title.trim(),
                 content.trim(),
-                normalize(imageUrl),
                 pinned,
                 normalize(category),
                 performanceId,
@@ -86,7 +82,6 @@ public class Notice extends BaseEntity {
     public void update(
             String title,
             String content,
-            String imageUrl,
             boolean pinned,
             String category,
             Long performanceId,
@@ -94,15 +89,34 @@ public class Notice extends BaseEntity {
     ) {
         this.title = title.trim();
         this.content = content.trim();
-        this.imageUrl = normalize(imageUrl);
         this.pinned = pinned;
         this.category = normalize(category);
         this.performanceId = performanceId;
         this.boothId = boothId;
     }
 
+    public void replaceImages(List<NoticeImage> newImages) {
+        images.clear();
+        if (newImages == null || newImages.isEmpty()) {
+            return;
+        }
+        newImages.forEach(this::addImage);
+    }
+
+    public void addImage(NoticeImage image) {
+        image.assignNotice(this);
+        images.add(image);
+    }
+
     public boolean hasImage() {
-        return StringUtils.hasText(imageUrl);
+        return !images.isEmpty();
+    }
+
+    public String getPrimaryImageUrl() {
+        if (images.isEmpty()) {
+            return null;
+        }
+        return images.get(0).getImageUrl();
     }
 
     private static String normalize(String value) {
@@ -124,10 +138,6 @@ public class Notice extends BaseEntity {
         return content;
     }
 
-    public String getImageUrl() {
-        return imageUrl;
-    }
-
     public boolean isPinned() {
         return pinned;
     }
@@ -146,5 +156,9 @@ public class Notice extends BaseEntity {
 
     public Long getBoothId() {
         return boothId;
+    }
+
+    public List<NoticeImage> getImages() {
+        return Collections.unmodifiableList(images);
     }
 }

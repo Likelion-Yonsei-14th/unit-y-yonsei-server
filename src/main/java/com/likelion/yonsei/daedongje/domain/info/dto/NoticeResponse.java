@@ -3,6 +3,8 @@ package com.likelion.yonsei.daedongje.domain.info.dto;
 import com.likelion.yonsei.daedongje.domain.info.entity.Notice;
 import io.swagger.v3.oas.annotations.media.Schema;
 
+import java.util.List;
+
 @Schema(description = "공지사항 응답")
 public record NoticeResponse(
         Long id,
@@ -15,22 +17,28 @@ public record NoticeResponse(
         String category,
         int viewCount,
         Long performanceId,
-        Long boothId
+        Long boothId,
+        List<NoticeImageResponse> images
 ) {
 
     public static NoticeResponse from(Notice notice) {
+        List<NoticeImageResponse> images = notice.getImages().stream()
+                .map(NoticeImageResponse::from)
+                .toList();
+
         return new NoticeResponse(
                 notice.getId(),
                 notice.getTitle(),
                 notice.getContent(),
                 notice.getCreatedAt().toLocalDate().toString(),
-                notice.hasImage(),
-                notice.getImageUrl(),
+                !images.isEmpty(),
+                notice.getPrimaryImageUrl(),
                 notice.isPinned(),
                 notice.getCategory(),
                 notice.getViewCount(),
                 notice.getPerformanceId(),
-                notice.getBoothId()
+                notice.getBoothId(),
+                images
         );
     }
 }
