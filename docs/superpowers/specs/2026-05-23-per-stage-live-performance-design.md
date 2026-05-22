@@ -107,7 +107,7 @@
 - `config/ClockConfig.java` — `@Bean Clock clock()` → `Clock.system(ZoneId.of("Asia/Seoul"))`.
 
 **수정**
-- `domain/performance/repository/PerformanceRepository.java` — `@EntityGraph(attributePaths = "location") List<Performance> findAllByPerformanceCategoryAndPerformanceDateAndPerformanceStatusNotIn(PerformanceCategory category, Integer performanceDate, Collection<PerformanceStatus> statuses)` 추가.
+- `domain/performance/repository/PerformanceRepository.java` — `@Query` JPQL `List<Performance> findLiveCandidatesByCategoryAndDay(PerformanceCategory category, Integer day, Collection<PerformanceStatus> excludedStatuses)` 추가 (inner `JOIN FETCH p.location` 으로 location 없는 공연 제외).
 - `domain/performance/controller/PerformanceReadController.java` — `GET /live-stages` 추가, `getCurrentPerformance`에 deprecated 설명.
 
 **변경 없음**: DB 마이그레이션(스키마 변경 0), `FestivalDayService`(공유 서비스라 미수정 — 테스트에선 `@MockBean`으로 고정).

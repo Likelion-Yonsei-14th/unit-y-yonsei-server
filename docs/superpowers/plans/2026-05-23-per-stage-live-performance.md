@@ -16,7 +16,7 @@
 
 **신규**
 - `src/main/java/com/likelion/yonsei/daedongje/domain/performance/entity/LiveStageSource.java` — enum `{ MANUAL, AUTO }`.
-- `src/main/java/com/likelion/yonsei/daedongje/domain/performance/dto/LiveStageResponse.java` — `{ source, performance }` 응답 record.
+- `src/main/java/com/likelion/yonsei/daedongje/domain/performance/dto/LiveStageResponse.java` — `{ source, performance }` 응답 DTO (Lombok `@Getter @Builder` 클래스 + 정적 팩토리 `of(...)`).
 - `src/main/java/com/likelion/yonsei/daedongje/domain/performance/service/LiveStageService.java` — 무대별 라이브 조립 서비스.
 - `src/main/java/com/likelion/yonsei/daedongje/config/ClockConfig.java` — Asia/Seoul `Clock` 빈.
 - `src/test/java/com/likelion/yonsei/daedongje/domain/performance/controller/LiveStageControllerTest.java` — 통합 테스트.
@@ -58,17 +58,25 @@ package com.likelion.yonsei.daedongje.domain.performance.dto;
 
 import com.likelion.yonsei.daedongje.domain.performance.entity.LiveStageSource;
 import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.Builder;
+import lombok.Getter;
 
 @Schema(description = "무대별 라이브 공연 응답")
-public record LiveStageResponse(
-        @Schema(description = "공연 출처 (MANUAL=수동 핀, AUTO=시간 자동)", example = "AUTO")
-        LiveStageSource source,
+@Getter
+@Builder
+public class LiveStageResponse {
 
-        @Schema(description = "해당 무대에서 현재 진행 중인 공연")
-        PerformanceCurrentResponse performance
-) {
+    @Schema(description = "공연 출처 (MANUAL=수동 핀, AUTO=시간 자동)", example = "AUTO")
+    private final LiveStageSource source;
+
+    @Schema(description = "해당 무대에서 현재 진행 중인 공연")
+    private final PerformanceCurrentResponse performance;
+
     public static LiveStageResponse of(LiveStageSource source, PerformanceCurrentResponse performance) {
-        return new LiveStageResponse(source, performance);
+        return LiveStageResponse.builder()
+                .source(source)
+                .performance(performance)
+                .build();
     }
 }
 ```
