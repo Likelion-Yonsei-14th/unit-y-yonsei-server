@@ -47,7 +47,7 @@ public class AdminUserCreateRequest {
     @Schema(description = "운영 캐퍼스 (BOOTH 역할일 때 선택)", example = "송도", nullable = true)
     private BoothSector boothSector;
 
-    @Schema(description = "부스 운영 날짜. 1~3 중 하나")
+    @Schema(description = "부스 운영 날짜. 2~4 중 하나 (2=5/27, 3=5/28, 4=5/29)", example = "2", nullable = true)
     private Integer boothOperatingDate;
 
     @Schema(description = "자리 메모 (BOOTH 역할일 때 선택)", example = "A 구역 2번 위치 후보", nullable = true)
@@ -58,7 +58,7 @@ public class AdminUserCreateRequest {
     @Schema(description = "공연 이름 (PERFORMER 역할일 때 필수)", example = "AKARAKA 밴드", nullable = true)
     private String performanceName;
 
-    @Schema(description = "공연 일자. 1~3 중 하나", example = "1", nullable = true)
+    @Schema(description = "공연 일자. 2~4 중 하나 (2=5/27, 3=5/28, 4=5/29)", example = "2", nullable = true)
     private Integer performanceDate;
 
     @Schema(description = "공연 장소 ID. 1: 언기도 앞, 2: 노천극장, 3: 동문광장", example = "3", nullable = true)

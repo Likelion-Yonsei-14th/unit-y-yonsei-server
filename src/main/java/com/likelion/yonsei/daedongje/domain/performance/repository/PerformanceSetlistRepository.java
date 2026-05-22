@@ -8,4 +8,7 @@ import java.util.List;
 public interface PerformanceSetlistRepository extends JpaRepository<PerformanceSetlist, Long> {
 
     List<PerformanceSetlist> findAllByPerformanceIdOrderBySongOrderAscIdAsc(Long performanceId);
+
+    // 공연 삭제 가드 — 해당 공연에 셋리스트가 1건이라도 있는지 확인 (BAC-110)
+    boolean existsByPerformanceId(Long performanceId);
 }

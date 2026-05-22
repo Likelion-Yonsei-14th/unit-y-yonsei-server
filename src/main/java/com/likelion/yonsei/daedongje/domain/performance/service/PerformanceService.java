@@ -6,6 +6,7 @@ import com.likelion.yonsei.daedongje.domain.auth.entity.AdminUser;
 import com.likelion.yonsei.daedongje.domain.auth.exception.AuthErrorCode;
 import com.likelion.yonsei.daedongje.domain.auth.repository.AdminUserRepository;
 import com.likelion.yonsei.daedongje.domain.auth.support.AdminSessionUser;
+import com.likelion.yonsei.daedongje.domain.info.repository.NoticeRepository;
 import com.likelion.yonsei.daedongje.domain.map.entity.MapLocation;
 import com.likelion.yonsei.daedongje.domain.map.exception.MapLocationErrorCode;
 import com.likelion.yonsei.daedongje.domain.map.repository.MapLocationRepository;
@@ -14,7 +15,9 @@ import com.likelion.yonsei.daedongje.domain.performance.dto.PerformanceMyRespons
 import com.likelion.yonsei.daedongje.domain.performance.dto.PerformanceUpdateRequest;
 import com.likelion.yonsei.daedongje.domain.performance.entity.Performance;
 import com.likelion.yonsei.daedongje.domain.performance.exception.PerformanceErrorCode;
+import com.likelion.yonsei.daedongje.domain.performance.repository.PerformanceImageRepository;
 import com.likelion.yonsei.daedongje.domain.performance.repository.PerformanceRepository;
+import com.likelion.yonsei.daedongje.domain.performance.repository.PerformanceSetlistRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -31,6 +34,9 @@ public class PerformanceService {
     private final PerformanceRepository performanceRepository;
     private final AdminUserRepository adminUserRepository;
     private final MapLocationRepository mapLocationRepository;
+    private final PerformanceImageRepository performanceImageRepository;
+    private final PerformanceSetlistRepository performanceSetlistRepository;
+    private final NoticeRepository noticeRepository;
 
     @Transactional
     public Performance createPerformanceForAdmin(AdminUser adminUser, String performanceName) {
@@ -126,8 +132,23 @@ public class PerformanceService {
     @Transactional
     public PerformanceMyResponse updateMyPerformance(AdminSessionUser currentAdmin, PerformanceUpdateRequest request) {
         Performance performance = findMyPerformance(currentAdmin);
-        MapLocation location = findLocationOrNull(request.locationId());
+        applyBasicInfoUpdate(performance, request);
+        return PerformanceMyResponse.from(performance);
+    }
 
+    /**
+     * 운영진(SUPER/MASTER)이 임의 공연의 기본 정보를 부분 갱신한다.
+     * updateMyPerformance 와 갱신 로직은 동일 — "어떤 공연을 찾는가" 만 다르다.
+     */
+    @Transactional
+    public PerformanceMyResponse updatePerformance(Long id, PerformanceUpdateRequest request) {
+        Performance performance = findById(id);
+        applyBasicInfoUpdate(performance, request);
+        return PerformanceMyResponse.from(performance);
+    }
+
+    private void applyBasicInfoUpdate(Performance performance, PerformanceUpdateRequest request) {
+        MapLocation location = findLocationOrNull(request.locationId());
         performance.updateBasicInfo(
                 location,
                 request.performanceName(),
@@ -144,14 +165,59 @@ public class PerformanceService {
                 request.youtubeUrl(),
                 request.instagramUrl()
         );
+    }
 
-        return PerformanceMyResponse.from(performance);
+    private Performance findById(Long id) {
+        return performanceRepository.findById(id)
+                .orElseThrow(() -> new BusinessException(PerformanceErrorCode.PERFORMANCE_NOT_FOUND));
     }
 
     @Transactional
     public void deleteMyPerformance(AdminSessionUser currentAdmin) {
         Performance performance = findMyPerformance(currentAdmin);
-        performanceRepository.delete(performance);
+        deletePerformanceWithGuards(performance);
+    }
+
+    /**
+     * 운영진(SUPER/MASTER)이 임의 공연 ID 로 공연을 삭제한다.
+     * deleteMyPerformance 와 자식 가드 로직은 공유 — "어떤 공연을 찾는가" 만 다르다 (BAC-110).
+     */
+    @Transactional
+    public void deletePerformance(Long id) {
+        Performance performance = findById(id);
+        deletePerformanceWithGuards(performance);
+    }
+
+    /**
+     * 자식 데이터(이미지/셋리스트/공지) 가 남아 있으면 차단해 실수 삭제 방지 (BAC-110).
+     * cheer_messages 는 DB FK 가 ON DELETE CASCADE, live_performance 는 ON DELETE SET NULL 이라 자동 정리되므로 가드 불필요.
+     * 검사 후 race 로 자식이 새로 생성된 경우(DataIntegrityViolationException)를 잡아 의미 있는 BusinessException 으로 변환한다.
+     */
+    private void deletePerformanceWithGuards(Performance performance) {
+        Long id = performance.getId();
+        verifyNoChildData(id);
+
+        try {
+            performanceRepository.delete(performance);
+            // FK 검증을 트랜잭션 커밋이 아닌 *여기서* 실행 — 아래 catch 로 잡을 수 있게 함
+            performanceRepository.flush();
+        } catch (DataIntegrityViolationException e) {
+            // race — 검사 시점 이후 자식이 새로 생성됐을 가능성. 다시 확인해 BusinessException 으로 변환.
+            verifyNoChildData(id);
+            throw e;  // 알려진 자식이 아니면 원본 FK 위반 유지
+        }
+    }
+
+    private void verifyNoChildData(Long performanceId) {
+        if (performanceImageRepository.existsByPerformanceId(performanceId)) {
+            throw new BusinessException(PerformanceErrorCode.PERFORMANCE_HAS_IMAGES);
+        }
+        if (performanceSetlistRepository.existsByPerformanceId(performanceId)) {
+            throw new BusinessException(PerformanceErrorCode.PERFORMANCE_HAS_SETLISTS);
+        }
+        if (noticeRepository.existsByPerformanceId(performanceId)) {
+            throw new BusinessException(PerformanceErrorCode.PERFORMANCE_HAS_NOTICES);
+        }
     }
 
     private Performance findMyPerformance(AdminSessionUser currentAdmin) {

@@ -592,6 +592,122 @@ class PerformanceAdminControllerTest {
     }
 
     @Test
+    void updatePerformance_with_super_admin_returns_updated_performance() throws Exception {
+        AdminUser superAdmin = adminUserRepository.save(adminUser("super-update", AdminRole.SUPER));
+        Mockito.when(adminAuthContextService.getCurrentAdmin(any(HttpServletRequest.class)))
+                .thenReturn(AdminSessionUser.from(superAdmin));
+
+        Performance performance = performanceRepository.save(Performance.create(performerAdmin, "Original Stage"));
+
+        String requestBody = """
+                {
+                  "performanceName": "Updated by Super",
+                  "performanceDate": 2,
+                  "performanceStatus": "SCHEDULED"
+                }
+                """;
+
+        mockMvc.perform(patch("/api/admin/performances/" + performance.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.performanceName").value("Updated by Super"))
+                .andExpect(jsonPath("$.data.performanceDate").value(2))
+                .andExpect(jsonPath("$.data.performanceStatus").value("SCHEDULED"));
+    }
+
+    @Test
+    void updatePerformance_with_master_admin_succeeds() throws Exception {
+        AdminUser masterAdmin = adminUserRepository.save(adminUser("master-update", AdminRole.MASTER));
+        Mockito.when(adminAuthContextService.getCurrentAdmin(any(HttpServletRequest.class)))
+                .thenReturn(AdminSessionUser.from(masterAdmin));
+
+        Performance performance = performanceRepository.save(Performance.create(performerAdmin, "Original"));
+
+        mockMvc.perform(patch("/api/admin/performances/" + performance.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"performanceName\":\"Updated by Master\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.performanceName").value("Updated by Master"));
+    }
+
+    @Test
+    void updatePerformance_with_performer_admin_returns_forbidden() throws Exception {
+        // BeforeEach 에서 performerAdmin 으로 이미 mock 됨 — 클래스 기본 {PERFORMER, SUPER} 이지만
+        // 메서드 @RequireAdminRole({SUPER, MASTER}) 가 덮어쓰므로 PERFORMER 는 차단돼야 한다
+        Performance performance = performanceRepository.save(Performance.create(performerAdmin, "Original"));
+
+        mockMvc.perform(patch("/api/admin/performances/" + performance.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"performanceName\":\"Should be blocked\"}"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void updatePerformance_returns_not_found_when_id_does_not_exist() throws Exception {
+        AdminUser superAdmin = adminUserRepository.save(adminUser("super-missing", AdminRole.SUPER));
+        Mockito.when(adminAuthContextService.getCurrentAdmin(any(HttpServletRequest.class)))
+                .thenReturn(AdminSessionUser.from(superAdmin));
+
+        mockMvc.perform(patch("/api/admin/performances/999999")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"performanceName\":\"x\"}"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error.code").value("P-006"));
+    }
+
+    @Test
+    void deletePerformance_with_super_admin_succeeds() throws Exception {
+        AdminUser superAdmin = adminUserRepository.save(adminUser("super-del", AdminRole.SUPER));
+        Mockito.when(adminAuthContextService.getCurrentAdmin(any(HttpServletRequest.class)))
+                .thenReturn(AdminSessionUser.from(superAdmin));
+
+        Performance performance = performanceRepository.save(Performance.create(performerAdmin, "Stage to delete"));
+        Long performanceId = performance.getId();
+
+        mockMvc.perform(delete("/api/admin/performances/" + performanceId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        assertThat(performanceRepository.findById(performanceId)).isEmpty();
+    }
+
+    @Test
+    void deletePerformance_with_master_admin_succeeds() throws Exception {
+        AdminUser masterAdmin = adminUserRepository.save(adminUser("master-del", AdminRole.MASTER));
+        Mockito.when(adminAuthContextService.getCurrentAdmin(any(HttpServletRequest.class)))
+                .thenReturn(AdminSessionUser.from(masterAdmin));
+
+        Performance performance = performanceRepository.save(Performance.create(performerAdmin, "Stage to delete"));
+
+        mockMvc.perform(delete("/api/admin/performances/" + performance.getId()))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void deletePerformance_with_performer_admin_returns_forbidden() throws Exception {
+        // BeforeEach 의 performerAdmin 으로 이미 mock 됨 — 메서드 권한 {SUPER, MASTER} 가 클래스 {PERFORMER, SUPER} 를 덮어쓰므로 PERFORMER 차단
+        Performance performance = performanceRepository.save(Performance.create(performerAdmin, "Stage"));
+
+        mockMvc.perform(delete("/api/admin/performances/" + performance.getId()))
+                .andExpect(status().isForbidden());
+
+        assertThat(performanceRepository.findById(performance.getId())).isPresent();
+    }
+
+    @Test
+    void deletePerformance_returns_not_found_when_id_does_not_exist() throws Exception {
+        AdminUser superAdmin = adminUserRepository.save(adminUser("super-del-missing", AdminRole.SUPER));
+        Mockito.when(adminAuthContextService.getCurrentAdmin(any(HttpServletRequest.class)))
+                .thenReturn(AdminSessionUser.from(superAdmin));
+
+        mockMvc.perform(delete("/api/admin/performances/999999"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error.code").value("P-006"));
+    }
+
+    @Test
     void openApi_exposes_performance_admin_apis_only_for_current_admin_resource() throws Exception {
         MvcResult result = mockMvc.perform(get("/v3/api-docs"))
                 .andExpect(status().isOk())
@@ -609,7 +725,16 @@ class PerformanceAdminControllerTest {
         assertThat(myPerformancePath.path("get").path("tags").toString()).contains("공연 어드민");
         assertThat(myPerformancePath.path("patch").path("tags").toString()).contains("공연 어드민");
         assertThat(myPerformancePath.path("delete").path("tags").toString()).contains("공연 어드민");
-        assertThat(apiDocs.path("paths").has("/api/admin/performances/{id}")).isFalse();
+
+        // 운영진(SUPER·MASTER) 의 공연 정보 수정·삭제 — PATCH·DELETE /{id} 노출 (BAC-106 + BAC-110)
+        JsonNode adminUpdatePath = apiDocs.path("paths").path("/api/admin/performances/{id}");
+        assertThat(adminUpdatePath.isMissingNode()).isFalse();
+        assertThat(adminUpdatePath.has("patch")).isTrue();
+        assertThat(adminUpdatePath.has("delete")).isTrue();
+        assertThat(adminUpdatePath.has("get")).isFalse();
+        assertThat(adminUpdatePath.has("post")).isFalse();
+        assertThat(adminUpdatePath.path("patch").path("tags").toString()).contains("공연 어드민");
+        assertThat(adminUpdatePath.path("delete").path("tags").toString()).contains("공연 어드민");
     }
 
     private AdminUser adminUser(String loginId, AdminRole role) {

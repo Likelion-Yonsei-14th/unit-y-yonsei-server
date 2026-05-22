@@ -5,8 +5,12 @@ import com.likelion.yonsei.daedongje.domain.auth.entity.AdminRole;
 import com.likelion.yonsei.daedongje.domain.auth.exception.AuthErrorCode;
 import com.likelion.yonsei.daedongje.domain.auth.support.AdminSessionUser;
 import com.likelion.yonsei.daedongje.domain.booth.entity.Booth;
+import com.likelion.yonsei.daedongje.domain.booth.entity.BoothImage;
 import com.likelion.yonsei.daedongje.domain.booth.exception.BoothErrorCode;
+import com.likelion.yonsei.daedongje.domain.booth.repository.BoothImageRepository;
 import com.likelion.yonsei.daedongje.domain.booth.repository.BoothRepository;
+import com.likelion.yonsei.daedongje.domain.reservation.dto.MyReservationResponse;
+import com.likelion.yonsei.daedongje.domain.reservation.dto.MyReservationResponse.BoothInfo;
 import com.likelion.yonsei.daedongje.domain.reservation.dto.ReservationAdminStatusRequest;
 import com.likelion.yonsei.daedongje.domain.reservation.dto.ReservationCreateRequest;
 import com.likelion.yonsei.daedongje.domain.reservation.dto.ReservationCreateResponse;
@@ -21,14 +25,19 @@ import com.likelion.yonsei.daedongje.domain.reservation.entity.ReservationStatus
 import com.likelion.yonsei.daedongje.domain.reservation.exception.ReservationErrorCode;
 import com.likelion.yonsei.daedongje.domain.reservation.repository.ReservationRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.TreeMap;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -37,7 +46,12 @@ public class ReservationService {
 
     private final ReservationRepository reservationRepository;
     private final BoothRepository boothRepository;
+    private final BoothImageRepository boothImageRepository;
     private final PasswordEncoder passwordEncoder;
+
+    /** 같은 전화번호의 동일 부스 예약을 광클로 간주해 멱등 처리하는 시간 윈도우. application.yaml 의 app.reservation.duplicate-window 로 조정. */
+    @Value("${app.reservation.duplicate-window:10s}")
+    private Duration duplicateWindow;
 
     // 예약 생성
     // 부스 행에 비관적 락을 걸어 부스별 예약 순번 중복을 방지한다.
@@ -48,6 +62,21 @@ public class ReservationService {
 
         if (!booth.getIsReservable()) {
             throw new BusinessException(ReservationErrorCode.BOOTH_NOT_RESERVABLE);
+        }
+
+        // 광클 멱등 처리: 같은 전화번호로 최근 duplicateWindow 안에 동일 부스 PENDING 예약이 있으면
+        // 신규 생성 없이 그 예약을 그대로 반환한다. 부스 비관적 락이 create 를 직렬화하므로 경합은 없다.
+        LocalDateTime since = LocalDateTime.now().minus(duplicateWindow);
+        Optional<Reservation> existing = reservationRepository
+                .findFirstByBooth_IdAndPhoneNumberAndStatusAndCreatedAtGreaterThanEqualOrderByCreatedAtDesc(
+                        boothId, request.phoneNumber(), ReservationStatus.PENDING, since);
+        if (existing.isPresent()) {
+            Reservation found = existing.get();
+            // 쿼리가 status=PENDING 으로 필터링한 결과라 found 는 PENDING 카운트에 반드시 포함된다.
+            // 본인(found)을 빼기 위해 -1 — 신규 생성 경로의 aheadOfMe 와 동일한 규칙.
+            long aheadOfExisting =
+                    reservationRepository.countByBoothIdAndStatus(boothId, ReservationStatus.PENDING) - 1;
+            return ReservationCreateResponse.of(found, aheadOfExisting);
         }
 
         int nextNumber = reservationRepository.findMaxReservationNumberByBoothId(boothId)
@@ -127,25 +156,56 @@ public class ReservationService {
 
     // 사용자 예약 목록 조회 (이름 + 연락처 + 선택적 PIN + 선택적 상태 필터)
     // PIN이 있는 예약은 BCrypt 비교로 필터링
-    public List<ReservationResponse> getListByBooker(String bookerName, String phoneNumber,
-                                                     String pin, ReservationStatus status) {
-        return reservationRepository
+    public List<MyReservationResponse> getListByBooker(String bookerName, String phoneNumber,
+                                                       String pin, ReservationStatus status) {
+        List<Reservation> reservations = reservationRepository
                 .findAllByBookerNameAndPhoneNumberWithFilter(bookerName, phoneNumber, status)
                 .stream()
                 .filter(r -> pinMatches(r.getPin(), pin))
-                .map(r -> ReservationResponse.of(r, calcAheadOfMe(r)))
                 .toList();
-    }
 
-    private long calcAheadOfMe(Reservation reservation) {
-        if (reservation.getStatus() != ReservationStatus.PENDING) {
-            return 0L;
+        if (reservations.isEmpty()) {
+            return List.of();
         }
-        return reservationRepository.countByBoothIdAndStatusAndReservationNumberLessThan(
-                reservation.getBooth().getId(),
-                ReservationStatus.PENDING,
-                reservation.getReservationNumber()
-        );
+
+        List<Long> boothIds = reservations.stream()
+                .map(r -> r.getBooth().getId())
+                .distinct()
+                .toList();
+
+        Map<Long, String> thumbnailByBoothId = boothImageRepository.findThumbnailsByBoothIds(boothIds)
+                .stream()
+                .collect(Collectors.toMap(BoothImage::getBoothId, BoothImage::getImageUrl, (a, b) -> a));
+
+        Map<Long, Long> waitingCountByBoothId = reservationRepository
+                .countByBoothIdsAndStatus(boothIds, ReservationStatus.PENDING)
+                .stream()
+                .collect(Collectors.toMap(row -> (Long) row[0], row -> (Long) row[1]));
+
+        Map<Long, List<Integer>> pendingNumbersByBoothId = reservationRepository
+                .findBoothIdAndReservationNumbersByBoothIdsAndStatus(boothIds, ReservationStatus.PENDING)
+                .stream()
+                .collect(Collectors.groupingBy(
+                        row -> (Long) row[0],
+                        Collectors.mapping(row -> (Integer) row[1], Collectors.toList())
+                ));
+
+        return reservations.stream()
+                .map(r -> {
+                    Long boothId = r.getBooth().getId();
+                    long aheadOfMe = r.getStatus() != ReservationStatus.PENDING ? 0L
+                            : pendingNumbersByBoothId.getOrDefault(boothId, List.of())
+                                    .stream()
+                                    .filter(num -> num < r.getReservationNumber())
+                                    .count();
+                    BoothInfo boothInfo = BoothInfo.of(
+                            r.getBooth(),
+                            waitingCountByBoothId.getOrDefault(boothId, 0L),
+                            thumbnailByBoothId.get(boothId)
+                    );
+                    return MyReservationResponse.of(r, aheadOfMe, boothInfo);
+                })
+                .toList();
     }
 
     // 어드민 예약 상태 변경 (CONFIRMED: 입장 처리 / CANCELLED: 취소)

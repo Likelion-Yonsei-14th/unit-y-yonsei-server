@@ -12,8 +12,11 @@ import com.likelion.yonsei.daedongje.domain.booth.entity.BoothSector;
 import com.likelion.yonsei.daedongje.domain.booth.entity.BoothStatus;
 import com.likelion.yonsei.daedongje.domain.booth.exception.BoothErrorCode;
 import com.likelion.yonsei.daedongje.domain.booth.entity.BoothImage;
+import com.likelion.yonsei.daedongje.domain.booth.repository.BoothClickLogRepository;
 import com.likelion.yonsei.daedongje.domain.booth.repository.BoothImageRepository;
 import com.likelion.yonsei.daedongje.domain.booth.repository.BoothRepository;
+import com.likelion.yonsei.daedongje.domain.booth.repository.MenuRepository;
+import com.likelion.yonsei.daedongje.domain.info.repository.NoticeRepository;
 import com.likelion.yonsei.daedongje.domain.map.dto.MapLocationResponse;
 import com.likelion.yonsei.daedongje.domain.map.entity.MapLocation;
 import com.likelion.yonsei.daedongje.domain.map.repository.MapLocationRepository;
@@ -35,14 +38,23 @@ public class BoothService {
 
     private final BoothRepository boothRepository;
     private final BoothImageRepository boothImageRepository;
+    private final BoothClickLogRepository boothClickLogRepository;
     private final ReservationRepository reservationRepository;
     private final MapLocationRepository mapLocationRepository;
+    private final MenuRepository menuRepository;
+    private final NoticeRepository noticeRepository;
 
-    public BoothService(BoothRepository boothRepository, BoothImageRepository boothImageRepository, ReservationRepository reservationRepository, MapLocationRepository mapLocationRepository) {
+    public BoothService(BoothRepository boothRepository, BoothImageRepository boothImageRepository,
+                        BoothClickLogRepository boothClickLogRepository,
+                        ReservationRepository reservationRepository, MapLocationRepository mapLocationRepository,
+                        MenuRepository menuRepository, NoticeRepository noticeRepository) {
         this.boothRepository = boothRepository;
         this.boothImageRepository = boothImageRepository;
+        this.boothClickLogRepository = boothClickLogRepository;
         this.reservationRepository = reservationRepository;
         this.mapLocationRepository = mapLocationRepository;
+        this.menuRepository = menuRepository;
+        this.noticeRepository = noticeRepository;
     }
 
     // 부스 생성
@@ -130,7 +142,7 @@ public class BoothService {
         Map<Long, MapLocationResponse> mapLocationMap = fetchMapLocationMap(booths);
 
         return booths.stream()
-                .map(booth -> BoothResponse.of(booth, waitingCountMap.getOrDefault(booth.getId(), 0L), thumbnailMap.get(booth.getId()), mapLocationMap.get(booth.getLocationId())))
+                .map(booth -> BoothResponse.of(booth, waitingCountMap.getOrDefault(booth.getId(), 0L), thumbnailMap.get(booth.getId()), resolveMapLocation(booth, mapLocationMap)))
                 .toList();
     }
 
@@ -142,7 +154,7 @@ public class BoothService {
         Map<Long, String> thumbnailMap = fetchThumbnailMap(booths.stream().map(Booth::getId).toList());
         Map<Long, MapLocationResponse> mapLocationMap = fetchMapLocationMap(booths);
         return booths.stream()
-                .map(booth -> BoothResponse.of(booth, 0L, thumbnailMap.get(booth.getId()), mapLocationMap.get(booth.getLocationId())))
+                .map(booth -> BoothResponse.of(booth, 0L, thumbnailMap.get(booth.getId()), resolveMapLocation(booth, mapLocationMap)))
                 .toList();
     }
 
@@ -236,12 +248,43 @@ public class BoothService {
         return BoothResponse.of(booth, 0L, fetchThumbnail(booth.getId()), fetchMapLocation(booth));
     }
 
-    // 부스 삭제
+    // 부스 삭제 — 운영 데이터(예약·메뉴·공지) 가 남아 있으면 차단해 실수 삭제 방지 (BAC-109).
+    // 분석·코스메틱 자식(booth_images / booth_click_logs) 은 사용자 입력이 아니므로 차단하지 않고
+    // application-level cascade 로 명시적으로 정리한다 — 운영 DB 의 FK 가 ON DELETE CASCADE
+    // 가 아닌 환경에서도 동일하게 동작하기 위한 안전망 (BAC-111).
     @Transactional
     public void delete(Long id) {
         Booth booth = boothRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(BoothErrorCode.BOOTH_NOT_FOUND));
-        boothRepository.delete(booth);
+
+        verifyNoChildData(id);
+
+        // 분석·코스메틱 자식 application-level cascade — DB FK 의 ON DELETE 동작과 무관하게 항상 정리됨 (BAC-111).
+        boothClickLogRepository.deleteByBoothId(id);
+        boothImageRepository.deleteByBoothId(id);
+
+        try {
+            boothRepository.delete(booth);
+            // FK 검증을 트랜잭션 커밋이 아닌 *여기서* 실행 — 아래 catch 로 잡을 수 있게 함
+            boothRepository.flush();
+        } catch (DataIntegrityViolationException e) {
+            // 검사 시점과 삭제 시점 사이 race — 자식 데이터가 새로 생성됐을 가능성.
+            // 어떤 자식이 막혔는지 다시 확인해 의미 있는 BusinessException 으로 변환한다.
+            verifyNoChildData(id);
+            throw e;  // 알려진 자식이 아니면 원본 FK 위반을 유지 (다른 미지의 FK)
+        }
+    }
+
+    private void verifyNoChildData(Long boothId) {
+        if (reservationRepository.existsByBoothId(boothId)) {
+            throw new BusinessException(BoothErrorCode.BOOTH_HAS_RESERVATIONS);
+        }
+        if (menuRepository.existsByBoothId(boothId)) {
+            throw new BusinessException(BoothErrorCode.BOOTH_HAS_MENUS);
+        }
+        if (noticeRepository.existsByBoothId(boothId)) {
+            throw new BusinessException(BoothErrorCode.BOOTH_HAS_NOTICES);
+        }
     }
 
     private String fetchThumbnail(Long boothId) {
@@ -271,6 +314,18 @@ public class BoothService {
         if (locationIds.isEmpty()) return Map.of();
         return mapLocationRepository.findAllById(locationIds).stream()
                 .collect(Collectors.toMap(MapLocation::getId, MapLocationResponse::from));
+    }
+
+    /**
+     * 부스의 지도 위치를 맵에서 조회한다.
+     * locationId 가 null 이면 위치 미지정이므로 null 을 반환한다.
+     * mapLocationMap 이 비어 있을 때는 Map.of() 불변 맵이라 null 키로 get 하면 NPE 가 발생하므로,
+     * locationId null 검사를 먼저 해 .get(null) 호출 자체를 막는다.
+     */
+    private MapLocationResponse resolveMapLocation(Booth booth, Map<Long, MapLocationResponse> mapLocationMap) {
+        Long locationId = booth.getLocationId();
+        if (locationId == null) return null;
+        return mapLocationMap.get(locationId);
     }
 
     private String toMenuString(List<String> menus) {

@@ -11,6 +11,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.util.stream.Collectors;
 
@@ -81,6 +82,16 @@ public class GlobalExceptionHandler {
                 .status(code.getStatus())
                 .body(ApiResponse.error(code.getCode(),
                         "필수 파라미터가 누락되었습니다: " + e.getParameterName()));
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiResponse<Void>> handleTypeMismatch(MethodArgumentTypeMismatchException e) {
+        log.warn("Type mismatch for parameter '{}': {}", e.getName(), e.getMessage());
+
+        ErrorCode code = CommonErrorCode.INVALID_INPUT;
+        return ResponseEntity
+                .status(code.getStatus())
+                .body(ApiResponse.error(code.getCode(), "잘못된 형식의 파라미터입니다: " + e.getName()));
     }
 
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
