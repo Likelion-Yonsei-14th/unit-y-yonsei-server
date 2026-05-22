@@ -9,6 +9,7 @@ import com.likelion.yonsei.daedongje.domain.performance.entity.PerformanceCatego
 import com.likelion.yonsei.daedongje.domain.performance.entity.PerformanceStatus;
 import com.likelion.yonsei.daedongje.domain.performance.repository.PerformanceRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,6 +27,7 @@ import java.util.stream.Collectors;
  * 아티스트 메인 무대는 운영진 수동 핀(LivePerformanceService), 동아리 무대는 시간 기반 자동 판정.
  * status 를 바꾸지 않고 조회 시점에 계산한다.
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -83,11 +85,16 @@ public class LiveStageService {
         return result;
     }
 
-    // start <= now < end (반열린 구간). 시간 미입력·역전(end<=start)은 진행 중 아님.
+    // start <= now < end (반열린 구간). 시간 미입력은 진행 중 아님(정상).
+    // end<=start 는 엔티티 검증을 우회한 데이터 오류이므로 제외하고 경고 로그를 남긴다.
     private boolean isPlayingNow(Performance performance, LocalTime now) {
         LocalTime start = performance.getStartTime();
         LocalTime end = performance.getEndTime();
-        if (start == null || end == null || !end.isAfter(start)) {
+        if (start == null || end == null) {
+            return false;
+        }
+        if (!end.isAfter(start)) {
+            log.warn("CLUB 공연 id={} 시간 역전(start={}, end={}) — 라이브 판정에서 제외", performance.getId(), start, end);
             return false;
         }
         return !start.isAfter(now) && end.isAfter(now);
