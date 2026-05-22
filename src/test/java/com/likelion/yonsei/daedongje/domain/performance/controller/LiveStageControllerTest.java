@@ -114,6 +114,130 @@ class LiveStageControllerTest {
                 .andExpect(jsonPath("$.data[2].performance.performanceName").value("Club B Now"));
     }
 
+    @Test
+    void liveStages_excludesClubPerformancesOutsideTimeWindow() throws Exception {
+        MapLocation stage = mapLocationRepository.save(mapLocation("Club Stage", 1));
+        performanceRepository.save(performance(
+                "Now Playing", stage, 2, LocalTime.of(18, 0), LocalTime.of(19, 0),
+                PerformanceCategory.CLUB, PerformanceStatus.SCHEDULED));
+        performanceRepository.save(performance(
+                "Not Yet", mapLocationRepository.save(mapLocation("Club Stage 2", 2)),
+                2, LocalTime.of(19, 0), LocalTime.of(20, 0),
+                PerformanceCategory.CLUB, PerformanceStatus.SCHEDULED));
+        performanceRepository.save(performance(
+                "Already Ended", mapLocationRepository.save(mapLocation("Club Stage 3", 3)),
+                2, LocalTime.of(17, 0), LocalTime.of(18, 0),
+                PerformanceCategory.CLUB, PerformanceStatus.SCHEDULED));
+
+        mockMvc.perform(get("/api/performances/live-stages"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(1))
+                .andExpect(jsonPath("$.data[0].performance.performanceName").value("Now Playing"));
+    }
+
+    @Test
+    void liveStages_includesPerformance_whenNowEqualsStart() throws Exception {
+        fixClockAt(LocalTime.of(18, 0));
+        MapLocation stage = mapLocationRepository.save(mapLocation("Club Stage", 1));
+        performanceRepository.save(performance(
+                "Starts Now", stage, 2, LocalTime.of(18, 0), LocalTime.of(19, 0),
+                PerformanceCategory.CLUB, PerformanceStatus.SCHEDULED));
+
+        mockMvc.perform(get("/api/performances/live-stages"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(1))
+                .andExpect(jsonPath("$.data[0].performance.performanceName").value("Starts Now"));
+    }
+
+    @Test
+    void liveStages_excludesPerformance_whenNowEqualsEnd() throws Exception {
+        fixClockAt(LocalTime.of(19, 0));
+        MapLocation stage = mapLocationRepository.save(mapLocation("Club Stage", 1));
+        performanceRepository.save(performance(
+                "Ends Now", stage, 2, LocalTime.of(18, 0), LocalTime.of(19, 0),
+                PerformanceCategory.CLUB, PerformanceStatus.SCHEDULED));
+
+        mockMvc.perform(get("/api/performances/live-stages"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(0));
+    }
+
+    @Test
+    void liveStages_excludesHiddenCanceledEndedClubPerformances() throws Exception {
+        performanceRepository.save(performance(
+                "Hidden Club", mapLocationRepository.save(mapLocation("Stage 1", 1)),
+                2, LocalTime.of(18, 0), LocalTime.of(19, 0),
+                PerformanceCategory.CLUB, PerformanceStatus.HIDDEN));
+        performanceRepository.save(performance(
+                "Canceled Club", mapLocationRepository.save(mapLocation("Stage 2", 2)),
+                2, LocalTime.of(18, 0), LocalTime.of(19, 0),
+                PerformanceCategory.CLUB, PerformanceStatus.CANCELED));
+        performanceRepository.save(performance(
+                "Ended Club", mapLocationRepository.save(mapLocation("Stage 3", 3)),
+                2, LocalTime.of(18, 0), LocalTime.of(19, 0),
+                PerformanceCategory.CLUB, PerformanceStatus.ENDED));
+
+        mockMvc.perform(get("/api/performances/live-stages"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(0));
+    }
+
+    @Test
+    void liveStages_excludesClubPerformanceWithoutTimes() throws Exception {
+        MapLocation stage = mapLocationRepository.save(mapLocation("Club Stage", 1));
+        performanceRepository.save(performance(
+                "No Times", stage, 2, null, null,
+                PerformanceCategory.CLUB, PerformanceStatus.SCHEDULED));
+
+        mockMvc.perform(get("/api/performances/live-stages"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(0));
+    }
+
+    @Test
+    void liveStages_picksEarliestPerformancePerStage_whenOverlap() throws Exception {
+        MapLocation stage = mapLocationRepository.save(mapLocation("Club Stage", 1));
+        performanceRepository.save(performance(
+                "Later Start", stage, 2, LocalTime.of(18, 15), LocalTime.of(18, 45),
+                PerformanceCategory.CLUB, PerformanceStatus.SCHEDULED));
+        performanceRepository.save(performance(
+                "Earlier Start", stage, 2, LocalTime.of(18, 0), LocalTime.of(19, 0),
+                PerformanceCategory.CLUB, PerformanceStatus.SCHEDULED));
+
+        mockMvc.perform(get("/api/performances/live-stages"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(1))
+                .andExpect(jsonPath("$.data[0].performance.performanceName").value("Earlier Start"));
+    }
+
+    @Test
+    void liveStages_returnsEmpty_whenNothingLiveAndNoPin() throws Exception {
+        mockMvc.perform(get("/api/performances/live-stages"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.length()").value(0));
+    }
+
+    @Test
+    void liveStages_manualPinWins_whenSameStageAlsoHasPlayingClub() throws Exception {
+        MapLocation stage = mapLocationRepository.save(mapLocation("Shared Stage", 1));
+
+        Performance artist = performanceRepository.save(performance(
+                "Pinned Artist", stage, 2, null, null,
+                PerformanceCategory.ARTIST, PerformanceStatus.HIDDEN));
+        livePerformanceService.updateLivePerformance(artist.getId());
+
+        performanceRepository.save(performance(
+                "Club On Same Stage", stage, 2, LocalTime.of(18, 0), LocalTime.of(19, 0),
+                PerformanceCategory.CLUB, PerformanceStatus.SCHEDULED));
+
+        mockMvc.perform(get("/api/performances/live-stages"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(1))
+                .andExpect(jsonPath("$.data[0].source").value("MANUAL"))
+                .andExpect(jsonPath("$.data[0].performance.performanceName").value("Pinned Artist"));
+    }
+
     private void fixClockAt(LocalTime time) {
         Instant instant = LocalDate.of(2026, 5, 27).atTime(time).atZone(SEOUL).toInstant();
         when(clock.instant()).thenReturn(instant);
