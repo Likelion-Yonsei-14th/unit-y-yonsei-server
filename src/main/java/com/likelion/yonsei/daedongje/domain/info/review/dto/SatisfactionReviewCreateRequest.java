@@ -6,12 +6,12 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 public record SatisfactionReviewCreateRequest(
-        @NotNull(message = "Satisfaction rating is required.")
-        @Min(value = 1, message = "Satisfaction rating must be at least 1.")
-        @Max(value = 5, message = "Satisfaction rating must be at most 5.")
+        @NotNull(message = "별점은 필수입니다.")
+        @Min(value = 1, message = "별점은 1 이상이어야 합니다.")
+        @Max(value = 5, message = "별점은 5 이하여야 합니다.")
         Integer rating,
 
-        @Size(max = 1000, message = "Review content must be 1000 characters or less.")
+        @Size(max = 1000, message = "리뷰 내용은 1000자 이하여야 합니다.")
         String content
 ) {
 }

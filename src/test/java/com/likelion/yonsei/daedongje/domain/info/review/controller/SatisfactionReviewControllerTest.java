@@ -175,7 +175,7 @@ class SatisfactionReviewControllerTest {
                 .path("post")
                 .path("responses");
 
-        assertThat(apiDocs.path("tags").toString()).contains("Info Review");
+        assertThat(apiDocs.path("tags").toString()).contains("만족도 리뷰");
         assertThat(paths.path(REVIEWS_URL).has("post")).isTrue();
         assertThat(requestSchema.path("$ref").asText()).contains("SatisfactionReviewCreateRequest");
         assertThat(responses.path("201").toString()).contains("ApiResponseSatisfactionReviewCreateResponse");

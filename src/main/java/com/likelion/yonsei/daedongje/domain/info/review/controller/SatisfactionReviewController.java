@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-@Tag(name = "Info Review", description = "Satisfaction evaluation and review APIs")
+@Tag(name = "만족도 리뷰", description = "만족도 평가 및 리뷰 제출 API")
 @RestController
 @RequiredArgsConstructor
 public class SatisfactionReviewController {
@@ -23,8 +23,8 @@ public class SatisfactionReviewController {
     private final SatisfactionReviewService satisfactionReviewService;
 
     @Operation(
-            summary = "Submit satisfaction review",
-            description = "Submit a satisfaction rating and optional feedback message."
+            summary = "만족도 리뷰 제출",
+            description = "만족도 별점과 선택적 리뷰 내용을 제출한다."
     )
     @PostMapping("/api/info/reviews")
     @ResponseStatus(HttpStatus.CREATED)
