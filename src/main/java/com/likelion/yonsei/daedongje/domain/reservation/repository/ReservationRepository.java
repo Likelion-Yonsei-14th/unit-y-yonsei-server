@@ -31,6 +31,10 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
     @Query("SELECT r.booth.id, COUNT(r) FROM Reservation r WHERE r.booth.id IN :boothIds AND r.status = :status GROUP BY r.booth.id")
     List<Object[]> countByBoothIdsAndStatus(@Param("boothIds") List<Long> boothIds, @Param("status") ReservationStatus status);
 
+    // 여러 부스의 예약 순번을 한 번에 조회 — aheadOfMe 인메모리 계산에 사용 (N+1 방지)
+    @Query("SELECT r.booth.id, r.reservationNumber FROM Reservation r WHERE r.booth.id IN :boothIds AND r.status = :status")
+    List<Object[]> findBoothIdAndReservationNumbersByBoothIdsAndStatus(@Param("boothIds") List<Long> boothIds, @Param("status") ReservationStatus status);
+
     // 여러 부스의 예약 수를 상태별로 한 번에 집계 (예약 현황 요약)
     // 반환 행: [부스 ID, 예약 상태, 건수] — 예약이 0건인 부스/상태는 행으로 나오지 않음
     @Query("SELECT r.booth.id, r.status, COUNT(r) FROM Reservation r WHERE r.booth.id IN :boothIds GROUP BY r.booth.id, r.status")
