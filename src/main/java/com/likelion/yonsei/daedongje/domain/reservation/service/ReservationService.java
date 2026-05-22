@@ -175,35 +175,37 @@ public class ReservationService {
 
         Map<Long, String> thumbnailByBoothId = boothImageRepository.findThumbnailsByBoothIds(boothIds)
                 .stream()
-                .collect(Collectors.toMap(BoothImage::getBoothId, BoothImage::getImageUrl));
+                .collect(Collectors.toMap(BoothImage::getBoothId, BoothImage::getImageUrl, (a, b) -> a));
 
         Map<Long, Long> waitingCountByBoothId = reservationRepository
                 .countByBoothIdsAndStatus(boothIds, ReservationStatus.PENDING)
                 .stream()
                 .collect(Collectors.toMap(row -> (Long) row[0], row -> (Long) row[1]));
 
+        Map<Long, List<Integer>> pendingNumbersByBoothId = reservationRepository
+                .findBoothIdAndReservationNumbersByBoothIdsAndStatus(boothIds, ReservationStatus.PENDING)
+                .stream()
+                .collect(Collectors.groupingBy(
+                        row -> (Long) row[0],
+                        Collectors.mapping(row -> (Integer) row[1], Collectors.toList())
+                ));
+
         return reservations.stream()
                 .map(r -> {
                     Long boothId = r.getBooth().getId();
+                    long aheadOfMe = r.getStatus() != ReservationStatus.PENDING ? 0L
+                            : pendingNumbersByBoothId.getOrDefault(boothId, List.of())
+                                    .stream()
+                                    .filter(num -> num < r.getReservationNumber())
+                                    .count();
                     BoothInfo boothInfo = BoothInfo.of(
                             r.getBooth(),
                             waitingCountByBoothId.getOrDefault(boothId, 0L),
                             thumbnailByBoothId.get(boothId)
                     );
-                    return MyReservationResponse.of(r, calcAheadOfMe(r), boothInfo);
+                    return MyReservationResponse.of(r, aheadOfMe, boothInfo);
                 })
                 .toList();
-    }
-
-    private long calcAheadOfMe(Reservation reservation) {
-        if (reservation.getStatus() != ReservationStatus.PENDING) {
-            return 0L;
-        }
-        return reservationRepository.countByBoothIdAndStatusAndReservationNumberLessThan(
-                reservation.getBooth().getId(),
-                ReservationStatus.PENDING,
-                reservation.getReservationNumber()
-        );
     }
 
     // 어드민 예약 상태 변경 (CONFIRMED: 입장 처리 / CANCELLED: 취소)

@@ -70,7 +70,7 @@ public class MyReservationResponse {
         @Schema(description = "섹터 내 부스 배치 번호", example = "3")
         private Integer location;
 
-        @Schema(description = "현재 대기 팀 수", example = "3")
+        @Schema(description = "현재 대기 팀 수 (본인 포함)", example = "3")
         private long waitingCount;
 
         @Schema(description = "대표 메뉴 목록", example = "[\"치킨\", \"맥주\"]")
