@@ -366,6 +366,7 @@ class PerformanceReadControllerTest {
         assertThat(paths.has("/api/performances/{id}")).isTrue();
         assertThat(paths.has("/api/performances/current")).isTrue();
         assertThat(paths.has("/api/performances/timetable")).isTrue();
+        assertThat(paths.has("/api/performances/live-stages")).isTrue();
         assertThat(paths.path("/api/performances").has("post")).isFalse();
         assertThat(paths.path("/api/admin/performances").has("post")).isFalse();
         assertThat(paths.path("/api/performances/{id}").has("post")).isFalse();
