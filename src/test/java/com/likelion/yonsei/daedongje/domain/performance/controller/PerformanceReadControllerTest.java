@@ -76,83 +76,6 @@ class PerformanceReadControllerTest {
     }
 
     @Test
-    void getCurrentPerformance_returns_ongoing_performance() throws Exception {
-        MapLocation location = mapLocationRepository.save(mapLocation("Outdoor Stage"));
-        Performance performance = performance(
-                "Current Stage",
-                location,
-                1,
-                LocalTime.of(18, 0),
-                LocalTime.of(20, 0),
-                PerformanceCategory.ARTIST,
-                "Lineup A",
-                PerformanceStatus.ONGOING
-        );
-        performanceRepository.save(performance);
-
-        mockMvc.perform(get("/api/performances/current"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.id").value(performance.getId()))
-                .andExpect(jsonPath("$.data.performanceName").value("Current Stage"))
-                .andExpect(jsonPath("$.data.startTime").value("18:00:00"))
-                .andExpect(jsonPath("$.data.endTime").value("20:00:00"))
-                .andExpect(jsonPath("$.data.performanceStatus").value("ONGOING"))
-                .andExpect(jsonPath("$.data.performanceCategory").value("ARTIST"))
-                .andExpect(jsonPath("$.data.locationId").value(location.getId()))
-                .andExpect(jsonPath("$.data.locationName").value("Outdoor Stage"));
-    }
-
-    @Test
-    void getCurrentPerformance_returns_earliest_ongoing_performance() throws Exception {
-        performanceRepository.save(performance(
-                "Late Current",
-                null,
-                2,
-                LocalTime.of(19, 0),
-                LocalTime.of(20, 0),
-                PerformanceCategory.CLUB,
-                "Lineup B",
-                PerformanceStatus.ONGOING
-        ));
-        performanceRepository.save(performance(
-                "Early Current",
-                null,
-                1,
-                LocalTime.of(18, 0),
-                LocalTime.of(19, 0),
-                PerformanceCategory.ARTIST,
-                "Lineup A",
-                PerformanceStatus.ONGOING
-        ));
-
-        mockMvc.perform(get("/api/performances/current"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.performanceName").value("Early Current"));
-    }
-
-    @Test
-    void getCurrentPerformance_returns_null_data_when_no_ongoing_performance_exists() throws Exception {
-        // SCHEDULED·ENDED 등 ONGOING 이 아닌 공연만 있는 경우 — 정상 상태로 간주, 200 + data: null
-        performanceRepository.save(performance(
-                "Scheduled Stage",
-                null,
-                1,
-                LocalTime.of(18, 0),
-                LocalTime.of(20, 0),
-                PerformanceCategory.ARTIST,
-                "Lineup A",
-                PerformanceStatus.SCHEDULED
-        ));
-
-        mockMvc.perform(get("/api/performances/current"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data").doesNotExist())
-                .andExpect(jsonPath("$.error").doesNotExist());
-    }
-
-    @Test
     void getPerformanceDetail_returns_basic_detail_without_images_or_setlists() throws Exception {
         MapLocation location = mapLocationRepository.save(mapLocation("Main Stage"));
         Performance performance = performance(
@@ -319,33 +242,6 @@ class PerformanceReadControllerTest {
     }
 
     @Test
-    void getCurrentPerformance_includes_hashtags_and_sns_links() throws Exception {
-        performanceRepository.save(performance(
-                "Current Stage",
-                null,
-                1,
-                LocalTime.of(18, 0),
-                LocalTime.of(20, 0),
-                PerformanceCategory.ARTIST,
-                "Lineup A",
-                PerformanceStatus.ONGOING,
-                "JPOP",
-                "인디",
-                "밴드",
-                "https://www.youtube.com/@yonsei",
-                "https://www.instagram.com/yonsei"
-        ));
-
-        mockMvc.perform(get("/api/performances/current"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.hashtag1").value("JPOP"))
-                .andExpect(jsonPath("$.data.hashtag2").value("인디"))
-                .andExpect(jsonPath("$.data.hashtag3").value("밴드"))
-                .andExpect(jsonPath("$.data.youtubeUrl").value("https://www.youtube.com/@yonsei"))
-                .andExpect(jsonPath("$.data.instagramUrl").value("https://www.instagram.com/yonsei"));
-    }
-
-    @Test
     void readApis_work_without_admin_authentication() throws Exception {
         mockMvc.perform(get("/api/performances"))
                 .andExpect(status().isOk())
@@ -364,7 +260,7 @@ class PerformanceReadControllerTest {
         assertThat(apiDocs.path("tags").toString()).contains("공연");
         assertThat(paths.has("/api/performances")).isTrue();
         assertThat(paths.has("/api/performances/{id}")).isTrue();
-        assertThat(paths.has("/api/performances/current")).isTrue();
+        assertThat(paths.has("/api/performances/current")).isFalse();
         assertThat(paths.has("/api/performances/timetable")).isTrue();
         assertThat(paths.has("/api/performances/live-stages")).isTrue();
         assertThat(paths.path("/api/performances").has("post")).isFalse();

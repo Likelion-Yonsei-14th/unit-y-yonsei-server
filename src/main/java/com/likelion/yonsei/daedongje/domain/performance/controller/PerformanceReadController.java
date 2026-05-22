@@ -35,17 +35,6 @@ public class PerformanceReadController {
         return ApiResponse.success(performanceReadService.getPerformances());
     }
 
-    @Operation(
-            summary = "현재 공연 조회 (deprecated)",
-            description = "Deprecated — `/api/performances/live-stages` 사용 권장. status 가 ONGOING 인 공연 중 가장 이른 1건만 반환합니다. "
-                    + "진행 중인 공연이 없으면 data 는 null 입니다."
-    )
-    @Deprecated
-    @GetMapping("/current")
-    public ApiResponse<PerformanceCurrentResponse> getCurrentPerformance() {
-        return ApiResponse.success(performanceReadService.getCurrentPerformance());
-    }
-
     @Operation(summary = "공연 타임테이블 조회", description = "공연 타임테이블을 공연 일차와 시작 시간 순으로 조회합니다.")
     @GetMapping("/timetable")
     public ApiResponse<List<PerformanceTimetableResponse>> getPerformanceTimetable() {
