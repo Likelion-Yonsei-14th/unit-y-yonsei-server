@@ -5,8 +5,12 @@ import com.likelion.yonsei.daedongje.domain.auth.entity.AdminRole;
 import com.likelion.yonsei.daedongje.domain.auth.exception.AuthErrorCode;
 import com.likelion.yonsei.daedongje.domain.auth.support.AdminSessionUser;
 import com.likelion.yonsei.daedongje.domain.booth.entity.Booth;
+import com.likelion.yonsei.daedongje.domain.booth.entity.BoothImage;
 import com.likelion.yonsei.daedongje.domain.booth.exception.BoothErrorCode;
+import com.likelion.yonsei.daedongje.domain.booth.repository.BoothImageRepository;
 import com.likelion.yonsei.daedongje.domain.booth.repository.BoothRepository;
+import com.likelion.yonsei.daedongje.domain.reservation.dto.MyReservationResponse;
+import com.likelion.yonsei.daedongje.domain.reservation.dto.MyReservationResponse.BoothInfo;
 import com.likelion.yonsei.daedongje.domain.reservation.dto.ReservationAdminStatusRequest;
 import com.likelion.yonsei.daedongje.domain.reservation.dto.ReservationCreateRequest;
 import com.likelion.yonsei.daedongje.domain.reservation.dto.ReservationCreateResponse;
@@ -33,6 +37,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -41,6 +46,7 @@ public class ReservationService {
 
     private final ReservationRepository reservationRepository;
     private final BoothRepository boothRepository;
+    private final BoothImageRepository boothImageRepository;
     private final PasswordEncoder passwordEncoder;
 
     /** 같은 전화번호의 동일 부스 예약을 광클로 간주해 멱등 처리하는 시간 윈도우. application.yaml 의 app.reservation.duplicate-window 로 조정. */
@@ -150,13 +156,42 @@ public class ReservationService {
 
     // 사용자 예약 목록 조회 (이름 + 연락처 + 선택적 PIN + 선택적 상태 필터)
     // PIN이 있는 예약은 BCrypt 비교로 필터링
-    public List<ReservationResponse> getListByBooker(String bookerName, String phoneNumber,
-                                                     String pin, ReservationStatus status) {
-        return reservationRepository
+    public List<MyReservationResponse> getListByBooker(String bookerName, String phoneNumber,
+                                                       String pin, ReservationStatus status) {
+        List<Reservation> reservations = reservationRepository
                 .findAllByBookerNameAndPhoneNumberWithFilter(bookerName, phoneNumber, status)
                 .stream()
                 .filter(r -> pinMatches(r.getPin(), pin))
-                .map(r -> ReservationResponse.of(r, calcAheadOfMe(r)))
+                .toList();
+
+        if (reservations.isEmpty()) {
+            return List.of();
+        }
+
+        List<Long> boothIds = reservations.stream()
+                .map(r -> r.getBooth().getId())
+                .distinct()
+                .toList();
+
+        Map<Long, String> thumbnailByBoothId = boothImageRepository.findThumbnailsByBoothIds(boothIds)
+                .stream()
+                .collect(Collectors.toMap(BoothImage::getBoothId, BoothImage::getImageUrl));
+
+        Map<Long, Long> waitingCountByBoothId = reservationRepository
+                .countByBoothIdsAndStatus(boothIds, ReservationStatus.PENDING)
+                .stream()
+                .collect(Collectors.toMap(row -> (Long) row[0], row -> (Long) row[1]));
+
+        return reservations.stream()
+                .map(r -> {
+                    Long boothId = r.getBooth().getId();
+                    BoothInfo boothInfo = BoothInfo.of(
+                            r.getBooth(),
+                            waitingCountByBoothId.getOrDefault(boothId, 0L),
+                            thumbnailByBoothId.get(boothId)
+                    );
+                    return MyReservationResponse.of(r, calcAheadOfMe(r), boothInfo);
+                })
                 .toList();
     }
 
