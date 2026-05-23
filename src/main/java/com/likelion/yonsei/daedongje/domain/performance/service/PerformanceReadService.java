@@ -35,6 +35,13 @@ public class PerformanceReadService {
                 .toList();
     }
 
+    public List<PerformanceListResponse> getAdminPerformances() {
+        return performanceRepository.findAllWithLocation().stream()
+                .sorted(PERFORMANCE_ORDER)
+                .map(PerformanceListResponse::from)
+                .toList();
+    }
+
     public PerformanceDetailResponse getPerformanceDetail(Long id) {
         Performance performance = performanceRepository.findByIdAndPerformanceStatusNot(id, PerformanceStatus.HIDDEN)
                 .orElseThrow(() -> new BusinessException(PerformanceErrorCode.PERFORMANCE_NOT_FOUND));
