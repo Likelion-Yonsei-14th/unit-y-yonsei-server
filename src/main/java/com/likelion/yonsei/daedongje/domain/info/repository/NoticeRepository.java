@@ -10,7 +10,7 @@ import java.util.Optional;
 public interface NoticeRepository extends JpaRepository<Notice, Long> {
 
     @EntityGraph(attributePaths = "images")
-    List<Notice> findAllByOrderByPinnedDescCreatedAtDescIdDesc();
+    List<Notice> findAllByOrderByPinnedDescUpdatedAtDescIdDesc();
 
     @Override
     @EntityGraph(attributePaths = "images")

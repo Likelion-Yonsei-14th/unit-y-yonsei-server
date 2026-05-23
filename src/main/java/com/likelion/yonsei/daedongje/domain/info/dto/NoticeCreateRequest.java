@@ -15,6 +15,9 @@ public record NoticeCreateRequest(
         @NotBlank(message = "content는 비어 있을 수 없습니다.")
         String content,
 
+        @Size(max = 255, message = "instagramUrl은 255자를 넘을 수 없습니다.")
+        String instagramUrl,
+
         Boolean hasImage,
 
         @Size(max = 1000, message = "imageUrl은 1000자를 넘을 수 없습니다.")

@@ -27,7 +27,7 @@ public class NoticeService {
     private final NoticeRepository noticeRepository;
 
     public List<NoticeResponse> getNotices() {
-        return noticeRepository.findAllByOrderByPinnedDescCreatedAtDescIdDesc().stream()
+        return noticeRepository.findAllByOrderByPinnedDescUpdatedAtDescIdDesc().stream()
                 .map(NoticeResponse::from)
                 .toList();
     }
@@ -37,6 +37,7 @@ public class NoticeService {
         Notice notice = Notice.create(
                 request.title(),
                 request.content(),
+                request.instagramUrl(),
                 Boolean.TRUE.equals(request.isPinned()),
                 request.category(),
                 request.performanceId(),
@@ -53,6 +54,7 @@ public class NoticeService {
         notice.update(
                 request.title(),
                 request.content(),
+                request.instagramUrl(),
                 request.isPinned(),
                 request.category(),
                 request.performanceId(),

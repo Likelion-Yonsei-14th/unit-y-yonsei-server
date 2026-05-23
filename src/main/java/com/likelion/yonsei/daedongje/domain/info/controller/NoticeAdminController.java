@@ -42,8 +42,7 @@ public class NoticeAdminController {
     @Operation(summary = "공지사항 삭제")
     @DeleteMapping("/{noticeId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public ApiResponse<Void> deleteNotice(@PathVariable Long noticeId) {
+    public void deleteNotice(@PathVariable Long noticeId) {
         noticeService.deleteNotice(noticeId);
-        return ApiResponse.successEmpty();
     }
 }
