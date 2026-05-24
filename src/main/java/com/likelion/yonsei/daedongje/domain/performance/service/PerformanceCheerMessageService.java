@@ -26,7 +26,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -149,7 +148,11 @@ public class PerformanceCheerMessageService {
             Long setlistId
     ) {
         Performance performance = findMyPerformance(currentAdmin);
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt", "id"));
+        // 잘못된 page/size(음수·0)는 PageRequest.of 에서 IllegalArgumentException → 500 이 되므로 방어한다.
+        // 정렬은 아래 두 @Query 의 ORDER BY 가 담당하므로 Pageable 에 Sort 를 중복 지정하지 않는다.
+        int safePage = Math.max(page, 0);
+        int safeSize = Math.max(size, 1);
+        Pageable pageable = PageRequest.of(safePage, safeSize);
 
         Page<PerformanceCheerMessage> result;
         if (setlistId != null) {

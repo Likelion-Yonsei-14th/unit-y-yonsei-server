@@ -278,6 +278,15 @@ class PerformanceReviewDashboardControllerTest {
                 .andExpect(jsonPath("$.error.code").value("A-007"));
     }
 
+    @Test
+    void reviewsDoesNotFailOnInvalidPaginationParams() throws Exception {
+        // page<0, size<1 은 PageRequest.of 에서 IllegalArgumentException → 500 이 되던 케이스.
+        // 방어 처리 후 500 이 아니라 정상 200 이어야 한다.
+        mockMvc.perform(get(REVIEWS_URL).param("page", "-1").param("size", "0"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+    }
+
     // ── Swagger 노출 확인 ─────────────────────────────────────────────────────
 
     @Test
