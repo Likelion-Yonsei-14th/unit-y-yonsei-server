@@ -469,7 +469,7 @@ class PerformanceAdminControllerTest {
                         .content(requestBody))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.error.code").value("P-012"));
+                .andExpect(jsonPath("$.error.code").value("P-013"));
 
         Performance updated = performanceRepository.findById(performance.getId()).orElseThrow();
         assertThat(updated.getPerformanceCategory()).isEqualTo(PerformanceCategory.ARTIST);
@@ -503,7 +503,7 @@ class PerformanceAdminControllerTest {
                         .content(requestBody))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.error.code").value("P-012"));
+                .andExpect(jsonPath("$.error.code").value("P-013"));
 
         Performance updated = performanceRepository.findById(performance.getId()).orElseThrow();
         assertThat(updated.getPerformanceCategory()).isEqualTo(PerformanceCategory.ARTIST);
