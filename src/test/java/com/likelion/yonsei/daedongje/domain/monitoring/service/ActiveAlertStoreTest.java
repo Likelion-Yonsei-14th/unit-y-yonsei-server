@@ -18,7 +18,6 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
@@ -56,7 +55,7 @@ class ActiveAlertStoreTest {
         store.upsert(new ActiveAlertResponse("fp1", "HighErrorRate", "high", "5xx>5%", "2026-05-24T10:00:00Z"));
 
         verify(hashOperations).put(eq(KEY), eq("fp1"), contains("HighErrorRate"));
-        verify(redisTemplate).expire(eq(KEY), any(Duration.class));
+        verify(redisTemplate).expire(eq(KEY), eq(Duration.ofHours(6)));
     }
 
     @Test
@@ -96,5 +95,31 @@ class ActiveAlertStoreTest {
         assertThat(store.findAllActive()).isEmpty();
         store.upsert(new ActiveAlertResponse("fp", "n", "s", "sum", "t")); // 예외 없이 통과
         store.remove("fp");
+    }
+
+    @Test
+    @DisplayName("Redis 조회 중 예외가 나면 빈 목록을 반환한다(fail-safe)")
+    void findAllActiveSwallowsRedisException() {
+        when(redisTemplateProvider.getIfAvailable()).thenReturn(redisTemplate);
+        when(redisTemplate.opsForHash()).thenReturn(hashOperations);
+        when(hashOperations.entries(KEY)).thenThrow(new RuntimeException("redis down"));
+
+        assertThat(store.findAllActive()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("역직렬화 불가한 항목은 건너뛰고 정상 항목만 반환한다")
+    void findAllActiveSkipsMalformedEntries() throws Exception {
+        when(redisTemplateProvider.getIfAvailable()).thenReturn(redisTemplate);
+        when(redisTemplate.opsForHash()).thenReturn(hashOperations);
+        Map<Object, Object> raw = new HashMap<>();
+        raw.put("bad", "{not json");
+        raw.put("fp1", objectMapper.writeValueAsString(
+                new ActiveAlertResponse("fp1", "A", "high", "s1", "2026-05-24T09:00:00Z")));
+        when(hashOperations.entries(KEY)).thenReturn(raw);
+
+        List<ActiveAlertResponse> result = store.findAllActive();
+
+        assertThat(result).extracting(ActiveAlertResponse::fingerprint).containsExactly("fp1");
     }
 }
