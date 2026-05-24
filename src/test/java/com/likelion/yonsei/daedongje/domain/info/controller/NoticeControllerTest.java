@@ -163,7 +163,8 @@ class NoticeControllerTest {
                 .andExpect(jsonPath("$.data.images[1].imageUrl").value("https://example.com/updated-2.png"));
 
         mockMvc.perform(delete("/api/admin/notices/{noticeId}", noticeId))
-                .andExpect(status().isNoContent());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
 
         mockMvc.perform(get("/api/notices"))
                 .andExpect(status().isOk())
