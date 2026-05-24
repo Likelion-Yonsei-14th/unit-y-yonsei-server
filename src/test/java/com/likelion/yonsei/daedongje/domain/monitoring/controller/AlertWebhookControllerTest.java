@@ -31,7 +31,7 @@ class AlertWebhookControllerTest {
     @MockitoBean
     private ActiveAlertStore activeAlertStore;
 
-    // 인터셉터 빈 구성을 위해 필요 (기존 컨트롤러 @WebMvcTest와 동일 패턴)
+    // AdminRoleInterceptor가 WebMvcTest 컨텍스트에서 요구하는 빈 (이 컨트롤러는 admin 세션을 쓰지 않음)
     @MockitoBean
     private AdminAuthContextService adminAuthContextService;
 

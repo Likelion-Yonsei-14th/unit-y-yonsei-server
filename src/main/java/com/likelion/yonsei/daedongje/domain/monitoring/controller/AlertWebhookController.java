@@ -16,6 +16,9 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+
 /**
  * Grafana Cloud 알림 웹훅 수신(내부용). 관리자 세션이 아니라 공유 시크릿으로 보호한다.
  * firing→활성 알림 저장, resolved→제거.
@@ -54,9 +57,13 @@ public class AlertWebhookController {
         return ApiResponse.successEmpty();
     }
 
+    // NOTE: firing/resolved 외 상태(예: pending)는 무시한다 — Grafana Cloud 웹훅이 현재 두 상태만
+    //       전송하므로 의도된 동작이다. 재전송(replay) 보호는 두지 않는다(upsert/remove가 멱등).
     private void applyAlert(GrafanaWebhookRequest.Alert alert) {
         if (RESOLVED.equalsIgnoreCase(alert.status())) {
-            activeAlertStore.remove(alert.fingerprint());
+            if (alert.fingerprint() != null) {
+                activeAlertStore.remove(alert.fingerprint());
+            }
             return;
         }
         if (FIRING.equalsIgnoreCase(alert.status())) {
@@ -83,8 +90,14 @@ public class AlertWebhookController {
     }
 
     private void verifySecret(String authorization) {
-        if (webhookSecret == null || webhookSecret.isBlank()
-                || authorization == null || !authorization.equals(BEARER_PREFIX + webhookSecret)) {
+        // NOTE: 시크릿 미설정(공백)이면 모든 요청을 거부한다(안전 기본값).
+        if (webhookSecret == null || webhookSecret.isBlank() || authorization == null) {
+            throw new BusinessException(MonitoringErrorCode.INVALID_WEBHOOK_SECRET);
+        }
+        // NOTE: 인터넷에 노출되는 시크릿 검증이므로 타이밍 공격 방지를 위해 상수 시간 비교를 쓴다.
+        byte[] provided = authorization.getBytes(StandardCharsets.UTF_8);
+        byte[] expected = (BEARER_PREFIX + webhookSecret).getBytes(StandardCharsets.UTF_8);
+        if (!MessageDigest.isEqual(provided, expected)) {
             throw new BusinessException(MonitoringErrorCode.INVALID_WEBHOOK_SECRET);
         }
     }
