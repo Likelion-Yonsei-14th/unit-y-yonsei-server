@@ -9,8 +9,10 @@ import com.likelion.yonsei.daedongje.domain.performance.entity.Performance;
 import com.likelion.yonsei.daedongje.domain.performance.entity.PerformanceImage;
 import com.likelion.yonsei.daedongje.domain.performance.entity.PerformanceImageType;
 import com.likelion.yonsei.daedongje.domain.performance.entity.PerformanceStatus;
+import com.likelion.yonsei.daedongje.domain.performance.repository.PerformanceCheerMessageRepository;
 import com.likelion.yonsei.daedongje.domain.performance.repository.PerformanceImageRepository;
 import com.likelion.yonsei.daedongje.domain.performance.repository.PerformanceRepository;
+import com.likelion.yonsei.daedongje.domain.performance.repository.PerformanceSetlistRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -49,6 +51,12 @@ class PerformanceImageControllerTest {
     @Autowired
     private PerformanceImageRepository performanceImageRepository;
 
+    @Autowired
+    private PerformanceCheerMessageRepository performanceCheerMessageRepository;
+
+    @Autowired
+    private PerformanceSetlistRepository performanceSetlistRepository;
+
     @MockitoBean
     private AdminAuthContextService adminAuthContextService;
 
@@ -57,7 +65,9 @@ class PerformanceImageControllerTest {
 
     @BeforeEach
     void setUp() {
+        performanceCheerMessageRepository.deleteAll();
         performanceImageRepository.deleteAll();
+        performanceSetlistRepository.deleteAll();
         performanceRepository.deleteAll();
         adminUserRepository.deleteAll();
         Mockito.reset(adminAuthContextService);
