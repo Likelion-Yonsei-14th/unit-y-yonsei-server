@@ -27,7 +27,20 @@ public class PresignedUrlCreateResponse {
     )
     private String imageUrl;
 
-    public static PresignedUrlCreateResponse of(String uploadUrl, String objectKey, String imageUrl) {
-        return new PresignedUrlCreateResponse(uploadUrl, objectKey, imageUrl);
+    @Schema(
+            description = "PUT 업로드 시 동봉해야 하는 Cache-Control 값. "
+                    + "Presigned URL 서명에 포함되므로 클라이언트는 이 값을 그대로 PUT 헤더에 echo 해야 한다. "
+                    + "(값이 1글자라도 다르면 S3가 SignatureDoesNotMatch로 거부)",
+            example = "public, max-age=31536000, immutable"
+    )
+    private String cacheControl;
+
+    public static PresignedUrlCreateResponse of(
+            String uploadUrl,
+            String objectKey,
+            String imageUrl,
+            String cacheControl
+    ) {
+        return new PresignedUrlCreateResponse(uploadUrl, objectKey, imageUrl, cacheControl);
     }
 }
