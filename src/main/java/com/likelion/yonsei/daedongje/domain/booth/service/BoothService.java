@@ -114,7 +114,7 @@ public class BoothService {
     public BoothResponse getById(Long id) {
         Booth booth = boothRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(BoothErrorCode.BOOTH_NOT_FOUND));
-        return BoothResponse.of(booth, 0L, fetchThumbnail(id), fetchMapLocation(booth));
+        return BoothResponse.of(booth, countWaiting(id), fetchThumbnail(id), fetchMapLocation(booth));
     }
 
     // 부스 전체 조회 (필터: 날짜, 구역, 음식 여부, 푸드트럭 여부 — 모든 AND 조합 지원)
@@ -148,13 +148,7 @@ public class BoothService {
         if (booths.isEmpty()) return List.of();
 
         List<Long> boothIds = booths.stream().map(Booth::getId).toList();
-        Map<Long, Long> waitingCountMap = reservationRepository
-                .countByBoothIdsAndStatus(boothIds, ReservationStatus.PENDING)
-                .stream()
-                .collect(Collectors.toMap(
-                        row -> (Long) row[0],
-                        row -> (Long) row[1]
-                ));
+        Map<Long, Long> waitingCountMap = countWaitingByBooths(boothIds);
         Map<Long, String> thumbnailMap = fetchThumbnailMap(boothIds);
         Map<Long, MapLocationResponse> mapLocationMap = fetchMapLocationMap(booths);
 
@@ -168,10 +162,12 @@ public class BoothService {
         List<Booth> booths = boothRepository.searchByKeyword(keyword);
         if (booths.isEmpty()) return List.of();
 
-        Map<Long, String> thumbnailMap = fetchThumbnailMap(booths.stream().map(Booth::getId).toList());
+        List<Long> boothIds = booths.stream().map(Booth::getId).toList();
+        Map<Long, Long> waitingCountMap = countWaitingByBooths(boothIds);
+        Map<Long, String> thumbnailMap = fetchThumbnailMap(boothIds);
         Map<Long, MapLocationResponse> mapLocationMap = fetchMapLocationMap(booths);
         return booths.stream()
-                .map(booth -> BoothResponse.of(booth, 0L, thumbnailMap.get(booth.getId()), resolveMapLocation(booth, mapLocationMap)))
+                .map(booth -> BoothResponse.of(booth, waitingCountMap.getOrDefault(booth.getId(), 0L), thumbnailMap.get(booth.getId()), resolveMapLocation(booth, mapLocationMap)))
                 .toList();
     }
 
@@ -181,13 +177,7 @@ public class BoothService {
         if (booths.isEmpty()) return List.of();
 
         List<Long> boothIds = booths.stream().map(Booth::getId).toList();
-        Map<Long, Long> waitingCountMap = reservationRepository
-                .countByBoothIdsAndStatus(boothIds, ReservationStatus.PENDING)
-                .stream()
-                .collect(Collectors.toMap(
-                        row -> (Long) row[0],
-                        row -> (Long) row[1]
-                ));
+        Map<Long, Long> waitingCountMap = countWaitingByBooths(boothIds);
         Map<Long, String> thumbnailMap = fetchThumbnailMap(boothIds);
 
         return booths.stream()
@@ -235,7 +225,7 @@ public class BoothService {
                     request.isFoodTruck(),
                     request.notice()
             );
-            return BoothResponse.of(booth, 0L, fetchThumbnail(booth.getId()), fetchMapLocation(booth));
+            return BoothResponse.of(booth, countWaiting(booth.getId()), fetchThumbnail(booth.getId()), fetchMapLocation(booth));
         } catch (DataIntegrityViolationException e) {
             throw new BusinessException(BoothErrorCode.DUPLICATE_BOOTH_NAME);
         }
@@ -252,7 +242,7 @@ public class BoothService {
         }
 
         booth.updateStatus(status);
-        return BoothResponse.of(booth, 0L, fetchThumbnail(booth.getId()), fetchMapLocation(booth));
+        return BoothResponse.of(booth, countWaiting(booth.getId()), fetchThumbnail(booth.getId()), fetchMapLocation(booth));
     }
 
     // 예약 접수 On/Off (SUPER 외 역할은 본인 담당 부스만 변경 가능)
@@ -266,7 +256,7 @@ public class BoothService {
         }
 
         booth.updateIsReservable(isReservable);
-        return BoothResponse.of(booth, 0L, fetchThumbnail(booth.getId()), fetchMapLocation(booth));
+        return BoothResponse.of(booth, countWaiting(booth.getId()), fetchThumbnail(booth.getId()), fetchMapLocation(booth));
     }
 
     // 부스 삭제 — 운영 데이터(예약·메뉴·공지) 가 남아 있으면 차단해 실수 삭제 방지 (BAC-109).
@@ -321,6 +311,23 @@ public class BoothService {
     private Map<Long, String> fetchThumbnailMap(List<Long> boothIds) {
         return boothImageRepository.findThumbnailsByBoothIds(boothIds).stream()
                 .collect(Collectors.toMap(BoothImage::getBoothId, BoothImage::getImageUrl));
+    }
+
+    // 단건 부스의 대기(PENDING 예약) 팀 수. getById/update/updateStatus/updateIsReservable 가 공유한다.
+    // 과거 0L 하드코딩으로 목록 응답과 불일치하던 버그(B-01)를 막기 위해 집계로 통일한다.
+    private long countWaiting(Long boothId) {
+        return reservationRepository.countByBoothIdAndStatus(boothId, ReservationStatus.PENDING);
+    }
+
+    // 여러 부스의 대기 팀 수 일괄 집계. 목록·검색·예약가능 목록이 공유한다.
+    private Map<Long, Long> countWaitingByBooths(List<Long> boothIds) {
+        return reservationRepository
+                .countByBoothIdsAndStatus(boothIds, ReservationStatus.PENDING)
+                .stream()
+                .collect(Collectors.toMap(
+                        row -> (Long) row[0],
+                        row -> (Long) row[1]
+                ));
     }
 
     private MapLocationResponse fetchMapLocation(Booth booth) {
