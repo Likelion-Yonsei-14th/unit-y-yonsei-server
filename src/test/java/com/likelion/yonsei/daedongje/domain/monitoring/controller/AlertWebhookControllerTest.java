@@ -15,6 +15,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -106,5 +108,22 @@ class AlertWebhookControllerTest {
                 .andExpect(jsonPath("$.error.code").value("MON-001"));
 
         verifyNoInteractions(activeAlertStore);
+    }
+
+    @Test
+    @DisplayName("fingerprint이 없는 firing 알림은 저장하지 않고 무시한다")
+    void firingWithoutFingerprintIsIgnored() throws Exception {
+        String body = """
+                {"status":"firing","alerts":[
+                  {"status":"firing","labels":{"alertname":"X","severity":"high"},
+                   "annotations":{"summary":"no fingerprint"},"startsAt":"2026-05-24T10:00:00Z"}]}""";
+
+        mockMvc.perform(post("/internal/monitoring/alerts")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer test-secret")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk());
+
+        verify(activeAlertStore, never()).upsert(any());
     }
 }

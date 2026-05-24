@@ -60,10 +60,13 @@ public class AlertWebhookController {
     // NOTE: firing/resolved 외 상태(예: pending)는 무시한다 — Grafana Cloud 웹훅이 현재 두 상태만
     //       전송하므로 의도된 동작이다. 재전송(replay) 보호는 두지 않는다(upsert/remove가 멱등).
     private void applyAlert(GrafanaWebhookRequest.Alert alert) {
+        // NOTE: fingerprint는 Redis 해시 field 키다. 없으면 저장·삭제 모두 불가하므로
+        //       firing/resolved 모두 무시한다(field=null로 저장 시도 시 발생하는 경고 로그 방지).
+        if (alert.fingerprint() == null) {
+            return;
+        }
         if (RESOLVED.equalsIgnoreCase(alert.status())) {
-            if (alert.fingerprint() != null) {
-                activeAlertStore.remove(alert.fingerprint());
-            }
+            activeAlertStore.remove(alert.fingerprint());
             return;
         }
         if (FIRING.equalsIgnoreCase(alert.status())) {
