@@ -1,14 +1,18 @@
 package com.likelion.yonsei.daedongje.domain.performance.controller;
 
 import com.likelion.yonsei.daedongje.common.response.ApiResponse;
+import com.likelion.yonsei.daedongje.common.response.PageResponse;
 import com.likelion.yonsei.daedongje.domain.auth.entity.AdminRole;
 import com.likelion.yonsei.daedongje.domain.auth.support.AdminSessionUser;
 import com.likelion.yonsei.daedongje.domain.auth.support.CurrentAdmin;
 import com.likelion.yonsei.daedongje.domain.auth.support.RequireAdminRole;
 import com.likelion.yonsei.daedongje.domain.performance.dto.PerformanceCheerMessageCreateRequest;
 import com.likelion.yonsei.daedongje.domain.performance.dto.PerformanceCheerMessageResponse;
+import com.likelion.yonsei.daedongje.domain.performance.dto.PerformanceReviewResponse;
+import com.likelion.yonsei.daedongje.domain.performance.dto.PerformanceReviewSummaryResponse;
 import com.likelion.yonsei.daedongje.domain.performance.service.PerformanceCheerMessageService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +23,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -72,5 +77,35 @@ public class PerformanceCheerMessageController {
     ) {
         cheerMessageService.hideMyPerformanceCheerMessage(currentAdmin, messageId);
         return ResponseEntity.noContent().build();
+    }
+
+    @Operation(
+            summary = "내 공연 후기 수합 대시보드 조회",
+            description = "공연팀 어드민이 본인 공연에 대한 셋리스트별 투표 집계 결과와 전체 투표 수를 조회합니다."
+    )
+    @RequireAdminRole({AdminRole.PERFORMER, AdminRole.SUPER})
+    @GetMapping("/api/admin/performances/me/reviews/summary")
+    public ApiResponse<PerformanceReviewSummaryResponse> getMyPerformanceReviewSummary(
+            @CurrentAdmin AdminSessionUser currentAdmin
+    ) {
+        return ApiResponse.success(cheerMessageService.getMyPerformanceReviewSummary(currentAdmin));
+    }
+
+    @Operation(
+            summary = "내 공연 후기 목록 조회",
+            description = "공연팀 어드민이 본인 공연의 관객 후기 목록을 최신순으로 페이지네이션하여 조회합니다."
+    )
+    @RequireAdminRole({AdminRole.PERFORMER, AdminRole.SUPER})
+    @GetMapping("/api/admin/performances/me/reviews")
+    public ApiResponse<PageResponse<PerformanceReviewResponse>> getMyPerformanceReviews(
+            @CurrentAdmin AdminSessionUser currentAdmin,
+            @Parameter(description = "페이지 번호. 0부터 시작", example = "0")
+            @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "페이지 크기", example = "10")
+            @RequestParam(defaultValue = "10") int size,
+            @Parameter(description = "특정 셋리스트 기준 필터링 (선택)")
+            @RequestParam(required = false) Long setlistId
+    ) {
+        return ApiResponse.success(cheerMessageService.getMyPerformanceReviews(currentAdmin, page, size, setlistId));
     }
 }

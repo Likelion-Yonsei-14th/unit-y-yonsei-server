@@ -3,6 +3,8 @@ package com.likelion.yonsei.daedongje.domain.performance.repository;
 import com.likelion.yonsei.daedongje.domain.performance.entity.CheerMessageDisplayStatus;
 import com.likelion.yonsei.daedongje.domain.performance.entity.Performance;
 import com.likelion.yonsei.daedongje.domain.performance.entity.PerformanceCheerMessage;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -51,4 +53,39 @@ public interface PerformanceCheerMessageRepository extends JpaRepository<Perform
             WHERE m.id = :id
             """)
     Optional<PerformanceCheerMessage> findByIdWithRelations(@Param("id") Long id);
+
+    @Query(
+            value = """
+                    SELECT m FROM PerformanceCheerMessage m
+                    LEFT JOIN FETCH m.setlist
+                    WHERE m.performance = :performance
+                    ORDER BY m.createdAt DESC, m.id DESC
+                    """,
+            countQuery = """
+                    SELECT COUNT(m) FROM PerformanceCheerMessage m
+                    WHERE m.performance = :performance
+                    """
+    )
+    Page<PerformanceCheerMessage> findPageByPerformanceOrderByCreatedAtDescIdDesc(
+            @Param("performance") Performance performance,
+            Pageable pageable
+    );
+
+    @Query(
+            value = """
+                    SELECT m FROM PerformanceCheerMessage m
+                    LEFT JOIN FETCH m.setlist
+                    WHERE m.performance = :performance AND m.setlist.id = :setlistId
+                    ORDER BY m.createdAt DESC, m.id DESC
+                    """,
+            countQuery = """
+                    SELECT COUNT(m) FROM PerformanceCheerMessage m
+                    WHERE m.performance = :performance AND m.setlist.id = :setlistId
+                    """
+    )
+    Page<PerformanceCheerMessage> findPageByPerformanceAndSetlistIdOrderByCreatedAtDescIdDesc(
+            @Param("performance") Performance performance,
+            @Param("setlistId") Long setlistId,
+            Pageable pageable
+    );
 }

@@ -1,13 +1,17 @@
 package com.likelion.yonsei.daedongje.domain.performance.service;
 
 import com.likelion.yonsei.daedongje.common.exception.BusinessException;
+import com.likelion.yonsei.daedongje.common.response.PageResponse;
 import com.likelion.yonsei.daedongje.domain.auth.entity.AdminRole;
 import com.likelion.yonsei.daedongje.domain.auth.entity.AdminUser;
 import com.likelion.yonsei.daedongje.domain.auth.exception.AuthErrorCode;
 import com.likelion.yonsei.daedongje.domain.auth.repository.AdminUserRepository;
 import com.likelion.yonsei.daedongje.domain.auth.support.AdminSessionUser;
+import com.likelion.yonsei.daedongje.domain.performance.dto.FavoriteStageResultResponse;
 import com.likelion.yonsei.daedongje.domain.performance.dto.PerformanceCheerMessageCreateRequest;
 import com.likelion.yonsei.daedongje.domain.performance.dto.PerformanceCheerMessageResponse;
+import com.likelion.yonsei.daedongje.domain.performance.dto.PerformanceReviewResponse;
+import com.likelion.yonsei.daedongje.domain.performance.dto.PerformanceReviewSummaryResponse;
 import com.likelion.yonsei.daedongje.domain.performance.entity.CheerMessageDisplayStatus;
 import com.likelion.yonsei.daedongje.domain.performance.entity.Performance;
 import com.likelion.yonsei.daedongje.domain.performance.entity.PerformanceCheerMessage;
@@ -19,10 +23,18 @@ import com.likelion.yonsei.daedongje.domain.performance.repository.PerformanceCh
 import com.likelion.yonsei.daedongje.domain.performance.repository.PerformanceRepository;
 import com.likelion.yonsei.daedongje.domain.performance.repository.PerformanceSetlistRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -90,6 +102,74 @@ public class PerformanceCheerMessageService {
         validateCheerMessageBelongsToPerformance(cheerMessage, performance);
 
         cheerMessage.hide();
+    }
+
+    public PerformanceReviewSummaryResponse getMyPerformanceReviewSummary(AdminSessionUser currentAdmin) {
+        Performance performance = findMyPerformance(currentAdmin);
+        List<PerformanceCheerMessage> messages =
+                cheerMessageRepository.findAllByPerformanceWithRelationsOrderByCreatedAtAscIdAsc(performance);
+
+        List<PerformanceCheerMessage> votes = messages.stream()
+                .filter(m -> m.getSetlist() != null)
+                .toList();
+        long totalVoteCount = votes.size();
+
+        Map<Long, List<PerformanceCheerMessage>> grouped = votes.stream()
+                .collect(Collectors.groupingBy(m -> m.getSetlist().getId()));
+
+        List<FavoriteStageResultResponse> favoriteStageResults = new ArrayList<>();
+        int rank = 1;
+        List<Map.Entry<Long, List<PerformanceCheerMessage>>> sorted = grouped.entrySet().stream()
+                .sorted(Comparator.<Map.Entry<Long, List<PerformanceCheerMessage>>>comparingInt(
+                        e -> e.getValue().size()).reversed()
+                        .thenComparingLong(Map.Entry::getKey))
+                .toList();
+
+        for (Map.Entry<Long, List<PerformanceCheerMessage>> entry : sorted) {
+            PerformanceSetlist setlist = entry.getValue().get(0).getSetlist();
+            long voteCount = entry.getValue().size();
+            double voteRate = totalVoteCount > 0
+                    ? Math.round((double) voteCount / totalVoteCount * 1000.0) / 10.0
+                    : 0.0;
+            favoriteStageResults.add(new FavoriteStageResultResponse(rank++, setlist.getId(), setlist.getSongTitle(), voteCount, voteRate));
+        }
+
+        return new PerformanceReviewSummaryResponse(
+                performance.getId(),
+                performance.getPerformanceName(),
+                totalVoteCount,
+                favoriteStageResults
+        );
+    }
+
+    public PageResponse<PerformanceReviewResponse> getMyPerformanceReviews(
+            AdminSessionUser currentAdmin,
+            int page,
+            int size,
+            Long setlistId
+    ) {
+        Performance performance = findMyPerformance(currentAdmin);
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt", "id"));
+
+        Page<PerformanceCheerMessage> result;
+        if (setlistId != null) {
+            validateSetlistBelongsToMyPerformance(setlistId, performance);
+            result = cheerMessageRepository.findPageByPerformanceAndSetlistIdOrderByCreatedAtDescIdDesc(
+                    performance, setlistId, pageable);
+        } else {
+            result = cheerMessageRepository.findPageByPerformanceOrderByCreatedAtDescIdDesc(
+                    performance, pageable);
+        }
+
+        return PageResponse.from(result.map(PerformanceReviewResponse::from));
+    }
+
+    private void validateSetlistBelongsToMyPerformance(Long setlistId, Performance performance) {
+        PerformanceSetlist setlist = performanceSetlistRepository.findById(setlistId)
+                .orElseThrow(() -> new BusinessException(PerformanceSetlistErrorCode.PERFORMANCE_SETLIST_NOT_FOUND));
+        if (!setlist.getPerformance().getId().equals(performance.getId())) {
+            throw new BusinessException(PerformanceCheerMessageErrorCode.CHEER_MESSAGE_SETLIST_FORBIDDEN);
+        }
     }
 
     private Performance findPerformance(Long performanceId) {
