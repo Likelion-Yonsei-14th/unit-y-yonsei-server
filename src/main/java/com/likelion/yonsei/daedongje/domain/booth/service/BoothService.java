@@ -101,6 +101,11 @@ public class BoothService {
         try {
             return BoothResponse.from(boothRepository.save(booth));
         } catch (DataIntegrityViolationException e) {
+            // 선검증(existsBy…)과 INSERT 사이의 race(TOCTOU) 로 UNIQUE 제약에 걸린 경우 —
+            // admin_id(계정당 부스 1개) 와 name 중 어느 제약 위반인지 재확인해 매핑한다.
+            if (boothRepository.existsByAdminId(request.adminId())) {
+                throw new BusinessException(BoothErrorCode.DUPLICATE_BOOTH_ADMIN);
+            }
             throw new BusinessException(BoothErrorCode.DUPLICATE_BOOTH_NAME);
         }
     }

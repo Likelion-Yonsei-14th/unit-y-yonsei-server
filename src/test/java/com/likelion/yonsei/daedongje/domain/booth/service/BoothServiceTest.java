@@ -319,6 +319,36 @@ class BoothServiceTest {
         assertThat(response.getName()).isEqualTo("멋사 핫도그");
     }
 
+    @Test
+    @DisplayName("선검증과 INSERT 사이 race 로 admin_id UNIQUE 제약에 걸리면 DUPLICATE_BOOTH_ADMIN 으로 매핑된다")
+    void createMapsAdminIdUniqueViolationToDuplicateBoothAdmin() {
+        when(adminUserRepository.existsById(1L)).thenReturn(true);
+        // 선검증 시점엔 없음(false) → 동시 트랜잭션이 먼저 커밋 → 재확인 시 존재(true)
+        when(boothRepository.existsByAdminId(1L)).thenReturn(false, true);
+        when(boothRepository.existsByName("멋사 핫도그")).thenReturn(false);
+        when(boothRepository.save(any(Booth.class)))
+                .thenThrow(new DataIntegrityViolationException("unique constraint uq_booths_admin_id"));
+
+        assertThatThrownBy(() -> boothService.create(createRequest()))
+                .isInstanceOfSatisfying(BusinessException.class, e ->
+                        assertThat(e.getErrorCode()).isEqualTo(BoothErrorCode.DUPLICATE_BOOTH_ADMIN));
+    }
+
+    @Test
+    @DisplayName("부스 이름 UNIQUE 제약 위반(admin_id 중복 아님)은 DUPLICATE_BOOTH_NAME 으로 매핑된다")
+    void createMapsNameUniqueViolationToDuplicateBoothName() {
+        when(adminUserRepository.existsById(1L)).thenReturn(true);
+        // admin_id 는 선검증·재확인 모두 중복 아님 → 이름 제약 위반으로 판정
+        when(boothRepository.existsByAdminId(1L)).thenReturn(false, false);
+        when(boothRepository.existsByName("멋사 핫도그")).thenReturn(false);
+        when(boothRepository.save(any(Booth.class)))
+                .thenThrow(new DataIntegrityViolationException("unique constraint uq_booths_name"));
+
+        assertThatThrownBy(() -> boothService.create(createRequest()))
+                .isInstanceOfSatisfying(BusinessException.class, e ->
+                        assertThat(e.getErrorCode()).isEqualTo(BoothErrorCode.DUPLICATE_BOOTH_NAME));
+    }
+
     private AdminSessionUser superAdmin() {
         return new AdminSessionUser(99L, AdminRole.SUPER, "super");
     }
