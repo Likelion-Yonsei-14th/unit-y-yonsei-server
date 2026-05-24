@@ -36,7 +36,7 @@ build.gradle                                  # 수정 — micrometer-registry-p
 src/main/resources/
 ├── application.yaml                          # 수정 — actuator prometheus 엔드포인트 노출
 ├── application-prod.yaml                     # 수정 — 구조화 JSON(ECS) 콘솔 로깅
-└── logback-spring.xml                        # 수정 — 주석만 갱신(구조화 로깅은 property로 동작)
+└── logback-spring.xml                        # 수정 — prod 프로파일에서 structured-console-appender 분기 include
 
 deploy/
 ├── alloy/config.alloy                        # 신규 — Alloy 수집기 설정(scrape + log tail → Grafana Cloud)
@@ -171,12 +171,12 @@ git push
 
 **Files:**
 - Modify: `src/main/resources/application-prod.yaml`
-- Modify: `src/main/resources/logback-spring.xml:3` (주석 갱신)
+- Modify: `src/main/resources/logback-spring.xml` (prod 프로파일에서 structured-console-appender 분기 include)
 - Test: `src/test/java/com/likelion/yonsei/daedongje/domain/monitoring/StructuredLoggingFormatTest.java`
 
-**왜 prod 한정:** 로컬/개발은 사람이 읽는 콘솔 로그가 편하므로 base/dev는 그대로 두고, JSON은 `application-prod.yaml`에만 켠다. Loki가 `| json` 파서로 라벨(`level` 등)을 뽑아 알림 룰에 쓰려면 운영 로그가 JSON이어야 한다(Task 8 LogQL 룰 의존).
+**왜 prod 한정:** 로컬/개발은 사람이 읽는 콘솔 로그가 편하므로 base/dev는 그대로 두고, JSON은 `application-prod.yaml`에만 켠다. Loki가 `| json` 파서로 라벨(`log_level` 등)을 뽑아 알림 룰에 쓰려면 운영 로그가 JSON이어야 한다(Task 8 LogQL 룰 의존).
 
-**기존 logback-spring.xml과의 양립:** 현재 `logback-spring.xml`은 Spring Boot의 `console-appender.xml`을 `<include>`한다. 이 파일은 `CONSOLE_LOG_STRUCTURED_FORMAT` 시스템 프로퍼티(= `logging.structured.format.console`)를 읽어 인코더를 JSON으로 전환하므로, **property만 켜면** 커스텀 logback 설정을 건드리지 않고도 구조화 로깅이 적용된다. 이 테스트가 바로 그 양립성을 검증한다.
+> **구현 결과 정정(plan 초안 가정 오류):** 초안은 "`console-appender.xml`이 property만으로 JSON 인코더로 자동 전환된다"고 가정했으나 **틀렸다** — 일반 `console-appender.xml`은 항상 `${CONSOLE_LOG_PATTERN}`(평문)만 쓴다. 구조화는 별도 파일 `structured-console-appender.xml`(StructuredLogEncoder)이 담당한다. 커스텀 `logback-spring.xml`이 있으면 Spring Boot의 자동 전환이 비활성되므로, **prod 프로파일에서 `structured-console-appender`를 명시 include**해야 한다(`<springProfile name="prod">`). 또한 검증은 stdout 캡처가 아니라 **설정 계약 테스트**로 구현했다 — Spring Boot는 JVM당 logback을 1회만 초기화해 전체 스위트에서 런타임 어펜더 검사가 플레이키하기 때문(실제 JSON 출력은 단독 실행/수동 스모크로 입증). 아래 Step의 OutputCapture 코드는 초안 흔적이며 최종 구현은 계약 테스트다.
 
 - [ ] **Step 1: 실패하는 테스트 작성**
 

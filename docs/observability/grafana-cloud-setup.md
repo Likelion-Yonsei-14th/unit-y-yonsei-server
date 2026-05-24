@@ -3,7 +3,7 @@
 상위 설계: `docs/superpowers/specs/2026-05-24-server-observability-design.md`
 구현 plan: `docs/superpowers/plans/2026-05-25-server-observability-infra.md`
 
-이 문서는 **Grafana Cloud 콘솔/EC2에서 사람이 수행**하는 일회성 운영 설정을 정리한다. 코드(Alloy·앱)는 별도 PR로 머지됨(BAC-135).
+이 문서는 **Grafana Cloud 콘솔/EC2에서 사람이 수행**하는 일회성 운영 설정을 정리한다. Alloy·앱·compose 등 코드 변경은 같은 PR(BAC-135)에 포함되며, 이 문서는 그 위에서 진행하는 콘솔/EC2 설정 절차다.
 
 ## 1. Grafana Cloud 자격증명 확보
 
