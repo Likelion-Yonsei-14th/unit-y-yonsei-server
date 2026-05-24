@@ -10,6 +10,7 @@ import com.likelion.yonsei.daedongje.domain.performance.dto.PerformanceImageCrea
 import com.likelion.yonsei.daedongje.domain.performance.dto.PerformanceImageResponse;
 import com.likelion.yonsei.daedongje.domain.performance.entity.Performance;
 import com.likelion.yonsei.daedongje.domain.performance.entity.PerformanceImage;
+import com.likelion.yonsei.daedongje.domain.performance.entity.PerformanceImageType;
 import com.likelion.yonsei.daedongje.domain.performance.entity.PerformanceStatus;
 import com.likelion.yonsei.daedongje.domain.performance.exception.PerformanceErrorCode;
 import com.likelion.yonsei.daedongje.domain.performance.repository.PerformanceImageRepository;
@@ -29,12 +30,16 @@ public class PerformanceImageService {
     private final PerformanceRepository performanceRepository;
     private final AdminUserRepository adminUserRepository;
 
+    // 공연당 이미지 최대 개수(PROFILE 1 + DETAIL 다수). 운영 정책상 조정 가능.
+    private static final int MAX_IMAGES_PER_PERFORMANCE = 20;
+
     @Transactional
     public PerformanceImageResponse createMyPerformanceImage(
             AdminSessionUser currentAdmin,
             PerformanceImageCreateRequest request
     ) {
         Performance performance = getMyPerformance(currentAdmin);
+        validateImageConstraints(performance.getId(), request);
         PerformanceImage performanceImage = PerformanceImage.create(
                 performance,
                 request.imageUrl(),
@@ -43,6 +48,20 @@ public class PerformanceImageService {
         );
 
         return PerformanceImageResponse.from(performanceImageRepository.save(performanceImage));
+    }
+
+    // 공연 이미지 등록 규칙: 최대 개수 제한, 대표(PROFILE) 1장, imageOrder 유일.
+    private void validateImageConstraints(Long performanceId, PerformanceImageCreateRequest request) {
+        if (performanceImageRepository.countByPerformanceId(performanceId) >= MAX_IMAGES_PER_PERFORMANCE) {
+            throw new BusinessException(PerformanceErrorCode.PERFORMANCE_IMAGE_LIMIT_EXCEEDED);
+        }
+        if (request.imageType() == PerformanceImageType.PROFILE
+                && performanceImageRepository.existsByPerformanceIdAndImageType(performanceId, PerformanceImageType.PROFILE)) {
+            throw new BusinessException(PerformanceErrorCode.PERFORMANCE_IMAGE_PROFILE_ALREADY_EXISTS);
+        }
+        if (performanceImageRepository.existsByPerformanceIdAndImageOrder(performanceId, request.imageOrder())) {
+            throw new BusinessException(PerformanceErrorCode.PERFORMANCE_IMAGE_ORDER_DUPLICATED);
+        }
     }
 
     public List<PerformanceImageResponse> getPerformanceImages(Long performanceId) {

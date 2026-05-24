@@ -17,7 +17,10 @@ public enum PerformanceErrorCode implements ErrorCode {
     PERFORMANCE_HAS_SETLISTS(HttpStatus.BAD_REQUEST, "P-010", "셋리스트가 있어 공연을 삭제할 수 없습니다. 먼저 셋리스트를 정리해주세요."),
     PERFORMANCE_HAS_NOTICES(HttpStatus.BAD_REQUEST, "P-011", "공지가 있어 공연을 삭제할 수 없습니다. 먼저 공지를 정리해주세요."),
     PERFORMANCE_DELETE_CONFLICT(HttpStatus.CONFLICT, "P-012", "연결된 데이터가 있어 공연을 삭제할 수 없습니다."),
-    PERFORMANCE_CONTROL_FIELD_FORBIDDEN(HttpStatus.FORBIDDEN, "P-013", "공연 상태와 공연 구분은 운영진만 수정할 수 있습니다.");
+    PERFORMANCE_CONTROL_FIELD_FORBIDDEN(HttpStatus.FORBIDDEN, "P-013", "공연 상태와 공연 구분은 운영진만 수정할 수 있습니다."),
+    PERFORMANCE_IMAGE_PROFILE_ALREADY_EXISTS(HttpStatus.CONFLICT, "P-014", "대표(PROFILE) 이미지는 공연당 1장만 등록할 수 있습니다."),
+    PERFORMANCE_IMAGE_ORDER_DUPLICATED(HttpStatus.CONFLICT, "P-015", "이미 사용 중인 이미지 순서입니다."),
+    PERFORMANCE_IMAGE_LIMIT_EXCEEDED(HttpStatus.BAD_REQUEST, "P-016", "공연당 등록 가능한 이미지 개수를 초과했습니다.");
 
     private final HttpStatus status;
     private final String code;
