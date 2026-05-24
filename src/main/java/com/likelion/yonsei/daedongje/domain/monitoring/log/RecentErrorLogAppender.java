@@ -19,9 +19,13 @@ public class RecentErrorLogAppender extends AppenderBase<ILoggingEvent> {
     @Override
     protected void append(ILoggingEvent event) {
         IThrowableProxy throwableProxy = event.getThrowableProxy();
-        String throwable = (throwableProxy == null)
-                ? null
-                : throwableProxy.getClassName() + ": " + throwableProxy.getMessage();
+        String throwable = null;
+        if (throwableProxy != null) {
+            String throwableMessage = throwableProxy.getMessage();
+            throwable = (throwableMessage == null)
+                    ? throwableProxy.getClassName()
+                    : throwableProxy.getClassName() + ": " + throwableMessage;
+        }
 
         ErrorLogEntry entry = new ErrorLogEntry(
                 LocalDateTime.ofInstant(Instant.ofEpochMilli(event.getTimeStamp()), FESTIVAL_ZONE),
