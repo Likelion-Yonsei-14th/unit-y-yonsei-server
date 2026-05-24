@@ -2,6 +2,13 @@ server {
     listen 80;
     server_name _;
 
+    # 메트릭/내부 액추에이터는 외부 노출 금지. Alloy는 도커 내부에서 직접 scrape하므로 영향 없음.
+    # (/internal/** 은 Grafana Cloud 웹훅 수신용이라 공개 유지 — 공유 시크릿으로 보호)
+    location /actuator {
+        deny all;
+        return 404;
+    }
+
     location / {
         proxy_pass http://127.0.0.1:8080;
 
