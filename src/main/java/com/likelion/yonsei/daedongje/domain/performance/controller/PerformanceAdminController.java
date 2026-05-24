@@ -5,8 +5,10 @@ import com.likelion.yonsei.daedongje.domain.auth.entity.AdminRole;
 import com.likelion.yonsei.daedongje.domain.auth.support.AdminSessionUser;
 import com.likelion.yonsei.daedongje.domain.auth.support.CurrentAdmin;
 import com.likelion.yonsei.daedongje.domain.auth.support.RequireAdminRole;
+import com.likelion.yonsei.daedongje.domain.performance.dto.PerformanceListResponse;
 import com.likelion.yonsei.daedongje.domain.performance.dto.PerformanceMyResponse;
 import com.likelion.yonsei.daedongje.domain.performance.dto.PerformanceUpdateRequest;
+import com.likelion.yonsei.daedongje.domain.performance.service.PerformanceReadService;
 import com.likelion.yonsei.daedongje.domain.performance.service.PerformanceService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -20,6 +22,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 @Tag(name = "공연 어드민", description = "공연 어드민 본인 공연 정보 API")
 @RestController
 @RequestMapping("/api/admin/performances")
@@ -28,6 +32,17 @@ import org.springframework.web.bind.annotation.RestController;
 public class PerformanceAdminController {
 
     private final PerformanceService performanceService;
+    private final PerformanceReadService performanceReadService;
+
+    @Operation(
+            summary = "공연 목록 어드민 조회",
+            description = "SUPER 어드민이 공연 상태와 관계없이 전체 공연 목록을 조회합니다. HIDDEN 상태 공연도 포함됩니다."
+    )
+    @RequireAdminRole(AdminRole.SUPER)
+    @GetMapping
+    public ApiResponse<List<PerformanceListResponse>> getAdminPerformances() {
+        return ApiResponse.success(performanceReadService.getAdminPerformances());
+    }
 
     @Operation(summary = "내 공연 정보 조회", description = "로그인한 공연 어드민 계정에 연결된 공연 정보를 조회합니다.")
     @GetMapping("/me")

@@ -27,6 +27,10 @@ public interface PerformanceRepository extends JpaRepository<Performance, Long> 
     @Query("SELECT p FROM Performance p LEFT JOIN FETCH p.location WHERE p.performanceStatus <> :status")
     List<Performance> findAllWithLocationByPerformanceStatusNot(@Param("status") PerformanceStatus status);
 
+    //PerformanceStatus 조건 없이 모든 공연과 location 을 함께 조회하는 메서드 (관리자 페이지에서 사용)
+    @Query("SELECT p FROM Performance p LEFT JOIN FETCH p.location")
+    List<Performance> findAllWithLocation();
+
     // 무대별 라이브 자동 판정용. 카테고리·일차·제외상태로 1차 필터하고, 시간 윈도우 판정은 서비스에서 한다.
     // location 이 없는 공연은 무대에 귀속할 수 없으므로 inner JOIN FETCH 로 제외한다.
     @Query("SELECT p FROM Performance p JOIN FETCH p.location "
