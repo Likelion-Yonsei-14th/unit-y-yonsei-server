@@ -1,13 +1,17 @@
 package com.likelion.yonsei.daedongje.domain.performance.service;
 
 import com.likelion.yonsei.daedongje.common.exception.BusinessException;
+import com.likelion.yonsei.daedongje.common.response.PageResponse;
 import com.likelion.yonsei.daedongje.domain.auth.entity.AdminRole;
 import com.likelion.yonsei.daedongje.domain.auth.entity.AdminUser;
 import com.likelion.yonsei.daedongje.domain.auth.exception.AuthErrorCode;
 import com.likelion.yonsei.daedongje.domain.auth.repository.AdminUserRepository;
 import com.likelion.yonsei.daedongje.domain.auth.support.AdminSessionUser;
+import com.likelion.yonsei.daedongje.domain.performance.dto.FavoriteStageResultResponse;
 import com.likelion.yonsei.daedongje.domain.performance.dto.PerformanceCheerMessageCreateRequest;
 import com.likelion.yonsei.daedongje.domain.performance.dto.PerformanceCheerMessageResponse;
+import com.likelion.yonsei.daedongje.domain.performance.dto.PerformanceReviewResponse;
+import com.likelion.yonsei.daedongje.domain.performance.dto.PerformanceReviewSummaryResponse;
 import com.likelion.yonsei.daedongje.domain.performance.entity.CheerMessageDisplayStatus;
 import com.likelion.yonsei.daedongje.domain.performance.entity.Performance;
 import com.likelion.yonsei.daedongje.domain.performance.entity.PerformanceCheerMessage;
@@ -15,10 +19,13 @@ import com.likelion.yonsei.daedongje.domain.performance.entity.PerformanceSetlis
 import com.likelion.yonsei.daedongje.domain.performance.exception.PerformanceCheerMessageErrorCode;
 import com.likelion.yonsei.daedongje.domain.performance.exception.PerformanceErrorCode;
 import com.likelion.yonsei.daedongje.domain.performance.exception.PerformanceSetlistErrorCode;
+import com.likelion.yonsei.daedongje.domain.performance.repository.FavoriteStageVoteCountProjection;
 import com.likelion.yonsei.daedongje.domain.performance.repository.PerformanceCheerMessageRepository;
 import com.likelion.yonsei.daedongje.domain.performance.repository.PerformanceRepository;
 import com.likelion.yonsei.daedongje.domain.performance.repository.PerformanceSetlistRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -52,18 +59,6 @@ public class PerformanceCheerMessageService {
         return PerformanceCheerMessageResponse.from(cheerMessageRepository.save(cheerMessage));
     }
 
-    public List<PerformanceCheerMessageResponse> getVisibleCheerMessages(Long performanceId) {
-        Performance performance = findPerformance(performanceId);
-        return cheerMessageRepository
-                .findAllByPerformanceAndDisplayStatusWithRelationsOrderByCreatedAtAscIdAsc(
-                        performance,
-                        CheerMessageDisplayStatus.VISIBLE
-                )
-                .stream()
-                .map(PerformanceCheerMessageResponse::from)
-                .toList();
-    }
-
     public List<PerformanceCheerMessageResponse> getMyPerformanceCheerMessages(AdminSessionUser currentAdmin) {
         Performance performance = findMyPerformance(currentAdmin);
         return cheerMessageRepository.findAllByPerformanceWithRelationsOrderByCreatedAtAscIdAsc(performance)
@@ -72,12 +67,57 @@ public class PerformanceCheerMessageService {
                 .toList();
     }
 
-    /** SUPER/MASTER 가 전 공연의 응원 메시지를 전 상태(VISIBLE/HIDDEN) 기준으로 조회한다. */
-    public List<PerformanceCheerMessageResponse> getAllCheerMessages() {
-        return cheerMessageRepository.findAllWithRelationsOrderByCreatedAtAscIdAsc()
-                .stream()
-                .map(PerformanceCheerMessageResponse::from)
-                .toList();
+    public PerformanceReviewSummaryResponse getMyPerformanceReviewSummary(AdminSessionUser currentAdmin) {
+        Performance performance = findMyPerformance(currentAdmin);
+        long totalVoteCount = cheerMessageRepository.countByPerformanceAndSetlistIsNotNullAndDisplayStatus(
+                performance,
+                CheerMessageDisplayStatus.VISIBLE
+        );
+
+        List<FavoriteStageVoteCountProjection> voteCounts = cheerMessageRepository
+                .countFavoriteStageVotesByPerformance(performance, CheerMessageDisplayStatus.VISIBLE);
+
+        List<FavoriteStageResultResponse> results = new java.util.ArrayList<>();
+        for (int i = 0; i < voteCounts.size(); i++) {
+            FavoriteStageVoteCountProjection voteCount = voteCounts.get(i);
+            results.add(FavoriteStageResultResponse.of(
+                    i + 1,
+                    voteCount.getSetlist(),
+                    voteCount.getVoteCount(),
+                    totalVoteCount
+            ));
+        }
+
+        return new PerformanceReviewSummaryResponse(
+                performance.getId(),
+                performance.getPerformanceName(),
+                totalVoteCount,
+                results
+        );
+    }
+
+    public PageResponse<PerformanceReviewResponse> getMyPerformanceReviews(
+            AdminSessionUser currentAdmin,
+            Long setlistId,
+            Pageable pageable
+    ) {
+        Performance performance = findMyPerformance(currentAdmin);
+        PerformanceSetlist setlist = findSetlistForPerformanceOrNull(setlistId, performance);
+
+        Page<PerformanceCheerMessage> reviewPage = setlist == null
+                ? cheerMessageRepository.findAllByPerformanceAndDisplayStatusOrderByCreatedAtDescIdDesc(
+                        performance,
+                        CheerMessageDisplayStatus.VISIBLE,
+                        pageable
+                )
+                : cheerMessageRepository.findAllByPerformanceAndSetlistAndDisplayStatusOrderByCreatedAtDescIdDesc(
+                        performance,
+                        setlist,
+                        CheerMessageDisplayStatus.VISIBLE,
+                        pageable
+                );
+
+        return PageResponse.from(reviewPage.map(PerformanceReviewResponse::from));
     }
 
     @Transactional
@@ -105,6 +145,20 @@ public class PerformanceCheerMessageService {
                 .orElseThrow(() -> new BusinessException(
                         PerformanceSetlistErrorCode.PERFORMANCE_SETLIST_NOT_FOUND
                 ));
+    }
+
+    private PerformanceSetlist findSetlistForPerformanceOrNull(Long setlistId, Performance performance) {
+        if (setlistId == null) {
+            return null;
+        }
+        PerformanceSetlist setlist = performanceSetlistRepository.findById(setlistId)
+                .orElseThrow(() -> new BusinessException(
+                        PerformanceSetlistErrorCode.PERFORMANCE_SETLIST_NOT_FOUND
+                ));
+        if (!setlist.getPerformance().getId().equals(performance.getId())) {
+            throw new BusinessException(AuthErrorCode.FORBIDDEN);
+        }
+        return setlist;
     }
 
     private Performance findMyPerformance(AdminSessionUser currentAdmin) {

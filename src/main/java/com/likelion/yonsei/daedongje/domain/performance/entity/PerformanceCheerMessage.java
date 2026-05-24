@@ -49,7 +49,11 @@ public class PerformanceCheerMessage extends BaseEntity {
     @Column(name = "display_status", nullable = false, length = 20)
     private CheerMessageDisplayStatus displayStatus;
 
-    private PerformanceCheerMessage(Performance performance, PerformanceSetlist setlist, String message) {
+    private PerformanceCheerMessage(
+            Performance performance,
+            PerformanceSetlist setlist,
+            String message
+    ) {
         validatePerformance(performance);
         validateMessage(message);
 
@@ -85,4 +89,5 @@ public class PerformanceCheerMessage extends BaseEntity {
             throw new BusinessException(PerformanceCheerMessageErrorCode.CHEER_MESSAGE_CONTENT_TOO_LONG);
         }
     }
+
 }
