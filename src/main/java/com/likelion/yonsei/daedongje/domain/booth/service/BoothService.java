@@ -182,7 +182,7 @@ public class BoothService {
                 .toList();
     }
 
-    // 부스 수정 (BOOTH 역할은 본인 담당 부스만 수정 가능)
+    // 부스 수정 (SUPER 외 역할은 본인 담당 부스만 수정 가능)
     @Transactional
     public BoothResponse update(Long id, BoothUpdateRequest request, AdminSessionUser currentAdmin) {
         Booth booth = boothRepository.findById(id)
@@ -224,7 +224,7 @@ public class BoothService {
         }
     }
 
-    // 부스 운영 상태 변경 (BOOTH 역할은 본인 담당 부스만 변경 가능)
+    // 부스 운영 상태 변경 (SUPER 외 역할은 본인 담당 부스만 변경 가능)
     @Transactional
     public BoothResponse updateStatus(Long id, BoothStatus status, AdminSessionUser currentAdmin) {
         Booth booth = boothRepository.findById(id)
@@ -238,7 +238,7 @@ public class BoothService {
         return BoothResponse.of(booth, 0L, fetchThumbnail(booth.getId()), fetchMapLocation(booth));
     }
 
-    // 예약 접수 On/Off (BOOTH 역할은 본인 담당 부스만 변경 가능)
+    // 예약 접수 On/Off (SUPER 외 역할은 본인 담당 부스만 변경 가능)
     @Transactional
     public BoothResponse updateIsReservable(Long id, boolean isReservable, AdminSessionUser currentAdmin) {
         Booth booth = boothRepository.findById(id)
