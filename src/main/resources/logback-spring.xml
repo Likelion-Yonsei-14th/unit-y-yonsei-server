@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <!-- Spring Boot 기본 콘솔 로깅 유지 (Phase 1 인프라에서 구조화 JSON으로 교체 예정) -->
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+    <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
+
+    <!-- 최근 ERROR 로그를 메모리 링버퍼에 적재 (관리자 시스템 상태 API용) -->
+    <appender name="RECENT_ERROR"
+              class="com.likelion.yonsei.daedongje.domain.monitoring.log.RecentErrorLogAppender">
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>ERROR</level>
+        </filter>
+    </appender>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="RECENT_ERROR"/>
+    </root>
+</configuration>
