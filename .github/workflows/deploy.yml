@@ -63,13 +63,17 @@ jobs:
           chmod 600 ~/.ssh/ec2_key
           ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts
 
-      - name: Sync production compose file
+      - name: Sync production compose & Alloy config
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
           EC2_USERNAME: ${{ secrets.EC2_USERNAME }}
         run: |
+          ssh -i ~/.ssh/ec2_key "$EC2_USERNAME@$EC2_HOST" \
+              'mkdir -p ~/unit-y-server/alloy'
           scp -i ~/.ssh/ec2_key docker-compose.prod.yml \
               "$EC2_USERNAME@$EC2_HOST:~/unit-y-server/docker-compose.prod.yml"
+          scp -i ~/.ssh/ec2_key deploy/alloy/config.alloy \
+              "$EC2_USERNAME@$EC2_HOST:~/unit-y-server/alloy/config.alloy"
 
       - name: Deploy with Docker Compose
         env:
