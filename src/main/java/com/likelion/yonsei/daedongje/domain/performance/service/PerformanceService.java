@@ -134,7 +134,7 @@ public class PerformanceService {
     @Transactional
     public PerformanceMyResponse updateMyPerformance(AdminSessionUser currentAdmin, PerformanceUpdateRequest request) {
         Performance performance = findMyPerformance(currentAdmin);
-        applyBasicInfoUpdate(performance, request);
+        applyMyPerformanceUpdate(performance, request);
         return PerformanceMyResponse.from(performance);
     }
 
@@ -167,6 +167,35 @@ public class PerformanceService {
                 request.youtubeUrl(),
                 request.instagramUrl()
         );
+    }
+
+    private void applyMyPerformanceUpdate(Performance performance, PerformanceUpdateRequest request) {
+        validateControlFieldsNotRequested(request);
+
+        MapLocation location = findLocationOrNull(request.locationId());
+
+        performance.updateBasicInfo(
+                location,
+                request.performanceName(),
+                request.performanceDescription(),
+                request.performanceDate(),
+                request.startTime(),
+                request.endTime(),
+                null, // performanceCategory: PERFORMER 수정 차단
+                request.lineupName(),
+                null, // performanceStatus: PERFORMER 수정 차단
+                request.hashtag1(),
+                request.hashtag2(),
+                request.hashtag3(),
+                request.youtubeUrl(),
+                request.instagramUrl()
+        );
+    }
+
+    private void validateControlFieldsNotRequested(PerformanceUpdateRequest request) {
+        if (request.performanceStatus() != null || request.performanceCategory() != null) {
+            throw new BusinessException(PerformanceErrorCode.PERFORMANCE_CONTROL_FIELD_FORBIDDEN);
+        }
     }
 
     private Performance findById(Long id) {

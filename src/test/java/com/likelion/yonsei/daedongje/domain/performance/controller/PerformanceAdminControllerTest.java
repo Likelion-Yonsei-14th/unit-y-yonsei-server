@@ -138,9 +138,7 @@ class PerformanceAdminControllerTest {
         String requestBody = """
                 {
                   "performanceName": "Updated Stage",
-                  "performanceDate": 2,
-                  "performanceCategory": "ARTIST",
-                  "performanceStatus": "ONGOING"
+                  "performanceDate": 2
                 }
                 """;
 
@@ -155,25 +153,35 @@ class PerformanceAdminControllerTest {
                 .andExpect(jsonPath("$.data.endTime").value("20:00:00"))
                 .andExpect(jsonPath("$.data.performanceCategory").value("ARTIST"))
                 .andExpect(jsonPath("$.data.lineupName").value("Lineup A"))
-                .andExpect(jsonPath("$.data.performanceStatus").value("ONGOING"));
+                .andExpect(jsonPath("$.data.performanceStatus").value("SCHEDULED"));
     }
 
     @Test
-    void updateMyPerformance_updates_all_fields_and_persists_to_db() throws Exception {
-        Performance performance = performanceRepository.save(Performance.create(performerAdmin, "Main Stage"));
+    void updateMyPerformance_updates_allowed_fields_and_persists_to_db() throws Exception {
+        Performance performance = Performance.create(performerAdmin, "Main Stage");
+        performance.updateBasicInfo(
+                null,
+                "Main Stage",
+                "Before description",
+                1,
+                LocalTime.of(18, 0),
+                LocalTime.of(20, 0),
+                PerformanceCategory.ARTIST,
+                "Lineup A",
+                PerformanceStatus.SCHEDULED
+        );
+        performanceRepository.save(performance);
 
         String requestBody = """
-                {
-                  "performanceName": "Updated Stage",
-                  "performanceDescription": "Updated description",
-                  "performanceDate": 2,
-                  "startTime": "18:30:00",
-                  "endTime": "20:30:00",
-                  "performanceCategory": "CLUB",
-                  "lineupName": "Updated Lineup",
-                  "performanceStatus": "SCHEDULED"
-                }
-                """;
+            {
+              "performanceName": "Updated Stage",
+              "performanceDescription": "Updated description",
+              "performanceDate": 2,
+              "startTime": "18:30:00",
+              "endTime": "20:30:00",
+              "lineupName": "Updated Lineup"
+            }
+            """;
 
         mockMvc.perform(patch(MY_PERFORMANCE_URL)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -184,7 +192,7 @@ class PerformanceAdminControllerTest {
                 .andExpect(jsonPath("$.data.performanceDate").value(2))
                 .andExpect(jsonPath("$.data.startTime").value("18:30:00"))
                 .andExpect(jsonPath("$.data.endTime").value("20:30:00"))
-                .andExpect(jsonPath("$.data.performanceCategory").value("CLUB"))
+                .andExpect(jsonPath("$.data.performanceCategory").value("ARTIST"))
                 .andExpect(jsonPath("$.data.lineupName").value("Updated Lineup"))
                 .andExpect(jsonPath("$.data.performanceStatus").value("SCHEDULED"));
 
@@ -194,8 +202,9 @@ class PerformanceAdminControllerTest {
         assertThat(updated.getPerformanceDate()).isEqualTo(2);
         assertThat(updated.getStartTime()).isEqualTo(LocalTime.of(18, 30));
         assertThat(updated.getEndTime()).isEqualTo(LocalTime.of(20, 30));
-        assertThat(updated.getPerformanceCategory()).isEqualTo(PerformanceCategory.CLUB);
         assertThat(updated.getLineupName()).isEqualTo("Updated Lineup");
+
+        assertThat(updated.getPerformanceCategory()).isEqualTo(PerformanceCategory.ARTIST);
         assertThat(updated.getPerformanceStatus()).isEqualTo(PerformanceStatus.SCHEDULED);
     }
 
@@ -434,32 +443,71 @@ class PerformanceAdminControllerTest {
     }
 
     @Test
-    void updateMyPerformance_allows_artist_and_club_categories() throws Exception {
-        performanceRepository.save(Performance.create(performerAdmin, "Main Stage"));
+    void updateMyPerformance_rejects_performance_category_update() throws Exception {
+        Performance performance = Performance.create(performerAdmin, "Main Stage");
+        performance.updateBasicInfo(
+                null,
+                "Main Stage",
+                null,
+                null,
+                null,
+                null,
+                PerformanceCategory.ARTIST,
+                null,
+                PerformanceStatus.SCHEDULED
+        );
+        performanceRepository.save(performance);
 
-        String artistRequestBody = """
-                {
-                  "performanceCategory": "ARTIST"
-                }
-                """;
+        String requestBody = """
+            {
+              "performanceCategory": "CLUB"
+            }
+            """;
 
         mockMvc.perform(patch(MY_PERFORMANCE_URL)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(artistRequestBody))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.performanceCategory").value("ARTIST"));
+                        .content(requestBody))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("P-013"));
 
-        String clubRequestBody = """
-                {
-                  "performanceCategory": "CLUB"
-                }
-                """;
+        Performance updated = performanceRepository.findById(performance.getId()).orElseThrow();
+        assertThat(updated.getPerformanceCategory()).isEqualTo(PerformanceCategory.ARTIST);
+        assertThat(updated.getPerformanceStatus()).isEqualTo(PerformanceStatus.SCHEDULED);
+    }
+
+    @Test
+    void updateMyPerformance_rejects_performance_status_update() throws Exception {
+        Performance performance = Performance.create(performerAdmin, "Main Stage");
+        performance.updateBasicInfo(
+                null,
+                "Main Stage",
+                null,
+                null,
+                null,
+                null,
+                PerformanceCategory.ARTIST,
+                null,
+                PerformanceStatus.SCHEDULED
+        );
+        performanceRepository.save(performance);
+
+        String requestBody = """
+            {
+              "performanceStatus": "ONGOING"
+            }
+            """;
 
         mockMvc.perform(patch(MY_PERFORMANCE_URL)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(clubRequestBody))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.performanceCategory").value("CLUB"));
+                        .content(requestBody))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("P-013"));
+
+        Performance updated = performanceRepository.findById(performance.getId()).orElseThrow();
+        assertThat(updated.getPerformanceCategory()).isEqualTo(PerformanceCategory.ARTIST);
+        assertThat(updated.getPerformanceStatus()).isEqualTo(PerformanceStatus.SCHEDULED);
     }
 
     @Test
@@ -600,12 +648,13 @@ class PerformanceAdminControllerTest {
         Performance performance = performanceRepository.save(Performance.create(performerAdmin, "Original Stage"));
 
         String requestBody = """
-                {
-                  "performanceName": "Updated by Super",
-                  "performanceDate": 2,
-                  "performanceStatus": "SCHEDULED"
-                }
-                """;
+            {
+              "performanceName": "Updated by Super",
+              "performanceDate": 2,
+              "performanceCategory": "CLUB",
+              "performanceStatus": "SCHEDULED"
+            }
+            """;
 
         mockMvc.perform(patch("/api/admin/performances/" + performance.getId())
                         .contentType(MediaType.APPLICATION_JSON)
@@ -614,6 +663,7 @@ class PerformanceAdminControllerTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.performanceName").value("Updated by Super"))
                 .andExpect(jsonPath("$.data.performanceDate").value(2))
+                .andExpect(jsonPath("$.data.performanceCategory").value("CLUB"))
                 .andExpect(jsonPath("$.data.performanceStatus").value("SCHEDULED"));
     }
 
