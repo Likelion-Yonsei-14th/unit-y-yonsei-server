@@ -9,6 +9,7 @@ import java.util.List;
 
 @Schema(description = "공지사항 응답")
 public record NoticeResponse(
+        // NOTE: 의도적 중복 - id/noticeId 모두 notice.getId() 값. FE가 두 키 모두 참조해 호환 위해 유지.
         Long id,
         Long noticeId,
         String title,
@@ -35,8 +36,8 @@ public record NoticeResponse(
                 .toList();
 
         return new NoticeResponse(
-                notice.getId(),
-                notice.getId(),
+                notice.getId(),   // id
+                notice.getId(),   // noticeId (의도적 중복, FE 호환)
                 notice.getTitle(),
                 notice.getContent(),
                 notice.getUpdatedAt().toLocalDate().toString(),
