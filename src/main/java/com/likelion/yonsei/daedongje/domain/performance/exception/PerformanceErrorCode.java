@@ -15,7 +15,8 @@ public enum PerformanceErrorCode implements ErrorCode {
     PERFORMANCE_IMAGE_NOT_FOUND(HttpStatus.NOT_FOUND, "P-008", "존재하지 않는 공연 이미지입니다."),
     PERFORMANCE_HAS_IMAGES(HttpStatus.BAD_REQUEST, "P-009", "이미지가 있어 공연을 삭제할 수 없습니다. 먼저 이미지를 정리해주세요."),
     PERFORMANCE_HAS_SETLISTS(HttpStatus.BAD_REQUEST, "P-010", "셋리스트가 있어 공연을 삭제할 수 없습니다. 먼저 셋리스트를 정리해주세요."),
-    PERFORMANCE_HAS_NOTICES(HttpStatus.BAD_REQUEST, "P-011", "공지가 있어 공연을 삭제할 수 없습니다. 먼저 공지를 정리해주세요.");
+    PERFORMANCE_HAS_NOTICES(HttpStatus.BAD_REQUEST, "P-011", "공지가 있어 공연을 삭제할 수 없습니다. 먼저 공지를 정리해주세요."),
+    PERFORMANCE_DELETE_CONFLICT(HttpStatus.CONFLICT, "P-012", "연결된 데이터가 있어 공연을 삭제할 수 없습니다.");
 
     private final HttpStatus status;
     private final String code;
