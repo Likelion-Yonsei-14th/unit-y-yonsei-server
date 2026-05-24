@@ -40,24 +40,24 @@ public class SatisfactionReviewAdminResponse {
     @Getter
     public static class RatingDistribution {
 
-        private final long one;
-        private final long two;
-        private final long three;
-        private final long four;
-        private final long five;
+        private final long oneStarCount;
+        private final long twoStarCount;
+        private final long threeStarCount;
+        private final long fourStarCount;
+        private final long fiveStarCount;
 
         public RatingDistribution(
-                long one,
-                long two,
-                long three,
-                long four,
-                long five
+                long oneStarCount,
+                long twoStarCount,
+                long threeStarCount,
+                long fourStarCount,
+                long fiveStarCount
         ) {
-            this.one = one;
-            this.two = two;
-            this.three = three;
-            this.four = four;
-            this.five = five;
+            this.oneStarCount = oneStarCount;
+            this.twoStarCount = twoStarCount;
+            this.threeStarCount = threeStarCount;
+            this.fourStarCount = fourStarCount;
+            this.fiveStarCount = fiveStarCount;
         }
     }
 }

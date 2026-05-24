@@ -6,8 +6,16 @@ import org.springframework.data.jpa.repository.Query;
 
 public interface SatisfactionReviewRepository extends JpaRepository<SatisfactionReview, Long> {
 
-    long countByRating(Integer rating);
-
-    @Query("select avg(review.rating) from SatisfactionReview review")
-    Double findAverageRating();
+    @Query("""
+        select
+            count(review) as totalCount,
+            avg(review.rating) as averageRating,
+            coalesce(sum(case when review.rating = 1 then 1L else 0L end), 0L) as oneStarCount,
+            coalesce(sum(case when review.rating = 2 then 1L else 0L end), 0L) as twoStarCount,
+            coalesce(sum(case when review.rating = 3 then 1L else 0L end), 0L) as threeStarCount,
+            coalesce(sum(case when review.rating = 4 then 1L else 0L end), 0L) as fourStarCount,
+            coalesce(sum(case when review.rating = 5 then 1L else 0L end), 0L) as fiveStarCount
+        from SatisfactionReview review
+        """)
+    SatisfactionReviewStatisticsProjection findStatistics();
 }

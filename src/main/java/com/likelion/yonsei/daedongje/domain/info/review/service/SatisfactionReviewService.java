@@ -10,6 +10,7 @@ import com.likelion.yonsei.daedongje.domain.info.review.dto.SatisfactionReviewCr
 import com.likelion.yonsei.daedongje.domain.info.review.entity.SatisfactionReview;
 import com.likelion.yonsei.daedongje.domain.info.review.exception.SatisfactionReviewErrorCode;
 import com.likelion.yonsei.daedongje.domain.info.review.repository.SatisfactionReviewRepository;
+import com.likelion.yonsei.daedongje.domain.info.review.repository.SatisfactionReviewStatisticsProjection;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -69,21 +70,30 @@ public class SatisfactionReviewService {
         Page<SatisfactionReviewAdminReviewResponse> reviewPage = satisfactionReviewRepository.findAll(pageable)
                 .map(SatisfactionReviewAdminReviewResponse::from);
 
+        SatisfactionReviewStatisticsProjection statistics = satisfactionReviewRepository.findStatistics();
+
         SatisfactionReviewAdminResponse.RatingDistribution ratingDistribution =
                 new SatisfactionReviewAdminResponse.RatingDistribution(
-                        satisfactionReviewRepository.countByRating(1),
-                        satisfactionReviewRepository.countByRating(2),
-                        satisfactionReviewRepository.countByRating(3),
-                        satisfactionReviewRepository.countByRating(4),
-                        satisfactionReviewRepository.countByRating(5)
+                        safeLong(statistics.getOneStarCount()),
+                        safeLong(statistics.getTwoStarCount()),
+                        safeLong(statistics.getThreeStarCount()),
+                        safeLong(statistics.getFourStarCount()),
+                        safeLong(statistics.getFiveStarCount())
                 );
 
         return SatisfactionReviewAdminResponse.of(
-                reviewPage.getTotalElements(),
-                normalizeAverageRating(satisfactionReviewRepository.findAverageRating()),
+                safeLong(statistics.getTotalCount()),
+                normalizeAverageRating(statistics.getAverageRating()),
                 ratingDistribution,
                 PageResponse.from(reviewPage)
         );
+    }
+
+    private long safeLong(Long value) {
+        if (value == null) {
+            return 0L;
+        }
+        return value;
     }
 
     private void validatePageRequest(int page, int size) {
