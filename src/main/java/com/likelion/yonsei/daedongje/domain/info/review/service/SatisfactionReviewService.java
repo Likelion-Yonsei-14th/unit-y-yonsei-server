@@ -1,6 +1,10 @@
 package com.likelion.yonsei.daedongje.domain.info.review.service;
 
 import com.likelion.yonsei.daedongje.common.exception.BusinessException;
+import com.likelion.yonsei.daedongje.common.exception.CommonErrorCode;
+import com.likelion.yonsei.daedongje.common.response.PageResponse;
+import com.likelion.yonsei.daedongje.domain.info.review.dto.SatisfactionReviewAdminResponse;
+import com.likelion.yonsei.daedongje.domain.info.review.dto.SatisfactionReviewAdminReviewResponse;
 import com.likelion.yonsei.daedongje.domain.info.review.dto.SatisfactionReviewCreateRequest;
 import com.likelion.yonsei.daedongje.domain.info.review.dto.SatisfactionReviewCreateResponse;
 import com.likelion.yonsei.daedongje.domain.info.review.entity.SatisfactionReview;
@@ -11,6 +15,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +30,7 @@ import java.time.Duration;
 public class SatisfactionReviewService {
 
     private static final Logger log = LoggerFactory.getLogger(SatisfactionReviewService.class);
+    private static final int MAX_PAGE_SIZE = 100;
 
     /** 동일 IP 당 1분 동안 허용하는 최대 만족도 리뷰 제출 수. */
     private static final int MAX_SUBMISSIONS_PER_WINDOW = 3;
@@ -47,6 +55,54 @@ public class SatisfactionReviewService {
 
         SatisfactionReview review = SatisfactionReview.create(request.rating(), request.content());
         return SatisfactionReviewCreateResponse.of(satisfactionReviewRepository.save(review), instagramUrl);
+    }
+
+    public SatisfactionReviewAdminResponse getAdminReviews(int page, int size) {
+        validatePageRequest(page, size);
+
+        PageRequest pageable = PageRequest.of(
+                page,
+                size,
+                Sort.by(Sort.Direction.DESC, "createdAt")
+        );
+
+        Page<SatisfactionReviewAdminReviewResponse> reviewPage = satisfactionReviewRepository.findAll(pageable)
+                .map(SatisfactionReviewAdminReviewResponse::from);
+
+        SatisfactionReviewAdminResponse.RatingDistribution ratingDistribution =
+                new SatisfactionReviewAdminResponse.RatingDistribution(
+                        satisfactionReviewRepository.countByRating(1),
+                        satisfactionReviewRepository.countByRating(2),
+                        satisfactionReviewRepository.countByRating(3),
+                        satisfactionReviewRepository.countByRating(4),
+                        satisfactionReviewRepository.countByRating(5)
+                );
+
+        return SatisfactionReviewAdminResponse.of(
+                reviewPage.getTotalElements(),
+                normalizeAverageRating(satisfactionReviewRepository.findAverageRating()),
+                ratingDistribution,
+                PageResponse.from(reviewPage)
+        );
+    }
+
+    private void validatePageRequest(int page, int size) {
+        if (page < 0) {
+            throw new BusinessException(CommonErrorCode.INVALID_INPUT, "page는 0 이상이어야 합니다.");
+        }
+        if (size < 1 || size > MAX_PAGE_SIZE) {
+            throw new BusinessException(
+                    CommonErrorCode.INVALID_INPUT,
+                    String.format("size는 1 이상 %d 이하이어야 합니다.", MAX_PAGE_SIZE)
+            );
+        }
+    }
+
+    private double normalizeAverageRating(Double averageRating) {
+        if (averageRating == null) {
+            return 0.0;
+        }
+        return Math.round(averageRating * 10.0) / 10.0;
     }
 
     /**
