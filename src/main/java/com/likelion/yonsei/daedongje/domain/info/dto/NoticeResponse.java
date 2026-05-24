@@ -3,6 +3,7 @@ package com.likelion.yonsei.daedongje.domain.info.dto;
 import com.likelion.yonsei.daedongje.domain.info.entity.Notice;
 import io.swagger.v3.oas.annotations.media.Schema;
 
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @Schema(description = "공지사항 응답")
@@ -11,6 +12,8 @@ public record NoticeResponse(
         String title,
         String content,
         String date,
+        String time,
+        String instagramUrl,
         boolean hasImage,
         String imageUrl,
         boolean isPinned,
@@ -21,6 +24,8 @@ public record NoticeResponse(
         List<NoticeImageResponse> images
 ) {
 
+    private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
+
     public static NoticeResponse from(Notice notice) {
         List<NoticeImageResponse> images = notice.getImages().stream()
                 .map(NoticeImageResponse::from)
@@ -30,7 +35,9 @@ public record NoticeResponse(
                 notice.getId(),
                 notice.getTitle(),
                 notice.getContent(),
-                notice.getCreatedAt().toLocalDate().toString(),
+                notice.getUpdatedAt().toLocalDate().toString(),
+                notice.getUpdatedAt().toLocalTime().format(TIME_FORMATTER),
+                notice.getInstagramUrl(),
                 !images.isEmpty(),
                 notice.getPrimaryImageUrl(),
                 notice.isPinned(),
