@@ -19,6 +19,7 @@ import com.likelion.yonsei.daedongje.domain.performance.repository.PerformanceIm
 import com.likelion.yonsei.daedongje.domain.performance.repository.PerformanceRepository;
 import com.likelion.yonsei.daedongje.domain.performance.repository.PerformanceSetlistRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,6 +27,7 @@ import org.springframework.util.StringUtils;
 
 import java.time.LocalTime;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -202,9 +204,11 @@ public class PerformanceService {
             // FK 검증을 트랜잭션 커밋이 아닌 *여기서* 실행 — 아래 catch 로 잡을 수 있게 함
             performanceRepository.flush();
         } catch (DataIntegrityViolationException e) {
-            // race — 검사 시점 이후 자식이 새로 생성됐을 가능성. 다시 확인해 BusinessException 으로 변환.
+            // race — 검사 시점 이후 자식이 새로 생성됐을 가능성. 알려진 자식이면 그 코드(P-009/010/011)로 변환.
             verifyNoChildData(id);
-            throw e;  // 알려진 자식이 아니면 원본 FK 위반 유지
+            // 가드 대상이 아닌 다른 FK 제약 위반 — raw 예외가 500 으로 누출되지 않도록 변환하고, 원인은 로그로 남긴다.
+            log.warn("공연 id={} 삭제 중 예상치 못한 FK 제약 위반", id, e);
+            throw new BusinessException(PerformanceErrorCode.PERFORMANCE_DELETE_CONFLICT);
         }
     }
 

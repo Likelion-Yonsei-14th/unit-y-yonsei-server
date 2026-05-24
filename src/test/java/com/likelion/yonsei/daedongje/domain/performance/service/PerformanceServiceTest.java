@@ -323,6 +323,26 @@ class PerformanceServiceTest {
         verify(performanceRepository).flush();
     }
 
+    @Test
+    void deletePerformance_converts_unknown_fk_violation_to_delete_conflict() {
+        AdminUser adminUser = adminUser();
+        Performance performance = Performance.create(adminUser, adminUser, "Main Stage");
+        ReflectionTestUtils.setField(performance, "id", 7L);
+        when(performanceRepository.findById(7L)).thenReturn(Optional.of(performance));
+        // 가드 대상 자식(이미지·셋리스트·공지)은 1차·2차 모두 없음 — 가드 밖의 다른 FK 제약 위반 상황.
+        when(performanceImageRepository.existsByPerformanceId(7L)).thenReturn(false);
+        when(performanceSetlistRepository.existsByPerformanceId(7L)).thenReturn(false);
+        when(noticeRepository.existsByPerformanceId(7L)).thenReturn(false);
+        doThrow(new DataIntegrityViolationException("FK violation: fk_unknown_child_performance"))
+                .when(performanceRepository).flush();
+
+        assertThatThrownBy(() -> performanceService.deletePerformance(7L))
+                .isInstanceOfSatisfying(BusinessException.class, e ->
+                        assertThat(e.getErrorCode()).isEqualTo(PerformanceErrorCode.PERFORMANCE_DELETE_CONFLICT));
+
+        verify(performanceRepository).flush();
+    }
+
     private AdminUser adminUser() {
         return adminUser("performer", AdminRole.PERFORMER, 1L);
     }
