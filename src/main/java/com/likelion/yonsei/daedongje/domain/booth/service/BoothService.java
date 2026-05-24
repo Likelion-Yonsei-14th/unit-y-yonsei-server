@@ -23,11 +23,16 @@ import com.likelion.yonsei.daedongje.domain.map.entity.MapLocation;
 import com.likelion.yonsei.daedongje.domain.map.repository.MapLocationRepository;
 import com.likelion.yonsei.daedongje.domain.reservation.entity.ReservationStatus;
 import com.likelion.yonsei.daedongje.domain.reservation.repository.ReservationRepository;
+import com.likelion.yonsei.daedongje.common.response.PageResponse;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalTime;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -117,8 +122,9 @@ public class BoothService {
         return BoothResponse.of(booth, 0L, fetchThumbnail(id), fetchMapLocation(booth));
     }
 
-    // 부스 전체 조회 (필터: 날짜, 구역, 음식 여부, 푸드트럭 여부 — 모든 AND 조합 지원)
-    public List<BoothResponse> getList(Integer date, BoothSector sector, Boolean isFood, Boolean isFoodTruck) {
+    // 부스 전체 조회 (필터: 날짜·구역·음식 여부·푸드트럭 여부·운영상태 AND, 페이지네이션)
+    public PageResponse<BoothResponse> getList(Integer date, BoothSector sector, Boolean isFood,
+                                               Boolean isFoodTruck, BoothStatus status, int page, int size) {
         List<Booth> booths;
 
         if (date != null && sector != null && isFood != null) {
@@ -145,6 +151,37 @@ public class BoothService {
                     .toList();
         }
 
+        if (status != null) {
+            booths = booths.stream()
+                    .filter(b -> b.getStatus() == status)
+                    .toList();
+        }
+
+        return paginate(booths, page, size);
+    }
+
+    // 부스명·단체명·메뉴명 키워드 검색 (페이지네이션)
+    public PageResponse<BoothResponse> search(String keyword, int page, int size) {
+        return paginate(boothRepository.searchByKeyword(keyword), page, size);
+    }
+
+    // 필터링된 부스 목록을 id 오름차순으로 정렬해 인메모리 페이지네이션한다.
+    // (부스 수가 한정적이라 인메모리 슬라이스로 충분하며, 기존 다중 필터 메서드를 그대로 재사용한다.)
+    private PageResponse<BoothResponse> paginate(List<Booth> booths, int page, int size) {
+        int safePage = Math.max(page, 0);
+        int safeSize = Math.max(size, 1);
+        Pageable pageable = PageRequest.of(safePage, safeSize);
+
+        List<Booth> ordered = booths.stream().sorted(Comparator.comparing(Booth::getId)).toList();
+        int from = Math.min(safePage * safeSize, ordered.size());
+        int to = Math.min(from + safeSize, ordered.size());
+        List<BoothResponse> content = toBoothResponses(ordered.subList(from, to));
+
+        return PageResponse.from(new PageImpl<>(content, pageable, ordered.size()));
+    }
+
+    // 부스 목록을 응답으로 변환 — 대기 팀 수 일괄 집계·썸네일·지도 위치를 한 번에 매핑한다.
+    private List<BoothResponse> toBoothResponses(List<Booth> booths) {
         if (booths.isEmpty()) return List.of();
 
         List<Long> boothIds = booths.stream().map(Booth::getId).toList();
@@ -160,18 +197,6 @@ public class BoothService {
 
         return booths.stream()
                 .map(booth -> BoothResponse.of(booth, waitingCountMap.getOrDefault(booth.getId(), 0L), thumbnailMap.get(booth.getId()), resolveMapLocation(booth, mapLocationMap)))
-                .toList();
-    }
-
-    // 부스명·단체명·메뉴명 키워드 검색
-    public List<BoothResponse> search(String keyword) {
-        List<Booth> booths = boothRepository.searchByKeyword(keyword);
-        if (booths.isEmpty()) return List.of();
-
-        Map<Long, String> thumbnailMap = fetchThumbnailMap(booths.stream().map(Booth::getId).toList());
-        Map<Long, MapLocationResponse> mapLocationMap = fetchMapLocationMap(booths);
-        return booths.stream()
-                .map(booth -> BoothResponse.of(booth, 0L, thumbnailMap.get(booth.getId()), resolveMapLocation(booth, mapLocationMap)))
                 .toList();
     }
 
