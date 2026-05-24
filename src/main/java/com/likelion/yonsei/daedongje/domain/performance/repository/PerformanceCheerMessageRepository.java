@@ -40,6 +40,14 @@ public interface PerformanceCheerMessageRepository extends JpaRepository<Perform
             SELECT m FROM PerformanceCheerMessage m
             LEFT JOIN FETCH m.setlist
             JOIN FETCH m.performance
+            ORDER BY m.createdAt ASC, m.id ASC
+            """)
+    List<PerformanceCheerMessage> findAllWithRelationsOrderByCreatedAtAscIdAsc();
+
+    @Query("""
+            SELECT m FROM PerformanceCheerMessage m
+            LEFT JOIN FETCH m.setlist
+            JOIN FETCH m.performance
             WHERE m.id = :id
             """)
     Optional<PerformanceCheerMessage> findByIdWithRelations(@Param("id") Long id);

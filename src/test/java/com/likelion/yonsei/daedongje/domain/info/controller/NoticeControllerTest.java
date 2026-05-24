@@ -18,6 +18,8 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.time.format.DateTimeFormatter;
+
 import static org.hamcrest.Matchers.hasSize;
 import static org.mockito.ArgumentMatchers.any;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -31,6 +33,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ActiveProfiles("test")
 @AutoConfigureMockMvc
 class NoticeControllerTest {
+
+    private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
 
     @Autowired
     private MockMvc mockMvc;
@@ -55,6 +59,7 @@ class NoticeControllerTest {
                 {
                   "title": "Notice title",
                   "content": "Notice content",
+                  "instagramUrl": "https://instagram.com/notice",
                   "isPinned": true,
                   "category": "GENERAL",
                   "images": [
@@ -76,6 +81,7 @@ class NoticeControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.title").value("Notice title"))
+                .andExpect(jsonPath("$.data.instagramUrl").value("https://instagram.com/notice"))
                 .andExpect(jsonPath("$.data.hasImage").value(true))
                 .andExpect(jsonPath("$.data.imageUrl").value("https://example.com/notice-1.png"))
                 .andExpect(jsonPath("$.data.images", hasSize(2)))
@@ -84,10 +90,17 @@ class NoticeControllerTest {
                 .andExpect(jsonPath("$.data.images[1].imageUrl").value("https://example.com/notice-2.png"))
                 .andExpect(jsonPath("$.data.images[1].displayOrder").value(2));
 
+        var savedNotice = noticeRepository.findAll().get(0);
+        String expectedDate = savedNotice.getUpdatedAt().toLocalDate().toString();
+        String expectedTime = savedNotice.getUpdatedAt().toLocalTime().format(TIME_FORMATTER);
+
         mockMvc.perform(get("/api/notices"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data", hasSize(1)))
+                .andExpect(jsonPath("$.data[0].date").value(expectedDate))
+                .andExpect(jsonPath("$.data[0].time").value(expectedTime))
+                .andExpect(jsonPath("$.data[0].instagramUrl").value("https://instagram.com/notice"))
                 .andExpect(jsonPath("$.data[0].images", hasSize(2)))
                 .andExpect(jsonPath("$.data[0].imageUrl").value("https://example.com/notice-1.png"));
     }
@@ -119,6 +132,7 @@ class NoticeControllerTest {
                 {
                   "title": "Updated title",
                   "content": "Updated content",
+                  "instagramUrl": "https://instagram.com/updated-notice",
                   "hasImage": true,
                   "isPinned": true,
                   "category": "EVENT",
@@ -141,6 +155,7 @@ class NoticeControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.title").value("Updated title"))
+                .andExpect(jsonPath("$.data.instagramUrl").value("https://instagram.com/updated-notice"))
                 .andExpect(jsonPath("$.data.isPinned").value(true))
                 .andExpect(jsonPath("$.data.category").value("EVENT"))
                 .andExpect(jsonPath("$.data.images", hasSize(2)))
@@ -148,7 +163,8 @@ class NoticeControllerTest {
                 .andExpect(jsonPath("$.data.images[1].imageUrl").value("https://example.com/updated-2.png"));
 
         mockMvc.perform(delete("/api/admin/notices/{noticeId}", noticeId))
-                .andExpect(status().isNoContent());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
 
         mockMvc.perform(get("/api/notices"))
                 .andExpect(status().isOk())
@@ -182,6 +198,7 @@ class NoticeControllerTest {
                 {
                   "title": "Updated title",
                   "content": "Updated content",
+                  "instagramUrl": "https://instagram.com/kept-notice",
                   "hasImage": true,
                   "isPinned": true,
                   "category": "EVENT"
@@ -193,6 +210,7 @@ class NoticeControllerTest {
                         .content(updateBody))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.images", hasSize(1)))
+                .andExpect(jsonPath("$.data.instagramUrl").value("https://instagram.com/kept-notice"))
                 .andExpect(jsonPath("$.data.images[0].imageUrl").value("https://example.com/original.png"))
                 .andExpect(jsonPath("$.data.imageUrl").value("https://example.com/original.png"));
     }

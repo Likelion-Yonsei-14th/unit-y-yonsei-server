@@ -52,7 +52,10 @@ public class PerformanceAdminController {
         return ApiResponse.success(performanceService.getMyPerformance(currentAdmin));
     }
 
-    @Operation(summary = "내 공연 정보 수정", description = "로그인한 공연 어드민 계정에 연결된 공연 기본 정보를 수정합니다.")
+    @Operation(
+            summary = "내 공연 정보 수정",
+            description = "로그인한 공연 어드민 계정에 연결된 공연 기본 정보를 수정합니다. PERFORMER는 performanceStatus, performanceCategory를 수정할 수 없습니다."
+    )
     @PatchMapping("/me")
     public ApiResponse<PerformanceMyResponse> updateMyPerformance(
             @CurrentAdmin AdminSessionUser currentAdmin,

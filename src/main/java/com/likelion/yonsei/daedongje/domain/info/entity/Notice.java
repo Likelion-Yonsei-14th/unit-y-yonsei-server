@@ -22,6 +22,9 @@ public class Notice extends BaseEntity {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
 
+    @Column(name = "instagram_url", length = 255)
+    private String instagramUrl;
+
     @Column(name = "is_pinned", nullable = false)
     private boolean pinned;
 
@@ -47,6 +50,7 @@ public class Notice extends BaseEntity {
     private Notice(
             String title,
             String content,
+            String instagramUrl,
             boolean pinned,
             String category,
             Long performanceId,
@@ -54,6 +58,7 @@ public class Notice extends BaseEntity {
     ) {
         this.title = title;
         this.content = content;
+        this.instagramUrl = normalize(instagramUrl);
         this.pinned = pinned;
         this.category = category;
         this.performanceId = performanceId;
@@ -64,6 +69,7 @@ public class Notice extends BaseEntity {
     public static Notice create(
             String title,
             String content,
+            String instagramUrl,
             boolean pinned,
             String category,
             Long performanceId,
@@ -72,6 +78,7 @@ public class Notice extends BaseEntity {
         return new Notice(
                 title.trim(),
                 content.trim(),
+                instagramUrl,
                 pinned,
                 normalize(category),
                 performanceId,
@@ -82,6 +89,7 @@ public class Notice extends BaseEntity {
     public void update(
             String title,
             String content,
+            String instagramUrl,
             boolean pinned,
             String category,
             Long performanceId,
@@ -89,6 +97,7 @@ public class Notice extends BaseEntity {
     ) {
         this.title = title.trim();
         this.content = content.trim();
+        this.instagramUrl = normalize(instagramUrl);
         this.pinned = pinned;
         this.category = normalize(category);
         this.performanceId = performanceId;
@@ -140,6 +149,10 @@ public class Notice extends BaseEntity {
 
     public boolean isPinned() {
         return pinned;
+    }
+
+    public String getInstagramUrl() {
+        return instagramUrl;
     }
 
     public String getCategory() {

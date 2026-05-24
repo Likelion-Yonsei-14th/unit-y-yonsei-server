@@ -2,6 +2,7 @@ package com.likelion.yonsei.daedongje.domain.booth.service;
 
 import com.likelion.yonsei.daedongje.common.exception.BusinessException;
 import com.likelion.yonsei.daedongje.domain.auth.exception.AuthErrorCode;
+import com.likelion.yonsei.daedongje.domain.auth.repository.AdminUserRepository;
 import com.likelion.yonsei.daedongje.domain.auth.support.AdminSessionUser;
 import com.likelion.yonsei.daedongje.domain.booth.dto.BoothCreateRequest;
 import com.likelion.yonsei.daedongje.domain.booth.dto.BoothResponse;
@@ -43,11 +44,13 @@ public class BoothService {
     private final MapLocationRepository mapLocationRepository;
     private final MenuRepository menuRepository;
     private final NoticeRepository noticeRepository;
+    private final AdminUserRepository adminUserRepository;
 
     public BoothService(BoothRepository boothRepository, BoothImageRepository boothImageRepository,
                         BoothClickLogRepository boothClickLogRepository,
                         ReservationRepository reservationRepository, MapLocationRepository mapLocationRepository,
-                        MenuRepository menuRepository, NoticeRepository noticeRepository) {
+                        MenuRepository menuRepository, NoticeRepository noticeRepository,
+                        AdminUserRepository adminUserRepository) {
         this.boothRepository = boothRepository;
         this.boothImageRepository = boothImageRepository;
         this.boothClickLogRepository = boothClickLogRepository;
@@ -55,11 +58,20 @@ public class BoothService {
         this.mapLocationRepository = mapLocationRepository;
         this.menuRepository = menuRepository;
         this.noticeRepository = noticeRepository;
+        this.adminUserRepository = adminUserRepository;
     }
 
-    // 부스 생성
+    // 부스 생성 (담당 어드민 검증: 존재하는 계정인지 + 계정당 부스 1개 정책)
     @Transactional
     public BoothResponse create(BoothCreateRequest request) {
+        // 존재하지 않는 어드민에 부스가 묶이면 고아 부스가 되므로 차단
+        if (!adminUserRepository.existsById(request.adminId())) {
+            throw new BusinessException(AuthErrorCode.ADMIN_USER_NOT_FOUND);
+        }
+        // 계정당 부스 1개 정책 — 이미 담당 부스가 있는 어드민이면 차단
+        if (boothRepository.existsByAdminId(request.adminId())) {
+            throw new BusinessException(BoothErrorCode.DUPLICATE_BOOTH_ADMIN);
+        }
         if (boothRepository.existsByName(request.name())) {
             throw new BusinessException(BoothErrorCode.DUPLICATE_BOOTH_NAME);
         }
@@ -89,6 +101,11 @@ public class BoothService {
         try {
             return BoothResponse.from(boothRepository.save(booth));
         } catch (DataIntegrityViolationException e) {
+            // 선검증(existsBy…)과 INSERT 사이의 race(TOCTOU) 로 UNIQUE 제약에 걸린 경우 —
+            // admin_id(계정당 부스 1개) 와 name 중 어느 제약 위반인지 재확인해 매핑한다.
+            if (boothRepository.existsByAdminId(request.adminId())) {
+                throw new BusinessException(BoothErrorCode.DUPLICATE_BOOTH_ADMIN);
+            }
             throw new BusinessException(BoothErrorCode.DUPLICATE_BOOTH_NAME);
         }
     }
@@ -182,11 +199,15 @@ public class BoothService {
                 .toList();
     }
 
-    // 부스 수정
+    // 부스 수정 (SUPER 외 역할은 본인 담당 부스만 수정 가능)
     @Transactional
-    public BoothResponse update(Long id, BoothUpdateRequest request) {
+    public BoothResponse update(Long id, BoothUpdateRequest request, AdminSessionUser currentAdmin) {
         Booth booth = boothRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(BoothErrorCode.BOOTH_NOT_FOUND));
+
+        if (!currentAdmin.isSuper() && !booth.getAdminId().equals(currentAdmin.getId())) {
+            throw new BusinessException(AuthErrorCode.FORBIDDEN);
+        }
 
         if (!booth.getName().equals(request.name()) &&
                 boothRepository.existsByName(request.name())) {
@@ -220,7 +241,7 @@ public class BoothService {
         }
     }
 
-    // 부스 운영 상태 변경 (BOOTH 역할은 본인 담당 부스만 변경 가능)
+    // 부스 운영 상태 변경 (SUPER 외 역할은 본인 담당 부스만 변경 가능)
     @Transactional
     public BoothResponse updateStatus(Long id, BoothStatus status, AdminSessionUser currentAdmin) {
         Booth booth = boothRepository.findById(id)
@@ -234,7 +255,7 @@ public class BoothService {
         return BoothResponse.of(booth, 0L, fetchThumbnail(booth.getId()), fetchMapLocation(booth));
     }
 
-    // 예약 접수 On/Off (BOOTH 역할은 본인 담당 부스만 변경 가능)
+    // 예약 접수 On/Off (SUPER 외 역할은 본인 담당 부스만 변경 가능)
     @Transactional
     public BoothResponse updateIsReservable(Long id, boolean isReservable, AdminSessionUser currentAdmin) {
         Booth booth = boothRepository.findById(id)
@@ -253,9 +274,13 @@ public class BoothService {
     // application-level cascade 로 명시적으로 정리한다 — 운영 DB 의 FK 가 ON DELETE CASCADE
     // 가 아닌 환경에서도 동일하게 동작하기 위한 안전망 (BAC-111).
     @Transactional
-    public void delete(Long id) {
+    public void delete(Long id, AdminSessionUser currentAdmin) {
         Booth booth = boothRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(BoothErrorCode.BOOTH_NOT_FOUND));
+
+        if (!currentAdmin.isSuper() && !booth.getAdminId().equals(currentAdmin.getId())) {
+            throw new BusinessException(AuthErrorCode.FORBIDDEN);
+        }
 
         verifyNoChildData(id);
 
