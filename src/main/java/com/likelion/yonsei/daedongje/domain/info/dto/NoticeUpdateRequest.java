@@ -11,23 +11,23 @@ import jakarta.validation.constraints.Size;
 import java.util.List;
 
 public record NoticeUpdateRequest(
-        @NotBlank(message = "title must not be blank.")
-        @Size(max = 100, message = "title must be 100 characters or fewer.")
+        @NotBlank(message = "title은 비어 있을 수 없습니다.")
+        @Size(max = 100, message = "title은 100자를 넘을 수 없습니다.")
         String title,
 
-        @NotBlank(message = "content must not be blank.")
+        @NotBlank(message = "content는 비어 있을 수 없습니다.")
         String content,
 
-        @Size(max = 255, message = "instagramUrl must be 255 characters or fewer.")
+        @Size(max = 255, message = "instagramUrl은 255자를 넘을 수 없습니다.")
         String instagramUrl,
 
-        @NotNull(message = "hasImage is required.")
+        @NotNull(message = "hasImage는 필수입니다.")
         Boolean hasImage,
 
-        @Size(max = 1000, message = "imageUrl must be 1000 characters or fewer.")
+        @Size(max = 1000, message = "imageUrl은 1000자를 넘을 수 없습니다.")
         String imageUrl,
 
-        @NotNull(message = "isPinned is required.")
+        @NotNull(message = "isPinned는 필수입니다.")
         Boolean isPinned,
 
         @Schema(description = "Notice category", allowableValues = {"BLUERUN", "BOOTH", "PERFORMANCE", "OTHERS"})
