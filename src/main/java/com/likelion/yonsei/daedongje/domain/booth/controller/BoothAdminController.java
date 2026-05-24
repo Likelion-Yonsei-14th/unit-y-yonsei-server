@@ -31,7 +31,8 @@ public class BoothAdminController {
     @Operation(summary = "부스 생성", description = "어드민이 신규 부스를 등록한다.")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "생성 성공")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "유효성 검증 실패 / 운영 시간 오류 (B-003)")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "이미 존재하는 부스 이름 (B-004)")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "존재하지 않는 어드민 계정 (A-010)")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "이미 존재하는 부스 이름 (B-004) / 이미 부스가 배정된 어드민 (B-009)")
     @PostMapping
     public ResponseEntity<ApiResponse<BoothResponse>> create(@RequestBody @Valid BoothCreateRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(boothService.create(request)));
