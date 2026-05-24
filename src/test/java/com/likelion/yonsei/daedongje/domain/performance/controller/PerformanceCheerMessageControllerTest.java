@@ -44,6 +44,7 @@ class PerformanceCheerMessageControllerTest {
 
     private static final String USER_CHEER_MESSAGES_URL = "/api/performances/{id}/cheer-messages";
     private static final String ADMIN_CHEER_MESSAGES_URL = "/api/admin/performances/me/cheer-messages";
+    private static final String ADMIN_ALL_CHEER_MESSAGES_URL = "/api/admin/performances/cheer-messages";
 
     @Autowired
     private MockMvc mockMvc;
@@ -334,10 +335,83 @@ class PerformanceCheerMessageControllerTest {
         assertThat(paths.path("/api/performances/{id}/cheer-messages").has("post")).isTrue();
         assertThat(paths.path("/api/performances/{id}/cheer-messages").has("get")).isTrue();
         assertThat(paths.path(ADMIN_CHEER_MESSAGES_URL).has("get")).isTrue();
+        assertThat(paths.path(ADMIN_ALL_CHEER_MESSAGES_URL).has("get")).isTrue();
         assertThat(paths.path(ADMIN_CHEER_MESSAGES_URL + "/{messageId}").has("delete")).isTrue();
         assertThat(paths.has("/api/admin/performances/{id}/cheer-messages")).isFalse();
         assertThat(paths.path("/api/admin/performances").has("post")).isFalse();
         assertThat(paths.path("/performances").has("post")).isFalse();
+    }
+
+    @Test
+    void getAllCheerMessagesReturnsAllPerformancesAndStatusesForSuper() throws Exception {
+        AdminUser superAdmin = adminUserRepository.save(adminUser("super-admin", AdminRole.SUPER));
+        mockCurrentAdmin(superAdmin);
+
+        Performance other = saveOtherPerformance();
+        cheerMessageRepository.save(PerformanceCheerMessage.create(performance, null, "메인 응원"));
+        PerformanceCheerMessage hidden = PerformanceCheerMessage.create(other, null, "다른공연 숨김");
+        hidden.hide();
+        cheerMessageRepository.save(hidden);
+
+        mockMvc.perform(get(ADMIN_ALL_CHEER_MESSAGES_URL))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data", hasSize(2)))
+                .andExpect(jsonPath("$.data[0].message").value("메인 응원"))
+                .andExpect(jsonPath("$.data[0].displayStatus").value("VISIBLE"))
+                .andExpect(jsonPath("$.data[1].message").value("다른공연 숨김"))
+                .andExpect(jsonPath("$.data[1].displayStatus").value("HIDDEN"));
+    }
+
+    @Test
+    void getAllCheerMessagesAllowedForMaster() throws Exception {
+        AdminUser masterAdmin = adminUserRepository.save(adminUser("master-admin", AdminRole.MASTER));
+        mockCurrentAdmin(masterAdmin);
+        cheerMessageRepository.save(PerformanceCheerMessage.create(performance, null, "응원"));
+
+        mockMvc.perform(get(ADMIN_ALL_CHEER_MESSAGES_URL))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data", hasSize(1)));
+    }
+
+    @Test
+    void getAllCheerMessagesRejectsPerformer() throws Exception {
+        // setUp 의 기본 performerAdmin(PERFORMER) 으로 호출 — 전체 조회는 SUPER/MASTER 전용.
+        mockMvc.perform(get(ADMIN_ALL_CHEER_MESSAGES_URL))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error.code").value("A-009"));
+    }
+
+    @Test
+    void getAllCheerMessagesRejectsBooth() throws Exception {
+        AdminUser boothAdmin = adminUserRepository.save(adminUser("booth-admin", AdminRole.BOOTH));
+        mockCurrentAdmin(boothAdmin);
+
+        mockMvc.perform(get(ADMIN_ALL_CHEER_MESSAGES_URL))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error.code").value("A-009"));
+    }
+
+    @Test
+    void getAllCheerMessagesReturnsUnauthorizedWhenNotLoggedIn() throws Exception {
+        Mockito.when(adminAuthContextService.getCurrentAdmin(any(HttpServletRequest.class)))
+                .thenThrow(new BusinessException(AuthErrorCode.UNAUTHORIZED));
+
+        mockMvc.perform(get(ADMIN_ALL_CHEER_MESSAGES_URL))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error.code").value("A-007"));
+    }
+
+    @Test
+    void getAllCheerMessagesReturnsEmptyListWhenNoMessages() throws Exception {
+        AdminUser superAdmin = adminUserRepository.save(adminUser("super-admin", AdminRole.SUPER));
+        mockCurrentAdmin(superAdmin);
+
+        mockMvc.perform(get(ADMIN_ALL_CHEER_MESSAGES_URL))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data", hasSize(0)));
     }
 
     private PerformanceSetlist saveSetlist(

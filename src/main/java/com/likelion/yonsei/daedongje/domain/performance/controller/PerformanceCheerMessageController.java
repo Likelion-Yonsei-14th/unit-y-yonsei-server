@@ -55,6 +55,14 @@ public class PerformanceCheerMessageController {
         return ApiResponse.success(cheerMessageService.getMyPerformanceCheerMessages(currentAdmin));
     }
 
+    @Operation(summary = "공연 응원 메시지 전체 조회(어드민)",
+            description = "Super/Master 가 전 공연의 응원 메시지를 전 상태(VISIBLE/HIDDEN) 기준으로 createdAt ASC, id ASC 로 조회합니다.")
+    @RequireAdminRole({AdminRole.SUPER, AdminRole.MASTER})
+    @GetMapping("/api/admin/performances/cheer-messages")
+    public ApiResponse<List<PerformanceCheerMessageResponse>> getAllCheerMessages() {
+        return ApiResponse.success(cheerMessageService.getAllCheerMessages());
+    }
+
     @Operation(summary = "내 공연 응원 메시지 삭제", description = "공연 어드민이 본인 공연의 응원 메시지를 HIDDEN 상태로 변경합니다.")
     @RequireAdminRole({AdminRole.PERFORMER, AdminRole.SUPER})
     @DeleteMapping("/api/admin/performances/me/cheer-messages/{messageId}")
