@@ -58,6 +58,7 @@ dependencies {
 	implementation "software.amazon.awssdk:s3"
 
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+	runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
 
 	runtimeOnly 'com.mysql:mysql-connector-j'
 
