@@ -2,11 +2,9 @@ package com.likelion.yonsei.daedongje.domain.performance.controller;
 
 import com.likelion.yonsei.daedongje.common.response.ApiResponse;
 import com.likelion.yonsei.daedongje.domain.performance.dto.LiveStageResponse;
-import com.likelion.yonsei.daedongje.domain.performance.dto.PerformanceCurrentResponse;
 import com.likelion.yonsei.daedongje.domain.performance.dto.PerformanceDetailResponse;
 import com.likelion.yonsei.daedongje.domain.performance.dto.PerformanceListResponse;
 import com.likelion.yonsei.daedongje.domain.performance.dto.PerformanceTimetableResponse;
-import com.likelion.yonsei.daedongje.domain.performance.service.LivePerformanceService;
 import com.likelion.yonsei.daedongje.domain.performance.service.LiveStageService;
 import com.likelion.yonsei.daedongje.domain.performance.service.PerformanceReadService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -26,7 +24,6 @@ import java.util.List;
 public class PerformanceReadController {
 
     private final PerformanceReadService performanceReadService;
-    private final LivePerformanceService livePerformanceService;
     private final LiveStageService liveStageService;
 
     @Operation(summary = "공연 목록 조회", description = "사용자에게 노출 가능한 공연 목록을 조회합니다.")
@@ -39,12 +36,6 @@ public class PerformanceReadController {
     @GetMapping("/timetable")
     public ApiResponse<List<PerformanceTimetableResponse>> getPerformanceTimetable() {
         return ApiResponse.success(performanceReadService.getPerformanceTimetable());
-    }
-
-    @Operation(summary = "라이브 공연 조회", description = "운영진이 수동 지정한 현재 라이브 공연을 조회합니다. 미지정 시 data는 null입니다.")
-    @GetMapping("/live")
-    public ApiResponse<PerformanceCurrentResponse> getLivePerformance() {
-        return ApiResponse.success(livePerformanceService.getLivePerformance());
     }
 
     @Operation(
