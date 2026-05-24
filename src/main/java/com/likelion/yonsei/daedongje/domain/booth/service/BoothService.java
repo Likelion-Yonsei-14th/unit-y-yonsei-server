@@ -2,6 +2,7 @@ package com.likelion.yonsei.daedongje.domain.booth.service;
 
 import com.likelion.yonsei.daedongje.common.exception.BusinessException;
 import com.likelion.yonsei.daedongje.domain.auth.exception.AuthErrorCode;
+import com.likelion.yonsei.daedongje.domain.auth.repository.AdminUserRepository;
 import com.likelion.yonsei.daedongje.domain.auth.support.AdminSessionUser;
 import com.likelion.yonsei.daedongje.domain.booth.dto.BoothCreateRequest;
 import com.likelion.yonsei.daedongje.domain.booth.dto.BoothResponse;
@@ -43,11 +44,13 @@ public class BoothService {
     private final MapLocationRepository mapLocationRepository;
     private final MenuRepository menuRepository;
     private final NoticeRepository noticeRepository;
+    private final AdminUserRepository adminUserRepository;
 
     public BoothService(BoothRepository boothRepository, BoothImageRepository boothImageRepository,
                         BoothClickLogRepository boothClickLogRepository,
                         ReservationRepository reservationRepository, MapLocationRepository mapLocationRepository,
-                        MenuRepository menuRepository, NoticeRepository noticeRepository) {
+                        MenuRepository menuRepository, NoticeRepository noticeRepository,
+                        AdminUserRepository adminUserRepository) {
         this.boothRepository = boothRepository;
         this.boothImageRepository = boothImageRepository;
         this.boothClickLogRepository = boothClickLogRepository;
@@ -55,11 +58,20 @@ public class BoothService {
         this.mapLocationRepository = mapLocationRepository;
         this.menuRepository = menuRepository;
         this.noticeRepository = noticeRepository;
+        this.adminUserRepository = adminUserRepository;
     }
 
-    // 부스 생성
+    // 부스 생성 (담당 어드민 검증: 존재하는 계정인지 + 계정당 부스 1개 정책)
     @Transactional
     public BoothResponse create(BoothCreateRequest request) {
+        // 존재하지 않는 어드민에 부스가 묶이면 고아 부스가 되므로 차단
+        if (!adminUserRepository.existsById(request.adminId())) {
+            throw new BusinessException(AuthErrorCode.ADMIN_USER_NOT_FOUND);
+        }
+        // 계정당 부스 1개 정책 — 이미 담당 부스가 있는 어드민이면 차단
+        if (boothRepository.existsByAdminId(request.adminId())) {
+            throw new BusinessException(BoothErrorCode.DUPLICATE_BOOTH_ADMIN);
+        }
         if (boothRepository.existsByName(request.name())) {
             throw new BusinessException(BoothErrorCode.DUPLICATE_BOOTH_NAME);
         }
@@ -89,6 +101,11 @@ public class BoothService {
         try {
             return BoothResponse.from(boothRepository.save(booth));
         } catch (DataIntegrityViolationException e) {
+            // 선검증(existsBy…)과 INSERT 사이의 race(TOCTOU) 로 UNIQUE 제약에 걸린 경우 —
+            // admin_id(계정당 부스 1개) 와 name 중 어느 제약 위반인지 재확인해 매핑한다.
+            if (boothRepository.existsByAdminId(request.adminId())) {
+                throw new BusinessException(BoothErrorCode.DUPLICATE_BOOTH_ADMIN);
+            }
             throw new BusinessException(BoothErrorCode.DUPLICATE_BOOTH_NAME);
         }
     }

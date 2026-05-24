@@ -3,7 +3,9 @@ package com.likelion.yonsei.daedongje.domain.booth.service;
 import com.likelion.yonsei.daedongje.common.exception.BusinessException;
 import com.likelion.yonsei.daedongje.domain.auth.entity.AdminRole;
 import com.likelion.yonsei.daedongje.domain.auth.exception.AuthErrorCode;
+import com.likelion.yonsei.daedongje.domain.auth.repository.AdminUserRepository;
 import com.likelion.yonsei.daedongje.domain.auth.support.AdminSessionUser;
+import com.likelion.yonsei.daedongje.domain.booth.dto.BoothCreateRequest;
 import com.likelion.yonsei.daedongje.domain.booth.dto.BoothResponse;
 import com.likelion.yonsei.daedongje.domain.booth.dto.BoothUpdateRequest;
 import com.likelion.yonsei.daedongje.domain.booth.entity.Booth;
@@ -69,6 +71,9 @@ class BoothServiceTest {
 
     @Mock
     private NoticeRepository noticeRepository;
+
+    @Mock
+    private AdminUserRepository adminUserRepository;
 
     @InjectMocks
     private BoothService boothService;
@@ -272,6 +277,78 @@ class BoothServiceTest {
         assertThat(response.getName()).isEqualTo("멋사 핫도그");
     }
 
+    @Test
+    @DisplayName("존재하지 않는 adminId 로 부스를 생성하면 ADMIN_USER_NOT_FOUND 로 차단되고 저장되지 않는다")
+    void createBlockedWhenAdminDoesNotExist() {
+        when(adminUserRepository.existsById(1L)).thenReturn(false);
+
+        assertThatThrownBy(() -> boothService.create(createRequest()))
+                .isInstanceOfSatisfying(BusinessException.class, e ->
+                        assertThat(e.getErrorCode()).isEqualTo(AuthErrorCode.ADMIN_USER_NOT_FOUND));
+
+        verify(boothRepository, never()).save(any(Booth.class));
+    }
+
+    @Test
+    @DisplayName("이미 부스가 배정된 adminId 로 부스를 생성하면 DUPLICATE_BOOTH_ADMIN 으로 차단되고 저장되지 않는다")
+    void createBlockedWhenAdminAlreadyHasBooth() {
+        when(adminUserRepository.existsById(1L)).thenReturn(true);
+        when(boothRepository.existsByAdminId(1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> boothService.create(createRequest()))
+                .isInstanceOfSatisfying(BusinessException.class, e ->
+                        assertThat(e.getErrorCode()).isEqualTo(BoothErrorCode.DUPLICATE_BOOTH_ADMIN));
+
+        verify(boothRepository, never()).save(any(Booth.class));
+    }
+
+    @Test
+    @DisplayName("존재하고 아직 담당 부스가 없는 adminId 로는 부스가 정상 생성된다")
+    void createSucceedsWhenAdminExistsAndUnassigned() {
+        when(adminUserRepository.existsById(1L)).thenReturn(true);
+        when(boothRepository.existsByAdminId(1L)).thenReturn(false);
+        when(boothRepository.existsByName("멋사 핫도그")).thenReturn(false);
+        when(boothRepository.save(any(Booth.class))).thenAnswer(invocation -> {
+            Booth saved = invocation.getArgument(0);
+            ReflectionTestUtils.setField(saved, "id", 1L);
+            return saved;
+        });
+
+        BoothResponse response = boothService.create(createRequest());
+
+        assertThat(response.getName()).isEqualTo("멋사 핫도그");
+    }
+
+    @Test
+    @DisplayName("선검증과 INSERT 사이 race 로 admin_id UNIQUE 제약에 걸리면 DUPLICATE_BOOTH_ADMIN 으로 매핑된다")
+    void createMapsAdminIdUniqueViolationToDuplicateBoothAdmin() {
+        when(adminUserRepository.existsById(1L)).thenReturn(true);
+        // 선검증 시점엔 없음(false) → 동시 트랜잭션이 먼저 커밋 → 재확인 시 존재(true)
+        when(boothRepository.existsByAdminId(1L)).thenReturn(false, true);
+        when(boothRepository.existsByName("멋사 핫도그")).thenReturn(false);
+        when(boothRepository.save(any(Booth.class)))
+                .thenThrow(new DataIntegrityViolationException("unique constraint uq_booths_admin_id"));
+
+        assertThatThrownBy(() -> boothService.create(createRequest()))
+                .isInstanceOfSatisfying(BusinessException.class, e ->
+                        assertThat(e.getErrorCode()).isEqualTo(BoothErrorCode.DUPLICATE_BOOTH_ADMIN));
+    }
+
+    @Test
+    @DisplayName("부스 이름 UNIQUE 제약 위반(admin_id 중복 아님)은 DUPLICATE_BOOTH_NAME 으로 매핑된다")
+    void createMapsNameUniqueViolationToDuplicateBoothName() {
+        when(adminUserRepository.existsById(1L)).thenReturn(true);
+        // admin_id 는 선검증·재확인 모두 중복 아님 → 이름 제약 위반으로 판정
+        when(boothRepository.existsByAdminId(1L)).thenReturn(false, false);
+        when(boothRepository.existsByName("멋사 핫도그")).thenReturn(false);
+        when(boothRepository.save(any(Booth.class)))
+                .thenThrow(new DataIntegrityViolationException("unique constraint uq_booths_name"));
+
+        assertThatThrownBy(() -> boothService.create(createRequest()))
+                .isInstanceOfSatisfying(BusinessException.class, e ->
+                        assertThat(e.getErrorCode()).isEqualTo(BoothErrorCode.DUPLICATE_BOOTH_NAME));
+    }
+
     private AdminSessionUser superAdmin() {
         return new AdminSessionUser(99L, AdminRole.SUPER, "super");
     }
@@ -283,6 +360,30 @@ class BoothServiceTest {
     // 부스 픽스처(name "멋사 핫도그", openTime 11:00, closeTime 20:00)와 동일 — name 동일이라 중복검사 단락, 시간검증 통과.
     private BoothUpdateRequest updateRequest() {
         return new BoothUpdateRequest(
+                "멋사 핫도그",
+                "멋쟁이사자처럼",
+                "소개",
+                2,
+                LocalTime.of(11, 0),
+                LocalTime.of(20, 0),
+                BoothSector.한글탑,
+                3,
+                BoothStatus.OPEN,
+                true,
+                null,
+                true,
+                null,
+                null,
+                null,
+                false,
+                null
+        );
+    }
+
+    // 부스 픽스처와 동일(adminId 1L, name "멋사 핫도그", openTime 11:00, closeTime 20:00) — 시간검증 통과.
+    private BoothCreateRequest createRequest() {
+        return new BoothCreateRequest(
+                1L,
                 "멋사 핫도그",
                 "멋쟁이사자처럼",
                 "소개",
