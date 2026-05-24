@@ -1,7 +1,11 @@
 package com.likelion.yonsei.daedongje.domain.booth.service;
 
 import com.likelion.yonsei.daedongje.common.exception.BusinessException;
+import com.likelion.yonsei.daedongje.domain.auth.entity.AdminRole;
+import com.likelion.yonsei.daedongje.domain.auth.exception.AuthErrorCode;
+import com.likelion.yonsei.daedongje.domain.auth.support.AdminSessionUser;
 import com.likelion.yonsei.daedongje.domain.booth.dto.BoothResponse;
+import com.likelion.yonsei.daedongje.domain.booth.dto.BoothUpdateRequest;
 import com.likelion.yonsei.daedongje.domain.booth.entity.Booth;
 import com.likelion.yonsei.daedongje.domain.booth.entity.BoothSector;
 import com.likelion.yonsei.daedongje.domain.booth.entity.BoothStatus;
@@ -113,7 +117,7 @@ class BoothServiceTest {
         when(menuRepository.existsByBoothId(7L)).thenReturn(false);
         when(noticeRepository.existsByBoothId(7L)).thenReturn(false);
 
-        boothService.delete(7L);
+        boothService.delete(7L, superAdmin());
 
         verify(boothRepository).delete(booth);
     }
@@ -125,7 +129,7 @@ class BoothServiceTest {
         when(boothRepository.findById(7L)).thenReturn(Optional.of(booth));
         when(reservationRepository.existsByBoothId(7L)).thenReturn(true);
 
-        assertThatThrownBy(() -> boothService.delete(7L))
+        assertThatThrownBy(() -> boothService.delete(7L, superAdmin()))
                 .isInstanceOfSatisfying(BusinessException.class, e ->
                         assertThat(e.getErrorCode()).isEqualTo(BoothErrorCode.BOOTH_HAS_RESERVATIONS));
 
@@ -140,7 +144,7 @@ class BoothServiceTest {
         when(reservationRepository.existsByBoothId(7L)).thenReturn(false);
         when(menuRepository.existsByBoothId(7L)).thenReturn(true);
 
-        assertThatThrownBy(() -> boothService.delete(7L))
+        assertThatThrownBy(() -> boothService.delete(7L, superAdmin()))
                 .isInstanceOfSatisfying(BusinessException.class, e ->
                         assertThat(e.getErrorCode()).isEqualTo(BoothErrorCode.BOOTH_HAS_MENUS));
 
@@ -156,7 +160,7 @@ class BoothServiceTest {
         when(menuRepository.existsByBoothId(7L)).thenReturn(false);
         when(noticeRepository.existsByBoothId(7L)).thenReturn(true);
 
-        assertThatThrownBy(() -> boothService.delete(7L))
+        assertThatThrownBy(() -> boothService.delete(7L, superAdmin()))
                 .isInstanceOfSatisfying(BusinessException.class, e ->
                         assertThat(e.getErrorCode()).isEqualTo(BoothErrorCode.BOOTH_HAS_NOTICES));
 
@@ -174,7 +178,7 @@ class BoothServiceTest {
         when(menuRepository.existsByBoothId(7L)).thenReturn(false);
         when(noticeRepository.existsByBoothId(7L)).thenReturn(false);
 
-        boothService.delete(7L);
+        boothService.delete(7L, superAdmin());
 
         // 순서 보장 — 자식 정리는 부스 삭제 *전에* 일어나야 한다. FK 가 RESTRICT 인
         // 환경에서 순서가 뒤집히면 boothRepository.delete 가 즉시 FK 위반으로 실패한다.
@@ -193,7 +197,7 @@ class BoothServiceTest {
         when(boothRepository.findById(7L)).thenReturn(Optional.of(booth));
         when(reservationRepository.existsByBoothId(7L)).thenReturn(true);
 
-        assertThatThrownBy(() -> boothService.delete(7L))
+        assertThatThrownBy(() -> boothService.delete(7L, superAdmin()))
                 .isInstanceOf(BusinessException.class);
 
         verify(boothClickLogRepository, never()).deleteByBoothId(any());
@@ -213,9 +217,90 @@ class BoothServiceTest {
         doThrow(new DataIntegrityViolationException("FK violation: reservations.fk_reservations_booth"))
                 .when(boothRepository).delete(booth);
 
-        assertThatThrownBy(() -> boothService.delete(7L))
+        assertThatThrownBy(() -> boothService.delete(7L, superAdmin()))
                 .isInstanceOfSatisfying(BusinessException.class, e ->
                         assertThat(e.getErrorCode()).isEqualTo(BoothErrorCode.BOOTH_HAS_RESERVATIONS));
+    }
+
+    @Test
+    @DisplayName("BOOTH 역할이 본인 담당이 아닌 부스를 삭제하려 하면 FORBIDDEN 으로 차단된다")
+    void deleteBlockedForNonOwnerBoothAdmin() {
+        Booth booth = booth(7L, null); // adminId = 1L
+        when(boothRepository.findById(7L)).thenReturn(Optional.of(booth));
+
+        assertThatThrownBy(() -> boothService.delete(7L, boothAdmin(2L)))
+                .isInstanceOfSatisfying(BusinessException.class, e ->
+                        assertThat(e.getErrorCode()).isEqualTo(AuthErrorCode.FORBIDDEN));
+
+        verify(boothRepository, never()).delete(any(Booth.class));
+    }
+
+    @Test
+    @DisplayName("BOOTH 역할이 본인 담당 부스는 삭제할 수 있다")
+    void deleteAllowedForOwnerBoothAdmin() {
+        Booth booth = booth(7L, null); // adminId = 1L
+        when(boothRepository.findById(7L)).thenReturn(Optional.of(booth));
+        when(reservationRepository.existsByBoothId(7L)).thenReturn(false);
+        when(menuRepository.existsByBoothId(7L)).thenReturn(false);
+        when(noticeRepository.existsByBoothId(7L)).thenReturn(false);
+
+        boothService.delete(7L, boothAdmin(1L));
+
+        verify(boothRepository).delete(booth);
+    }
+
+    @Test
+    @DisplayName("BOOTH 역할이 본인 담당이 아닌 부스를 수정하려 하면 FORBIDDEN 으로 차단된다")
+    void updateBlockedForNonOwnerBoothAdmin() {
+        Booth booth = booth(7L, null); // adminId = 1L
+        when(boothRepository.findById(7L)).thenReturn(Optional.of(booth));
+
+        assertThatThrownBy(() -> boothService.update(7L, updateRequest(), boothAdmin(2L)))
+                .isInstanceOfSatisfying(BusinessException.class, e ->
+                        assertThat(e.getErrorCode()).isEqualTo(AuthErrorCode.FORBIDDEN));
+    }
+
+    @Test
+    @DisplayName("BOOTH 역할이 본인 담당 부스는 수정할 수 있다")
+    void updateAllowedForOwnerBoothAdmin() {
+        Booth booth = booth(7L, null); // adminId = 1L, name "멋사 핫도그"
+        when(boothRepository.findById(7L)).thenReturn(Optional.of(booth));
+        when(boothImageRepository.findByBoothIdAndDisplayOrder(7L, 1)).thenReturn(Optional.empty());
+
+        BoothResponse response = boothService.update(7L, updateRequest(), boothAdmin(1L));
+
+        assertThat(response.getName()).isEqualTo("멋사 핫도그");
+    }
+
+    private AdminSessionUser superAdmin() {
+        return new AdminSessionUser(99L, AdminRole.SUPER, "super");
+    }
+
+    private AdminSessionUser boothAdmin(Long id) {
+        return new AdminSessionUser(id, AdminRole.BOOTH, "booth-" + id);
+    }
+
+    // 부스 픽스처(name "멋사 핫도그", openTime 11:00, closeTime 20:00)와 동일 — name 동일이라 중복검사 단락, 시간검증 통과.
+    private BoothUpdateRequest updateRequest() {
+        return new BoothUpdateRequest(
+                "멋사 핫도그",
+                "멋쟁이사자처럼",
+                "소개",
+                2,
+                LocalTime.of(11, 0),
+                LocalTime.of(20, 0),
+                BoothSector.한글탑,
+                3,
+                BoothStatus.OPEN,
+                true,
+                null,
+                true,
+                null,
+                null,
+                null,
+                false,
+                null
+        );
     }
 
     private Booth booth(Long id, Long locationId) {

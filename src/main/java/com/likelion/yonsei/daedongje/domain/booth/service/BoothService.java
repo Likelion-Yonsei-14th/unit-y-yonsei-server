@@ -182,11 +182,15 @@ public class BoothService {
                 .toList();
     }
 
-    // 부스 수정
+    // 부스 수정 (SUPER 외 역할은 본인 담당 부스만 수정 가능)
     @Transactional
-    public BoothResponse update(Long id, BoothUpdateRequest request) {
+    public BoothResponse update(Long id, BoothUpdateRequest request, AdminSessionUser currentAdmin) {
         Booth booth = boothRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(BoothErrorCode.BOOTH_NOT_FOUND));
+
+        if (!currentAdmin.isSuper() && !booth.getAdminId().equals(currentAdmin.getId())) {
+            throw new BusinessException(AuthErrorCode.FORBIDDEN);
+        }
 
         if (!booth.getName().equals(request.name()) &&
                 boothRepository.existsByName(request.name())) {
@@ -220,7 +224,7 @@ public class BoothService {
         }
     }
 
-    // 부스 운영 상태 변경 (BOOTH 역할은 본인 담당 부스만 변경 가능)
+    // 부스 운영 상태 변경 (SUPER 외 역할은 본인 담당 부스만 변경 가능)
     @Transactional
     public BoothResponse updateStatus(Long id, BoothStatus status, AdminSessionUser currentAdmin) {
         Booth booth = boothRepository.findById(id)
@@ -234,7 +238,7 @@ public class BoothService {
         return BoothResponse.of(booth, 0L, fetchThumbnail(booth.getId()), fetchMapLocation(booth));
     }
 
-    // 예약 접수 On/Off (BOOTH 역할은 본인 담당 부스만 변경 가능)
+    // 예약 접수 On/Off (SUPER 외 역할은 본인 담당 부스만 변경 가능)
     @Transactional
     public BoothResponse updateIsReservable(Long id, boolean isReservable, AdminSessionUser currentAdmin) {
         Booth booth = boothRepository.findById(id)
@@ -253,9 +257,13 @@ public class BoothService {
     // application-level cascade 로 명시적으로 정리한다 — 운영 DB 의 FK 가 ON DELETE CASCADE
     // 가 아닌 환경에서도 동일하게 동작하기 위한 안전망 (BAC-111).
     @Transactional
-    public void delete(Long id) {
+    public void delete(Long id, AdminSessionUser currentAdmin) {
         Booth booth = boothRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(BoothErrorCode.BOOTH_NOT_FOUND));
+
+        if (!currentAdmin.isSuper() && !booth.getAdminId().equals(currentAdmin.getId())) {
+            throw new BusinessException(AuthErrorCode.FORBIDDEN);
+        }
 
         verifyNoChildData(id);
 
