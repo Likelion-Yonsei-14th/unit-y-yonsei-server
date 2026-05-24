@@ -1,6 +1,8 @@
 package com.likelion.yonsei.daedongje.domain.info.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.likelion.yonsei.daedongje.domain.info.entity.NoticeCategory;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -25,8 +27,8 @@ public record NoticeCreateRequest(
 
         Boolean isPinned,
 
-        @Size(max = 50, message = "category는 50자를 넘을 수 없습니다.")
-        String category,
+        @Schema(description = "Notice category", allowableValues = {"BLUERUN", "BOOTH", "PERFORMANCE", "OTHERS"})
+        NoticeCategory category,
 
         Long performanceId,
 

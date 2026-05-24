@@ -1,6 +1,7 @@
 package com.likelion.yonsei.daedongje.domain.info.repository;
 
 import com.likelion.yonsei.daedongje.domain.info.entity.Notice;
+import com.likelion.yonsei.daedongje.domain.info.entity.NoticeCategory;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -11,6 +12,9 @@ public interface NoticeRepository extends JpaRepository<Notice, Long> {
 
     @EntityGraph(attributePaths = "images")
     List<Notice> findAllByOrderByPinnedDescUpdatedAtDescIdDesc();
+
+    @EntityGraph(attributePaths = "images")
+    List<Notice> findAllByCategoryOrderByPinnedDescUpdatedAtDescIdDesc(NoticeCategory category);
 
     @Override
     @EntityGraph(attributePaths = "images")

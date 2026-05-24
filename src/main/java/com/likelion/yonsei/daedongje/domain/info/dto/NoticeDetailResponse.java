@@ -4,18 +4,14 @@ import com.likelion.yonsei.daedongje.domain.info.entity.Notice;
 import com.likelion.yonsei.daedongje.domain.info.entity.NoticeCategory;
 import io.swagger.v3.oas.annotations.media.Schema;
 
-import java.time.format.DateTimeFormatter;
+import java.time.LocalDateTime;
 import java.util.List;
 
-@Schema(description = "공지사항 응답")
-public record NoticeResponse(
-        // NOTE: 의도적 중복 - id/noticeId 모두 notice.getId() 값. FE가 두 키 모두 참조해 호환 위해 유지.
-        Long id,
+@Schema(description = "공지사항 상세 응답")
+public record NoticeDetailResponse(
         Long noticeId,
         String title,
         String content,
-        String date,
-        String time,
         String instagramUrl,
         boolean hasImage,
         String imageUrl,
@@ -25,23 +21,20 @@ public record NoticeResponse(
         int viewCount,
         Long performanceId,
         Long boothId,
+        LocalDateTime createdAt,
+        LocalDateTime updatedAt,
         List<NoticeImageResponse> images
 ) {
 
-    private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
-
-    public static NoticeResponse from(Notice notice) {
+    public static NoticeDetailResponse from(Notice notice) {
         List<NoticeImageResponse> images = notice.getImages().stream()
                 .map(NoticeImageResponse::from)
                 .toList();
 
-        return new NoticeResponse(
-                notice.getId(),   // id
-                notice.getId(),   // noticeId (의도적 중복, FE 호환)
+        return new NoticeDetailResponse(
+                notice.getId(),
                 notice.getTitle(),
                 notice.getContent(),
-                notice.getUpdatedAt().toLocalDate().toString(),
-                notice.getUpdatedAt().toLocalTime().format(TIME_FORMATTER),
                 notice.getInstagramUrl(),
                 !images.isEmpty(),
                 notice.getPrimaryImageUrl(),
@@ -50,6 +43,8 @@ public record NoticeResponse(
                 notice.getViewCount(),
                 notice.getPerformanceId(),
                 notice.getBoothId(),
+                notice.getCreatedAt(),
+                notice.getUpdatedAt(),
                 images
         );
     }
