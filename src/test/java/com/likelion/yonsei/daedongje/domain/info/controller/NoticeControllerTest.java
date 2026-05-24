@@ -19,6 +19,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 
 import static org.hamcrest.Matchers.hasSize;
 import static org.mockito.ArgumentMatchers.any;
@@ -61,7 +62,7 @@ class NoticeControllerTest {
                   "content": "Notice content",
                   "instagramUrl": "https://instagram.com/notice",
                   "isPinned": true,
-                  "category": "GENERAL",
+                  "category": "OTHERS",
                   "images": [
                     {
                       "image_url": "https://example.com/notice-1.png",
@@ -82,6 +83,7 @@ class NoticeControllerTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.title").value("Notice title"))
                 .andExpect(jsonPath("$.data.instagramUrl").value("https://instagram.com/notice"))
+                .andExpect(jsonPath("$.data.category").value("OTHERS"))
                 .andExpect(jsonPath("$.data.hasImage").value(true))
                 .andExpect(jsonPath("$.data.imageUrl").value("https://example.com/notice-1.png"))
                 .andExpect(jsonPath("$.data.images", hasSize(2)))
@@ -98,11 +100,108 @@ class NoticeControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data", hasSize(1)))
+                .andExpect(jsonPath("$.data[0].noticeId").value(savedNotice.getId()))
+                .andExpect(jsonPath("$.data[0].category").value("OTHERS"))
                 .andExpect(jsonPath("$.data[0].date").value(expectedDate))
                 .andExpect(jsonPath("$.data[0].time").value(expectedTime))
                 .andExpect(jsonPath("$.data[0].instagramUrl").value("https://instagram.com/notice"))
                 .andExpect(jsonPath("$.data[0].images", hasSize(2)))
                 .andExpect(jsonPath("$.data[0].imageUrl").value("https://example.com/notice-1.png"));
+
+        mockMvc.perform(get("/api/notices/{noticeId}", savedNotice.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.noticeId").value(savedNotice.getId()))
+                .andExpect(jsonPath("$.data.title").value("Notice title"))
+                .andExpect(jsonPath("$.data.content").value("Notice content"))
+                .andExpect(jsonPath("$.data.category").value("OTHERS"))
+                .andExpect(jsonPath("$.data.createdAt").exists())
+                .andExpect(jsonPath("$.data.updatedAt").exists())
+                .andExpect(jsonPath("$.data.images", hasSize(2)));
+    }
+
+    @Test
+    void getNotices_filtersByCategory() throws Exception {
+        String othersNotice = """
+                {
+                  "title": "Others notice",
+                  "content": "Others content",
+                  "isPinned": false,
+                  "category": "OTHERS"
+                }
+                """;
+
+        String boothNotice = """
+                {
+                  "title": "Booth notice",
+                  "content": "Booth content",
+                  "isPinned": false,
+                  "category": "BOOTH"
+                }
+                """;
+
+        mockMvc.perform(post("/api/admin/notices")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(othersNotice))
+                .andExpect(status().isCreated());
+        mockMvc.perform(post("/api/admin/notices")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(boothNotice))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(get("/api/notices").param("category", "OTHERS"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data", hasSize(1)))
+                .andExpect(jsonPath("$.data[0].title").value("Others notice"))
+                .andExpect(jsonPath("$.data[0].category").value("OTHERS"));
+
+        mockMvc.perform(get("/api/notices").param("category", "BOOTH"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data", hasSize(1)))
+                .andExpect(jsonPath("$.data[0].title").value("Booth notice"))
+                .andExpect(jsonPath("$.data[0].category").value("BOOTH"));
+    }
+
+    @Test
+    void getNotices_acceptsAllNoticeCategories() throws Exception {
+        for (String category : List.of("BLUERUN", "BOOTH", "PERFORMANCE", "OTHERS")) {
+            String requestBody = """
+                    {
+                      "title": "%s notice",
+                      "content": "%s content",
+                      "isPinned": false,
+                      "category": "%s"
+                    }
+                    """.formatted(category, category, category);
+
+            mockMvc.perform(post("/api/admin/notices")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(requestBody))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.data.category").value(category));
+
+            mockMvc.perform(get("/api/notices").param("category", category))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.success").value(true))
+                    .andExpect(jsonPath("$.data[0].category").value(category));
+        }
+    }
+
+    @Test
+    void getNotice_returnsNotFound_whenNoticeDoesNotExist() throws Exception {
+        mockMvc.perform(get("/api/notices/{noticeId}", 999999L))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("I-001"));
+    }
+
+    @Test
+    void getNotices_rejectsInvalidCategoryParameter() throws Exception {
+        mockMvc.perform(get("/api/notices").param("category", "INVALID"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false));
     }
 
     @Test
@@ -135,7 +234,7 @@ class NoticeControllerTest {
                   "instagramUrl": "https://instagram.com/updated-notice",
                   "hasImage": true,
                   "isPinned": true,
-                  "category": "EVENT",
+                  "category": "BOOTH",
                   "images": [
                     {
                       "image_url": "https://example.com/updated-1.png",
@@ -157,7 +256,7 @@ class NoticeControllerTest {
                 .andExpect(jsonPath("$.data.title").value("Updated title"))
                 .andExpect(jsonPath("$.data.instagramUrl").value("https://instagram.com/updated-notice"))
                 .andExpect(jsonPath("$.data.isPinned").value(true))
-                .andExpect(jsonPath("$.data.category").value("EVENT"))
+                .andExpect(jsonPath("$.data.category").value("BOOTH"))
                 .andExpect(jsonPath("$.data.images", hasSize(2)))
                 .andExpect(jsonPath("$.data.images[0].imageUrl").value("https://example.com/updated-1.png"))
                 .andExpect(jsonPath("$.data.images[1].imageUrl").value("https://example.com/updated-2.png"));
@@ -201,7 +300,7 @@ class NoticeControllerTest {
                   "instagramUrl": "https://instagram.com/kept-notice",
                   "hasImage": true,
                   "isPinned": true,
-                  "category": "EVENT"
+                  "category": "PERFORMANCE"
                 }
                 """;
 

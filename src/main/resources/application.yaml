@@ -90,7 +90,17 @@ management:
   endpoints:
     web:
       exposure:
-        include: health
+        include: health,prometheus
   endpoint:
     health:
       show-details: never
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+
+monitoring:
+  webhook:
+    # Grafana Cloud 웹훅 contact point가 Authorization: Bearer <secret> 로 보내는 값.
+    # 미설정 시 모든 웹훅 요청을 401로 거부(안전 기본값).
+    secret: ${MONITORING_WEBHOOK_SECRET:}

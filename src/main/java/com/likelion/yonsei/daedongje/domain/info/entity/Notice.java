@@ -28,8 +28,9 @@ public class Notice extends BaseEntity {
     @Column(name = "is_pinned", nullable = false)
     private boolean pinned;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "category", length = 50)
-    private String category;
+    private NoticeCategory category;
 
     @Column(name = "view_count", nullable = false)
     private int viewCount;
@@ -52,7 +53,7 @@ public class Notice extends BaseEntity {
             String content,
             String instagramUrl,
             boolean pinned,
-            String category,
+            NoticeCategory category,
             Long performanceId,
             Long boothId
     ) {
@@ -71,7 +72,7 @@ public class Notice extends BaseEntity {
             String content,
             String instagramUrl,
             boolean pinned,
-            String category,
+            NoticeCategory category,
             Long performanceId,
             Long boothId
     ) {
@@ -80,7 +81,7 @@ public class Notice extends BaseEntity {
                 content.trim(),
                 instagramUrl,
                 pinned,
-                normalize(category),
+                category,
                 performanceId,
                 boothId
         );
@@ -91,7 +92,7 @@ public class Notice extends BaseEntity {
             String content,
             String instagramUrl,
             boolean pinned,
-            String category,
+            NoticeCategory category,
             Long performanceId,
             Long boothId
     ) {
@@ -99,7 +100,7 @@ public class Notice extends BaseEntity {
         this.content = content.trim();
         this.instagramUrl = normalize(instagramUrl);
         this.pinned = pinned;
-        this.category = normalize(category);
+        this.category = category;
         this.performanceId = performanceId;
         this.boothId = boothId;
     }
@@ -155,7 +156,7 @@ public class Notice extends BaseEntity {
         return instagramUrl;
     }
 
-    public String getCategory() {
+    public NoticeCategory getCategory() {
         return category;
     }
 

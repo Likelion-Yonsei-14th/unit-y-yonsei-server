@@ -2,10 +2,12 @@ package com.likelion.yonsei.daedongje.domain.info.service;
 
 import com.likelion.yonsei.daedongje.common.exception.BusinessException;
 import com.likelion.yonsei.daedongje.domain.info.dto.NoticeCreateRequest;
+import com.likelion.yonsei.daedongje.domain.info.dto.NoticeDetailResponse;
 import com.likelion.yonsei.daedongje.domain.info.dto.NoticeImageRequest;
 import com.likelion.yonsei.daedongje.domain.info.dto.NoticeResponse;
 import com.likelion.yonsei.daedongje.domain.info.dto.NoticeUpdateRequest;
 import com.likelion.yonsei.daedongje.domain.info.entity.Notice;
+import com.likelion.yonsei.daedongje.domain.info.entity.NoticeCategory;
 import com.likelion.yonsei.daedongje.domain.info.entity.NoticeImage;
 import com.likelion.yonsei.daedongje.domain.info.exception.NoticeErrorCode;
 import com.likelion.yonsei.daedongje.domain.info.repository.NoticeRepository;
@@ -26,10 +28,18 @@ public class NoticeService {
 
     private final NoticeRepository noticeRepository;
 
-    public List<NoticeResponse> getNotices() {
-        return noticeRepository.findAllByOrderByPinnedDescUpdatedAtDescIdDesc().stream()
+    public List<NoticeResponse> getNotices(NoticeCategory category) {
+        List<Notice> notices = category == null
+                ? noticeRepository.findAllByOrderByPinnedDescUpdatedAtDescIdDesc()
+                : noticeRepository.findAllByCategoryOrderByPinnedDescUpdatedAtDescIdDesc(category);
+
+        return notices.stream()
                 .map(NoticeResponse::from)
                 .toList();
+    }
+
+    public NoticeDetailResponse getNotice(Long noticeId) {
+        return NoticeDetailResponse.from(findNotice(noticeId));
     }
 
     @Transactional

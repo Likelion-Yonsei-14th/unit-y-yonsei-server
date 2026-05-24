@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
+    <!-- 운영(prod): 콘솔 로그를 ECS JSON으로. application-prod.yaml 의
+         logging.structured.format.console=ecs 가 CONSOLE_LOG_STRUCTURED_FORMAT 포맷을 제공한다.
+         그 외(local/dev/test): 사람이 읽는 평문 콘솔 유지.
+         커스텀 logback-spring.xml 이 있으면 Spring Boot 의 자동 구조화 전환이 비활성되므로
+         structured-console-appender 를 명시적으로 include 해야 한다. -->
+    <springProfile name="prod">
+        <include resource="org/springframework/boot/logging/logback/structured-console-appender.xml"/>
+    </springProfile>
+    <springProfile name="!prod">
+        <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
+    </springProfile>
+
+    <!-- 최근 ERROR 로그를 메모리 링버퍼에 적재 (관리자 시스템 상태 API용) -->
+    <appender name="RECENT_ERROR"
+              class="com.likelion.yonsei.daedongje.domain.monitoring.log.RecentErrorLogAppender">
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>ERROR</level>
+        </filter>
+    </appender>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="RECENT_ERROR"/>
+    </root>
+</configuration>

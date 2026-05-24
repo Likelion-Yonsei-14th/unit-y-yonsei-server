@@ -1,0 +1,60 @@
+// ── 메트릭: app의 Actuator Prometheus 엔드포인트 scrape → Grafana Cloud remote_write ──
+prometheus.scrape "app" {
+  targets = [
+    {
+      __address__      = "app:8080",
+      __metrics_path__ = "/actuator/prometheus",
+      service          = "daedongje",
+    },
+  ]
+  scrape_interval = "15s"
+  forward_to      = [prometheus.remote_write.grafana_cloud.receiver]
+}
+
+prometheus.remote_write "grafana_cloud" {
+  endpoint {
+    url = sys.env("GRAFANA_CLOUD_PROM_URL")
+    basic_auth {
+      username = sys.env("GRAFANA_CLOUD_PROM_USER")
+      password = sys.env("GRAFANA_CLOUD_API_KEY")
+    }
+  }
+}
+
+// ── 로그: 도커 컨테이너 stdout tail → Loki ──
+discovery.docker "containers" {
+  host = "unix:///var/run/docker.sock"
+}
+
+// 컨테이너 이름(/unit-y-server 등)을 라벨로 정규화하고, app 컨테이너엔 service=daedongje 부여.
+discovery.relabel "containers" {
+  targets = discovery.docker.containers.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "container"
+  }
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/unit-y-server"
+    target_label  = "service"
+    replacement   = "daedongje"
+  }
+}
+
+loki.source.docker "containers" {
+  host       = "unix:///var/run/docker.sock"
+  targets    = discovery.relabel.containers.output
+  forward_to = [loki.write.grafana_cloud.receiver]
+}
+
+loki.write "grafana_cloud" {
+  endpoint {
+    url = sys.env("GRAFANA_CLOUD_LOKI_URL")
+    basic_auth {
+      username = sys.env("GRAFANA_CLOUD_LOKI_USER")
+      password = sys.env("GRAFANA_CLOUD_API_KEY")
+    }
+  }
+}
