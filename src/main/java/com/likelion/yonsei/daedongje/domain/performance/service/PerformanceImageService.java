@@ -1,6 +1,7 @@
 package com.likelion.yonsei.daedongje.domain.performance.service;
 
 import com.likelion.yonsei.daedongje.common.exception.BusinessException;
+import com.likelion.yonsei.daedongje.domain.auth.entity.AdminRole;
 import com.likelion.yonsei.daedongje.domain.auth.entity.AdminUser;
 import com.likelion.yonsei.daedongje.domain.auth.exception.AuthErrorCode;
 import com.likelion.yonsei.daedongje.domain.auth.repository.AdminUserRepository;
@@ -79,5 +80,36 @@ public class PerformanceImageService {
 
         return performanceRepository.findByAdminUser(adminUser)
                 .orElseThrow(() -> new BusinessException(PerformanceErrorCode.PERFORMANCE_NOT_FOUND));
+    }
+
+    public List<PerformanceImageResponse> getAdminPerformanceImages(
+            AdminSessionUser currentAdmin,
+            Long performanceId
+    ) {
+        Performance performance = performanceRepository.findById(performanceId)
+                .orElseThrow(() -> new BusinessException(PerformanceErrorCode.PERFORMANCE_NOT_FOUND));
+
+        validateAdminPerformanceImageAccess(currentAdmin, performance);
+
+        return performanceImageRepository.findAllByPerformanceIdOrderByImageOrderAscIdAsc(performanceId)
+                .stream()
+                .map(PerformanceImageResponse::from)
+                .toList();
+    }
+
+    private void validateAdminPerformanceImageAccess(
+            AdminSessionUser currentAdmin,
+            Performance performance
+    ) {
+        if (currentAdmin.getRole() == AdminRole.SUPER) {
+            return;
+        }
+
+        if (currentAdmin.getRole() == AdminRole.PERFORMER
+                && performance.getAdminUser().getId().equals(currentAdmin.getId())) {
+            return;
+        }
+
+        throw new BusinessException(AuthErrorCode.FORBIDDEN);
     }
 }

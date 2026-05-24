@@ -14,11 +14,9 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @Tag(name = "공연 이미지 어드민", description = "공연 어드민이 본인 공연의 이미지를 등록하고 삭제하는 API")
 @RestController
@@ -54,5 +52,20 @@ public class PerformanceImageAdminController {
     ) {
         performanceImageService.deleteMyPerformanceImage(currentAdmin, imageId);
         return ResponseEntity.noContent().build();
+    }
+
+    @Operation(
+            summary = "공연 이미지 어드민 목록 조회",
+            description = "SUPER는 모든 공연의 이미지를 조회할 수 있고, PERFORMER는 본인 계정에 연결된 공연 이미지만 조회합니다. HIDDEN 상태 공연도 조회 가능합니다."
+    )
+    @RequireAdminRole({AdminRole.SUPER, AdminRole.PERFORMER})
+    @GetMapping("/api/admin/performances/{performanceId}/images")
+    public ApiResponse<List<PerformanceImageResponse>> getAdminPerformanceImages(
+            @CurrentAdmin AdminSessionUser currentAdmin,
+            @PathVariable Long performanceId
+    ) {
+        return ApiResponse.success(
+                performanceImageService.getAdminPerformanceImages(currentAdmin, performanceId)
+        );
     }
 }
