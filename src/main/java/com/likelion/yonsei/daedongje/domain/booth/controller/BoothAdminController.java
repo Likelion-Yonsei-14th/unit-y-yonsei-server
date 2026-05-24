@@ -39,14 +39,16 @@ public class BoothAdminController {
 
     @Operation(summary = "부스 수정")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "수정 성공")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "본인 담당 부스가 아닌 경우 (A-009)")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "존재하지 않는 부스 (B-001)")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "이미 존재하는 부스 이름 (B-004)")
     @PutMapping("/{id}")
     public ApiResponse<BoothResponse> update(
             @PathVariable Long id,
-            @RequestBody @Valid BoothUpdateRequest request
+            @RequestBody @Valid BoothUpdateRequest request,
+            @CurrentAdmin AdminSessionUser currentAdmin
     ) {
-        return ApiResponse.success(boothService.update(id, request));
+        return ApiResponse.success(boothService.update(id, request, currentAdmin));
     }
 
     @Operation(summary = "부스 운영 상태 변경", description = "부스 운영 여부를 OPEN / CLOSED / PREPARING 중 하나로 변경한다.")
@@ -78,10 +80,14 @@ public class BoothAdminController {
 
     @Operation(summary = "부스 삭제")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "삭제 성공")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "본인 담당 부스가 아닌 경우 (A-009)")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "존재하지 않는 부스 (B-001)")
     @DeleteMapping("/{id}")
-    public ApiResponse<Void> delete(@PathVariable Long id) {
-        boothService.delete(id);
+    public ApiResponse<Void> delete(
+            @PathVariable Long id,
+            @CurrentAdmin AdminSessionUser currentAdmin
+    ) {
+        boothService.delete(id, currentAdmin);
         return ApiResponse.successEmpty();
     }
 }
