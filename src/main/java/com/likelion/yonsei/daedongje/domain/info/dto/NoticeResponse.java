@@ -1,6 +1,7 @@
 package com.likelion.yonsei.daedongje.domain.info.dto;
 
 import com.likelion.yonsei.daedongje.domain.info.entity.Notice;
+import com.likelion.yonsei.daedongje.domain.info.entity.NoticeCategory;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.format.DateTimeFormatter;
@@ -9,6 +10,7 @@ import java.util.List;
 @Schema(description = "공지사항 응답")
 public record NoticeResponse(
         Long id,
+        Long noticeId,
         String title,
         String content,
         String date,
@@ -17,7 +19,8 @@ public record NoticeResponse(
         boolean hasImage,
         String imageUrl,
         boolean isPinned,
-        String category,
+        @Schema(description = "공지사항 카테고리", allowableValues = {"BLUERUN", "BOOTH", "PERFORMANCE", "OTHERS"})
+        NoticeCategory category,
         int viewCount,
         Long performanceId,
         Long boothId,
@@ -32,6 +35,7 @@ public record NoticeResponse(
                 .toList();
 
         return new NoticeResponse(
+                notice.getId(),
                 notice.getId(),
                 notice.getTitle(),
                 notice.getContent(),
