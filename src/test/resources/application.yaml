@@ -36,3 +36,16 @@ aws:
     region: ap-northeast-2
     image-base-url: https://test-bucket.s3.ap-northeast-2.amazonaws.com
     presigned-url-expiration-minutes: 5
+
+# 이 파일이 main 의 application.yaml 을 통째로 대체하므로(merge 아님),
+# 운영과 동일하게 prometheus 엔드포인트 노출 + 메트릭 export 활성화를 여기에도 명시해야
+# 테스트가 운영 설정을 반영한다(export.enabled 미설정 시 레지스트리 빈이 생성되지 않음).
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus
+  prometheus:
+    metrics:
+      export:
+        enabled: true
