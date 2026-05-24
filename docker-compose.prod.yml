@@ -15,3 +15,23 @@ services:
     container_name: unit-y-redis
     command: redis-server --appendonly no
     restart: unless-stopped
+
+  alloy:
+    image: grafana/alloy:latest  # TODO: 배포 전 현재 stable 태그로 고정 (https://hub.docker.com/r/grafana/alloy/tags)
+    container_name: unit-y-alloy
+    env_file:
+      - .env
+    volumes:
+      - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - alloy-data:/var/lib/alloy/data
+    command:
+      - run
+      - /etc/alloy/config.alloy
+      - --storage.path=/var/lib/alloy/data
+    depends_on:
+      - app
+    restart: unless-stopped
+
+volumes:
+  alloy-data:
