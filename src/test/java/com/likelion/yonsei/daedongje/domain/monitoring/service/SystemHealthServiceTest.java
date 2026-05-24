@@ -84,4 +84,19 @@ class SystemHealthServiceTest {
         assertThat(r.liveThreads()).isNull();
         assertThat(r.cpuUsage()).isNull();
     }
+
+    @Test
+    @DisplayName("헬스 조회가 예외를 던지면 status는 null로 폴백된다")
+    void healthExceptionFallsBackToNullStatus() {
+        SimpleMeterRegistry registry = new SimpleMeterRegistry();
+        HealthEndpoint healthEndpoint = mock(HealthEndpoint.class);
+        when(healthEndpoint.health()).thenThrow(new RuntimeException("actuator down"));
+
+        SystemHealthService service =
+                new SystemHealthService(registry, healthEndpoint, buildPropsProvider("1.0.0"));
+
+        SystemHealthResponse r = service.snapshot();
+
+        assertThat(r.status()).isNull();
+    }
 }

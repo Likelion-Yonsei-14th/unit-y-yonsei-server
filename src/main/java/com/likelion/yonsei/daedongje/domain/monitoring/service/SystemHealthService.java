@@ -40,6 +40,9 @@ public class SystemHealthService {
         SystemHealthResponse.MemoryInfo heap =
                 new SystemHealthResponse.MemoryInfo(heapUsed, heapMax, heapRatio);
 
+        // NOTE: hikaricp.connections.* 는 pool 태그를 갖는다. 태그 필터 없이 합산하므로 값은
+        //       "전체 HikariCP 풀 합계"다. 현재 단일 데이터소스(단일 풀)라 곧 단일 풀 값과 같다.
+        //       데이터소스를 추가하면 풀별 분리가 필요하다.
         SystemHealthResponse.DbPoolInfo dbPool = new SystemHealthResponse.DbPoolInfo(
                 gaugeInt("hikaricp.connections.active"),
                 gaugeInt("hikaricp.connections.idle"),
@@ -47,10 +50,14 @@ public class SystemHealthService {
                 gaugeInt("hikaricp.connections.max")
         );
 
+        // NOTE: process.uptime은 Micrometer TimeGauge다. SimpleMeterRegistry·PrometheusMeterRegistry
+        //       모두 baseTimeUnit=SECONDS라 g.value()가 초 단위를 반환한다(밀리초 base 레지스트리 도입 시 재검토).
+        Long uptimeSeconds = gaugeLong("process.uptime");
+
         return new SystemHealthResponse(
                 healthStatus(),
                 version(),
-                gaugeLong("process.uptime"),
+                uptimeSeconds,
                 heap,
                 dbPool,
                 gaugeInt("jvm.threads.live"),
