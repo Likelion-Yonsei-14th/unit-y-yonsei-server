@@ -55,6 +55,27 @@ class NoticeControllerTest {
     }
 
     @Test
+    void 존재하지_않는_공연_id로_공지를_등록하면_검증_에러를_반환한다() throws Exception {
+        String requestBody = """
+                {
+                  "title": "Notice title",
+                  "content": "Notice content",
+                  "hasImage": false,
+                  "isPinned": false,
+                  "category": "PERFORMANCE",
+                  "performanceId": 999999
+                }
+                """;
+
+        mockMvc.perform(post("/api/admin/notices")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("I-007"));
+    }
+
+    @Test
     void createNoticeWithImages_andReadFromList() throws Exception {
         String requestBody = """
                 {
