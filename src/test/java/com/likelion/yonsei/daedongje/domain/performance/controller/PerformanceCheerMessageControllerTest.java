@@ -25,6 +25,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
@@ -32,6 +34,7 @@ import org.springframework.test.web.servlet.MvcResult;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.hasSize;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -73,6 +76,11 @@ class PerformanceCheerMessageControllerTest {
     @MockitoBean
     private AdminAuthContextService adminAuthContextService;
 
+    @MockitoBean
+    private StringRedisTemplate stringRedisTemplate;
+
+    private ValueOperations<String, String> valueOperations;
+
     private AdminUser performerAdmin;
     private Performance performance;
 
@@ -82,7 +90,11 @@ class PerformanceCheerMessageControllerTest {
         performanceSetlistRepository.deleteAll();
         performanceRepository.deleteAll();
         adminUserRepository.deleteAll();
-        Mockito.reset(adminAuthContextService);
+        Mockito.reset(adminAuthContextService, stringRedisTemplate);
+
+        // 기본값: increment 가 null 을 반환해 레이트 리밋이 등록을 막지 않도록 둔다(초과 상황은 개별 테스트에서 스텁).
+        valueOperations = Mockito.mock(ValueOperations.class);
+        Mockito.when(stringRedisTemplate.opsForValue()).thenReturn(valueOperations);
 
         performerAdmin = adminUserRepository.save(adminUser("performer-admin", AdminRole.PERFORMER));
         performance = performanceRepository.save(Performance.create(performerAdmin, "Main Stage"));
@@ -182,6 +194,25 @@ class PerformanceCheerMessageControllerTest {
                         .content(requestBody))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false));
+    }
+
+    @Test
+    void createCheerMessageReturnsTooManyRequestsWhenRateLimited() throws Exception {
+        // 윈도우 허용치(5)를 초과한 카운트를 반환하도록 Redis 카운터를 스텁한다.
+        Mockito.when(valueOperations.increment(anyString())).thenReturn(6L);
+
+        String requestBody = """
+                {
+                  "message": "도배!"
+                }
+                """;
+
+        mockMvc.perform(post(USER_CHEER_MESSAGES_URL, performance.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("PCM-006"));
     }
 
     @Test
