@@ -1,6 +1,7 @@
 package com.likelion.yonsei.daedongje.domain.auth.service;
 
 import com.likelion.yonsei.daedongje.common.exception.BusinessException;
+import com.likelion.yonsei.daedongje.domain.auth.dto.AdminUserBulkDeleteResponse;
 import com.likelion.yonsei.daedongje.domain.auth.dto.AdminUserPasswordChangeRequest;
 import com.likelion.yonsei.daedongje.domain.auth.entity.AdminRole;
 import com.likelion.yonsei.daedongje.domain.auth.entity.AdminUser;
@@ -19,8 +20,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.util.List;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -102,6 +106,67 @@ class AdminUserServiceTest {
                 .isEqualTo(AuthErrorCode.PASSWORD_SAME_AS_CURRENT);
 
         verify(adminSessionService, never()).invalidateAdminSessions(anyLong());
+    }
+
+    @Test
+    @DisplayName("일괄 삭제는 SUPER 를 제외한 모든 계정을 삭제한다")
+    void bulkDeleteRemovesNonSuperAccountsAndKeepsSuper() {
+        AdminUser superAdmin = adminUser(1L, "super", AdminRole.SUPER);
+        AdminUser master = adminUser(2L, "master", AdminRole.MASTER);
+        AdminUser booth = adminUser(3L, "booth", AdminRole.BOOTH);
+        AdminUser performer = adminUser(4L, "performer", AdminRole.PERFORMER);
+        when(adminUserRepository.findAll()).thenReturn(List.of(superAdmin, master, booth, performer));
+        when(boothRepository.existsByAdminId(3L)).thenReturn(false);
+        when(performanceRepository.existsByAdminUser(performer)).thenReturn(false);
+
+        AdminUserBulkDeleteResponse response = adminUserService.bulkDeleteAdminUsers();
+
+        assertThat(response.getDeletedCount()).isEqualTo(3);
+        assertThat(response.getFailedCount()).isZero();
+        verify(adminUserRepository).delete(master);
+        verify(adminUserRepository).delete(booth);
+        verify(adminUserRepository).delete(performer);
+        verify(adminUserRepository, never()).delete(superAdmin);
+    }
+
+    @Test
+    @DisplayName("소유 부스/공연이 있는 계정은 삭제하지 않고 실패로 보고한다")
+    void bulkDeleteReportsFailuresForAccountsWithOwnedResources() {
+        AdminUser booth = adminUser(3L, "booth", AdminRole.BOOTH);
+        AdminUser performer = adminUser(4L, "performer", AdminRole.PERFORMER);
+        when(adminUserRepository.findAll()).thenReturn(List.of(booth, performer));
+        when(boothRepository.existsByAdminId(3L)).thenReturn(true);
+        when(performanceRepository.existsByAdminUser(performer)).thenReturn(true);
+
+        AdminUserBulkDeleteResponse response = adminUserService.bulkDeleteAdminUsers();
+
+        assertThat(response.getDeletedCount()).isZero();
+        assertThat(response.getFailedCount()).isEqualTo(2);
+        assertThat(response.getFailList())
+                .extracting(AdminUserBulkDeleteResponse.FailDetail::getReason)
+                .containsExactlyInAnyOrder(
+                        AuthErrorCode.ADMIN_HAS_OWNED_BOOTHS.getMessage(),
+                        AuthErrorCode.ADMIN_HAS_OWNED_PERFORMANCES.getMessage());
+        verify(adminUserRepository, never()).delete(any(AdminUser.class));
+    }
+
+    @Test
+    @DisplayName("삭제 대상이 없어도(SUPER 만 존재) 정상 응답한다")
+    void bulkDeleteReturnsZeroWhenOnlySuperExists() {
+        AdminUser superAdmin = adminUser(1L, "super", AdminRole.SUPER);
+        when(adminUserRepository.findAll()).thenReturn(List.of(superAdmin));
+
+        AdminUserBulkDeleteResponse response = adminUserService.bulkDeleteAdminUsers();
+
+        assertThat(response.getDeletedCount()).isZero();
+        assertThat(response.getFailedCount()).isZero();
+        verify(adminUserRepository, never()).delete(any(AdminUser.class));
+    }
+
+    private AdminUser adminUser(Long id, String loginId, AdminRole role) {
+        AdminUser adminUser = AdminUser.create(loginId, "hash", "org", role, "rep", "01000000000", null);
+        ReflectionTestUtils.setField(adminUser, "id", id);
+        return adminUser;
     }
 
     private AdminUser adminUser(Long id, String passwordHash) {
