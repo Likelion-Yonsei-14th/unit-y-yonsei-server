@@ -36,6 +36,8 @@ import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
 
+import com.likelion.yonsei.daedongje.common.exception.CommonErrorCode;
+import com.likelion.yonsei.daedongje.common.response.PageResponse;
 import org.springframework.dao.DataIntegrityViolationException;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -89,10 +91,10 @@ class BoothServiceTest {
         when(boothImageRepository.findThumbnailsByBoothIds(List.of(1L)))
                 .thenReturn(List.of());
 
-        List<BoothResponse> responses = boothService.getList(null, null, null, null);
+        PageResponse<BoothResponse> responses = boothService.getList(null, null, null, null, null, 0, 100);
 
-        assertThat(responses).hasSize(1);
-        assertThat(responses.get(0).getMapLocation()).isNull();
+        assertThat(responses.content()).hasSize(1);
+        assertThat(responses.content().get(0).getMapLocation()).isNull();
     }
 
     @Test
@@ -106,11 +108,68 @@ class BoothServiceTest {
         when(mapLocationRepository.findAllById(List.of(10L)))
                 .thenReturn(List.of(mapLocation(10L)));
 
-        List<BoothResponse> responses = boothService.getList(null, null, null, null);
+        PageResponse<BoothResponse> responses = boothService.getList(null, null, null, null, null, 0, 100);
 
-        assertThat(responses).hasSize(1);
-        assertThat(responses.get(0).getMapLocation()).isNotNull();
-        assertThat(responses.get(0).getMapLocation().getId()).isEqualTo(10L);
+        assertThat(responses.content()).hasSize(1);
+        assertThat(responses.content().get(0).getMapLocation()).isNotNull();
+        assertThat(responses.content().get(0).getMapLocation().getId()).isEqualTo(10L);
+    }
+
+    @Test
+    @DisplayName("부스 목록은 page/size 로 페이지네이션된다")
+    void getListPaginatesResults() {
+        when(boothRepository.findAll()).thenReturn(List.of(booth(1L, null), booth(2L, null), booth(3L, null)));
+        when(reservationRepository.countByBoothIdsAndStatus(List.of(1L, 2L), ReservationStatus.PENDING))
+                .thenReturn(List.<Object[]>of());
+        when(boothImageRepository.findThumbnailsByBoothIds(List.of(1L, 2L)))
+                .thenReturn(List.of());
+
+        PageResponse<BoothResponse> responses = boothService.getList(null, null, null, null, null, 0, 2);
+
+        assertThat(responses.content()).hasSize(2);
+        assertThat(responses.totalElements()).isEqualTo(3L);
+        assertThat(responses.hasNext()).isTrue();
+    }
+
+    @Test
+    @DisplayName("검색은 PageResponse 로 페이지네이션되고 waitingCount 를 집계한다")
+    void searchReturnsPagedResultsWithWaitingCount() {
+        when(boothRepository.searchByKeyword("멋사")).thenReturn(List.of(booth(1L, null)));
+        when(reservationRepository.countByBoothIdsAndStatus(List.of(1L), ReservationStatus.PENDING))
+                .thenReturn(List.<Object[]>of(new Object[]{1L, 4L}));
+        when(boothImageRepository.findThumbnailsByBoothIds(List.of(1L)))
+                .thenReturn(List.of());
+
+        PageResponse<BoothResponse> responses = boothService.search("멋사", 0, 20);
+
+        assertThat(responses.content()).hasSize(1);
+        assertThat(responses.content().get(0).getWaitingCount()).isEqualTo(4L);
+        assertThat(responses.totalElements()).isEqualTo(1L);
+    }
+
+    @Test
+    @DisplayName("size 가 상한(100)을 초과하면 INVALID_INPUT 으로 거절한다")
+    void getListRejectsSizeOverMax() {
+        assertThatThrownBy(() -> boothService.getList(null, null, null, null, null, 0, 101))
+                .isInstanceOfSatisfying(BusinessException.class, e ->
+                        assertThat(e.getErrorCode()).isEqualTo(CommonErrorCode.INVALID_INPUT));
+    }
+
+    @Test
+    @DisplayName("status 필터 지정 시 해당 운영상태 부스만 반환한다")
+    void getListFiltersByStatus() {
+        Booth open = booth(1L, null);
+        Booth closed = booth(2L, null);
+        ReflectionTestUtils.setField(closed, "status", BoothStatus.CLOSED);
+        when(boothRepository.findAll()).thenReturn(List.of(open, closed));
+        when(reservationRepository.countByBoothIdsAndStatus(List.of(1L), ReservationStatus.PENDING))
+                .thenReturn(List.<Object[]>of());
+        when(boothImageRepository.findThumbnailsByBoothIds(List.of(1L)))
+                .thenReturn(List.of());
+
+        PageResponse<BoothResponse> responses = boothService.getList(null, null, null, null, BoothStatus.OPEN, 0, 100);
+
+        assertThat(responses.content()).hasSize(1);
     }
 
     @Test
@@ -133,10 +192,10 @@ class BoothServiceTest {
                 .thenReturn(List.<Object[]>of(new Object[]{7L, 2L}));
         when(boothImageRepository.findThumbnailsByBoothIds(List.of(7L))).thenReturn(List.of());
 
-        List<BoothResponse> responses = boothService.search("핫도그");
+        PageResponse<BoothResponse> responses = boothService.search("핫도그", 0, 20);
 
-        assertThat(responses).hasSize(1);
-        assertThat(responses.get(0).getWaitingCount()).isEqualTo(2L);
+        assertThat(responses.content()).hasSize(1);
+        assertThat(responses.content().get(0).getWaitingCount()).isEqualTo(2L);
     }
 
     @Test

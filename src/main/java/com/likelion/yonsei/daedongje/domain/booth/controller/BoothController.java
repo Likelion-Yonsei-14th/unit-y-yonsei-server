@@ -2,10 +2,12 @@ package com.likelion.yonsei.daedongje.domain.booth.controller;
 
 import com.likelion.yonsei.daedongje.common.festival.FestivalDayService;
 import com.likelion.yonsei.daedongje.common.response.ApiResponse;
+import com.likelion.yonsei.daedongje.common.response.PageResponse;
 import com.likelion.yonsei.daedongje.common.web.ClientIpResolver;
 import com.likelion.yonsei.daedongje.domain.booth.dto.BoothResponse;
 import com.likelion.yonsei.daedongje.domain.booth.dto.ReservableBoothResponse;
 import com.likelion.yonsei.daedongje.domain.booth.entity.BoothSector;
+import com.likelion.yonsei.daedongje.domain.booth.entity.BoothStatus;
 import com.likelion.yonsei.daedongje.domain.booth.service.BoothClickLogService;
 import com.likelion.yonsei.daedongje.domain.booth.service.BoothService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -44,11 +46,15 @@ public class BoothController {
     @Operation(summary = "부스 검색", description = "부스명 또는 단체명에 키워드가 포함된 부스를 검색한다. 대소문자를 구분하지 않는다.")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "검색 성공")
     @GetMapping("/search")
-    public ApiResponse<List<BoothResponse>> search(
+    public ApiResponse<PageResponse<BoothResponse>> search(
             @Parameter(description = "검색 키워드 (부스명 또는 단체명)", example = "멋사")
-            @RequestParam String keyword
+            @RequestParam String keyword,
+            @Parameter(description = "페이지 번호. 0부터 시작", example = "0")
+            @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "페이지 크기", example = "20")
+            @RequestParam(defaultValue = "20") int size
     ) {
-        return ApiResponse.success(boothService.search(keyword));
+        return ApiResponse.success(boothService.search(keyword, page, size));
     }
 
     @Operation(summary = "부스 단건 조회")
@@ -69,10 +75,10 @@ public class BoothController {
         return ApiResponse.successEmpty();
     }
 
-    @Operation(summary = "부스 목록 조회", description = "날짜·구역·음식 여부·푸드트럭 여부를 AND 조건으로 필터링한다. 파라미터를 생략하면 전체 조회.")
+    @Operation(summary = "부스 목록 조회", description = "날짜·구역·음식 여부·푸드트럭 여부·운영상태를 AND 조건으로 필터링하며 page/size 로 페이지네이션한다. 필터를 생략해도 전체가 아니라 첫 페이지만 반환한다.")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공")
     @GetMapping
-    public ApiResponse<List<BoothResponse>> getList(
+    public ApiResponse<PageResponse<BoothResponse>> getList(
             @Parameter(description = "축제 일차 (1=1일차, 2=2일차, 3=3일차, 4=4일차)", example = "1")
             @RequestParam(required = false) Integer date,
             @Parameter(description = "구역 (한글탑 / 백양로 / 송도)", example = "한글탑")
@@ -80,8 +86,14 @@ public class BoothController {
             @Parameter(description = "음식 부스만 조회", example = "true")
             @RequestParam(required = false) Boolean isFood,
             @Parameter(description = "푸드트럭만 조회", example = "false")
-            @RequestParam(required = false) Boolean isFoodTruck
+            @RequestParam(required = false) Boolean isFoodTruck,
+            @Parameter(description = "운영 상태 필터 (OPEN / CLOSED / PREPARING)", example = "OPEN")
+            @RequestParam(required = false) BoothStatus status,
+            @Parameter(description = "페이지 번호. 0부터 시작", example = "0")
+            @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "페이지 크기", example = "20")
+            @RequestParam(defaultValue = "20") int size
     ) {
-        return ApiResponse.success(boothService.getList(date, sector, isFood, isFoodTruck));
+        return ApiResponse.success(boothService.getList(date, sector, isFood, isFoodTruck, status, page, size));
     }
 }
