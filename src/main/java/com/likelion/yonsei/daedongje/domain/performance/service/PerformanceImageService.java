@@ -39,6 +39,9 @@ public class PerformanceImageService {
             PerformanceImageCreateRequest request
     ) {
         Performance performance = getMyPerformance(currentAdmin);
+        // 동시 등록(더블 클릭·재시도) 시 검증→저장 사이 race(PROFILE 중복·order 중복·개수 초과)를 막기 위해
+        // 공연 행에 쓰기 락을 걸어 동일 공연에 대한 이미지 등록을 직렬화한다.
+        performanceRepository.findByIdForUpdate(performance.getId());
         validateImageConstraints(performance.getId(), request);
         PerformanceImage performanceImage = PerformanceImage.create(
                 performance,
