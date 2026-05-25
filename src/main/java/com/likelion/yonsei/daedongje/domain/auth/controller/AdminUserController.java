@@ -15,6 +15,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import com.likelion.yonsei.daedongje.domain.auth.dto.AdminUserBulkCreateResponse;
+import com.likelion.yonsei.daedongje.domain.auth.dto.AdminUserBulkDeleteResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -109,5 +110,17 @@ public class AdminUserController {
     ) {
         adminUserService.deleteAdminUser(id);
         return ApiResponse.successEmpty();
+    }
+
+    @Operation(
+            summary = "어드민 계정 일괄 삭제",
+            description = "Super Admin이 SUPER 계정을 제외한 모든 어드민 계정을 일괄 삭제합니다. "
+                    + "소유한 부스/공연이 있어 삭제할 수 없는 계정은 삭제하지 않고 실패 목록으로 반환합니다. "
+                    + "삭제 대상이 없어도 200을 반환합니다."
+    )
+    @RequireAdminRole(AdminRole.SUPER)
+    @DeleteMapping("/bulk")
+    public ApiResponse<AdminUserBulkDeleteResponse> bulkDeleteAdminUsers() {
+        return ApiResponse.success(adminUserService.bulkDeleteAdminUsers());
     }
 }

@@ -4,7 +4,9 @@ import com.likelion.yonsei.daedongje.domain.auth.entity.AdminUser;
 import com.likelion.yonsei.daedongje.domain.performance.entity.Performance;
 import com.likelion.yonsei.daedongje.domain.performance.entity.PerformanceCategory;
 import com.likelion.yonsei.daedongje.domain.performance.entity.PerformanceStatus;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -43,4 +45,9 @@ public interface PerformanceRepository extends JpaRepository<Performance, Long> 
             @Param("excludedStatuses") Collection<PerformanceStatus> excludedStatuses);
 
     boolean existsByAdminUser(AdminUser adminUser);
+
+    // 공연 이미지 동시 등록(더블 클릭·재시도) 시 검증-저장 사이 race 를 막기 위한 쓰기 락 조회(P-A-03).
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT p FROM Performance p WHERE p.id = :id")
+    Optional<Performance> findByIdForUpdate(@Param("id") Long id);
 }

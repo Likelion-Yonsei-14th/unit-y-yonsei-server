@@ -173,6 +173,45 @@ class BoothServiceTest {
     }
 
     @Test
+    @DisplayName("단건 조회 waitingCount 는 0 하드코딩이 아니라 실제 PENDING 예약 수를 반영한다 (B-01)")
+    void getByIdReturnsActualWaitingCount() {
+        when(boothRepository.findById(7L)).thenReturn(Optional.of(booth(7L, null)));
+        when(reservationRepository.countByBoothIdAndStatus(7L, ReservationStatus.PENDING)).thenReturn(3L);
+        when(boothImageRepository.findByBoothIdAndDisplayOrder(7L, 1)).thenReturn(Optional.empty());
+
+        BoothResponse response = boothService.getById(7L);
+
+        assertThat(response.getWaitingCount()).isEqualTo(3L);
+    }
+
+    @Test
+    @DisplayName("검색 waitingCount 는 0 하드코딩이 아니라 부스별 실제 PENDING 예약 수를 반영한다 (B-01)")
+    void searchReturnsActualWaitingCount() {
+        when(boothRepository.searchByKeyword("핫도그")).thenReturn(List.of(booth(7L, null)));
+        when(reservationRepository.countByBoothIdsAndStatus(List.of(7L), ReservationStatus.PENDING))
+                .thenReturn(List.<Object[]>of(new Object[]{7L, 2L}));
+        when(boothImageRepository.findThumbnailsByBoothIds(List.of(7L))).thenReturn(List.of());
+
+        PageResponse<BoothResponse> responses = boothService.search("핫도그", 0, 20);
+
+        assertThat(responses.content()).hasSize(1);
+        assertThat(responses.content().get(0).getWaitingCount()).isEqualTo(2L);
+    }
+
+    @Test
+    @DisplayName("상태 변경 응답 waitingCount 도 실제 PENDING 예약 수를 반영한다 (B-01)")
+    void updateStatusReturnsActualWaitingCount() {
+        AdminSessionUser superAdmin = new AdminSessionUser(1L, AdminRole.SUPER, "super");
+        when(boothRepository.findById(7L)).thenReturn(Optional.of(booth(7L, null)));
+        when(reservationRepository.countByBoothIdAndStatus(7L, ReservationStatus.PENDING)).thenReturn(5L);
+        when(boothImageRepository.findByBoothIdAndDisplayOrder(7L, 1)).thenReturn(Optional.empty());
+
+        BoothResponse response = boothService.updateStatus(7L, BoothStatus.OPEN, superAdmin);
+
+        assertThat(response.getWaitingCount()).isEqualTo(5L);
+    }
+
+    @Test
     @DisplayName("자식 데이터가 없는 부스는 정상적으로 삭제된다")
     void deleteRemovesBoothWhenNoChildData() {
         Booth booth = booth(7L, null);

@@ -1,6 +1,7 @@
 package com.likelion.yonsei.daedongje.domain.reservation.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -37,5 +38,7 @@ public record ReservationUpdateRequest(
 
         @Schema(description = "변경할 인원 수 (생략 시 유지)", example = "3")
         @Min(1)
+        // 생성 DTO 와 동일한 인원 수 상한(비현실적 큰 값 방어).
+        @Max(value = 100, message = "인원 수는 100명을 초과할 수 없습니다.")
         Integer newPartySize
 ) {}

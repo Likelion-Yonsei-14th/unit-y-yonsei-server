@@ -94,6 +94,68 @@ class PerformanceImageControllerTest {
     }
 
     @Test
+    void createRejectsSecondProfileImage() throws Exception {
+        performanceImageRepository.save(PerformanceImage.create(
+                performance, "https://example.com/profile.png", 1, PerformanceImageType.PROFILE));
+
+        String requestBody = """
+                {
+                  "imageUrl": "https://example.com/profile2.png",
+                  "imageOrder": 2,
+                  "imageType": "PROFILE"
+                }
+                """;
+
+        mockMvc.perform(post("/api/admin/performances/me/images")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error.code").value("P-014"));
+    }
+
+    @Test
+    void createRejectsDuplicateImageOrder() throws Exception {
+        performanceImageRepository.save(PerformanceImage.create(
+                performance, "https://example.com/a.png", 1, PerformanceImageType.DETAIL));
+
+        String requestBody = """
+                {
+                  "imageUrl": "https://example.com/b.png",
+                  "imageOrder": 1,
+                  "imageType": "DETAIL"
+                }
+                """;
+
+        mockMvc.perform(post("/api/admin/performances/me/images")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error.code").value("P-015"));
+    }
+
+    @Test
+    void createRejectsWhenImageLimitExceeded() throws Exception {
+        for (int i = 1; i <= 20; i++) {
+            performanceImageRepository.save(PerformanceImage.create(
+                    performance, "https://example.com/" + i + ".png", i, PerformanceImageType.DETAIL));
+        }
+
+        String requestBody = """
+                {
+                  "imageUrl": "https://example.com/21.png",
+                  "imageOrder": 21,
+                  "imageType": "DETAIL"
+                }
+                """;
+
+        mockMvc.perform(post("/api/admin/performances/me/images")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("P-016"));
+    }
+
+    @Test
     void createMyPerformanceImageReturnsBadRequestWhenImageUrlIsBlank() throws Exception {
         String requestBody = """
                 {

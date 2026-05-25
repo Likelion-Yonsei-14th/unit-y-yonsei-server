@@ -7,6 +7,7 @@ import com.likelion.yonsei.daedongje.domain.info.dto.LostItemUpdateRequest;
 import com.likelion.yonsei.daedongje.domain.info.entity.LostItem;
 import com.likelion.yonsei.daedongje.domain.info.exception.LostItemErrorCode;
 import com.likelion.yonsei.daedongje.domain.info.repository.LostItemRepository;
+import com.likelion.yonsei.daedongje.domain.map.repository.MapLocationRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,6 +20,7 @@ import java.util.List;
 public class LostItemService {
 
     private final LostItemRepository lostItemRepository;
+    private final MapLocationRepository mapLocationRepository;
 
     public List<LostItemResponse> getLostItems() {
         return lostItemRepository.findAllByOrderByCreatedAtDescIdDesc().stream()
@@ -28,6 +30,8 @@ public class LostItemService {
 
     @Transactional
     public LostItemResponse createLostItem(LostItemCreateRequest request) {
+        validateLocationReferences(request.foundLocationId(), request.storageLocationId());
+        // status 누락 시 STORED 기본값은 LostItem 엔티티가 일괄 처리한다(서비스 중복 제거).
         LostItem lostItem = LostItem.create(
                 request.name(),
                 request.location(),
@@ -42,7 +46,9 @@ public class LostItemService {
 
     @Transactional
     public LostItemResponse updateLostItem(Long lostItemId, LostItemUpdateRequest request) {
+        // 수정 대상 존재 여부를 먼저 확인한 뒤(404 우선) 참조 무결성을 검증한다.
         LostItem lostItem = findLostItem(lostItemId);
+        validateLocationReferences(request.foundLocationId(), request.storageLocationId());
         lostItem.update(
                 request.name(),
                 request.location(),
@@ -53,6 +59,16 @@ public class LostItemService {
                 request.storageLocationId()
         );
         return LostItemResponse.from(lostItem);
+    }
+
+    // 참조 무결성: 지정된 발견/보관 위치가 실제 MapLocation 으로 존재하는지 검증한다(깨진 참조 방지).
+    private void validateLocationReferences(Long foundLocationId, Long storageLocationId) {
+        if (foundLocationId != null && !mapLocationRepository.existsById(foundLocationId)) {
+            throw new BusinessException(LostItemErrorCode.LOST_ITEM_LOCATION_NOT_FOUND);
+        }
+        if (storageLocationId != null && !mapLocationRepository.existsById(storageLocationId)) {
+            throw new BusinessException(LostItemErrorCode.LOST_ITEM_LOCATION_NOT_FOUND);
+        }
     }
 
     @Transactional
