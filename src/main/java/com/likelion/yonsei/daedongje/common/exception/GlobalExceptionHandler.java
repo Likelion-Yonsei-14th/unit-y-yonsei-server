@@ -12,6 +12,7 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.stream.Collectors;
 
@@ -26,6 +27,7 @@ import java.util.stream.Collectors;
  *   <li>{@link HttpMessageNotReadableException} — 요청 본문 파싱 실패 (400 INVALID_INPUT)</li>
  *   <li>{@link MissingServletRequestParameterException} — 필수 파라미터 누락 (400 INVALID_INPUT)</li>
  *   <li>{@link HttpRequestMethodNotSupportedException} — 잘못된 HTTP 메서드 (405)</li>
+ *   <li>{@link NoResourceFoundException} — 미매핑 경로·정적 리소스 없음 (404). 루트('/')·favicon 등 브라우저/봇 노이즈</li>
  *   <li>{@link Exception} (catch-all) — 예상치 못한 예외, 500 INTERNAL_ERROR + 에러 로그</li>
  * </ol>
  */
@@ -98,6 +100,18 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleMethodNotSupported(HttpRequestMethodNotSupportedException e) {
         log.warn("Method not supported: {}", e.getMessage());
         ErrorCode code = CommonErrorCode.METHOD_NOT_ALLOWED;
+        return ResponseEntity
+                .status(code.getStatus())
+                .body(ApiResponse.error(code.getCode(), code.getMessage()));
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ApiResponse<Void>> handleNoResourceFound(NoResourceFoundException e) {
+        // 루트('/')·favicon.ico 등 미매핑 경로 요청(주로 브라우저·봇)이 catch-all 로 떨어져
+        // ERROR "Unexpected exception" + 500 으로 둔갑하던 것을 평범한 404 로 정상화한다.
+        // 외부 노이즈이므로 error 가 아닌 debug 로만 남겨 로그를 더럽히지 않는다.
+        log.debug("No static resource: {}", e.getResourcePath());
+        ErrorCode code = CommonErrorCode.RESOURCE_NOT_FOUND;
         return ResponseEntity
                 .status(code.getStatus())
                 .body(ApiResponse.error(code.getCode(), code.getMessage()));
