@@ -9,7 +9,8 @@ public enum PerformanceCheerMessageErrorCode implements ErrorCode {
     CHEER_MESSAGE_CONTENT_REQUIRED(HttpStatus.BAD_REQUEST, "PCM-002", "Cheer message content is required."),
     CHEER_MESSAGE_CONTENT_TOO_LONG(HttpStatus.BAD_REQUEST, "PCM-003", "Cheer message content must be 255 characters or less."),
     CHEER_MESSAGE_PERFORMANCE_REQUIRED(HttpStatus.BAD_REQUEST, "PCM-004", "Performance is required for cheer message."),
-    CHEER_MESSAGE_SETLIST_FORBIDDEN(HttpStatus.FORBIDDEN, "PCM-005", "Setlist does not belong to the requested performance.");
+    CHEER_MESSAGE_SETLIST_FORBIDDEN(HttpStatus.FORBIDDEN, "PCM-005", "Setlist does not belong to the requested performance."),
+    CHEER_MESSAGE_RATE_LIMITED(HttpStatus.TOO_MANY_REQUESTS, "PCM-006", "응원 메시지 등록 요청이 너무 많습니다. 잠시 후 다시 시도해주세요.");
 
     private final HttpStatus status;
     private final String code;

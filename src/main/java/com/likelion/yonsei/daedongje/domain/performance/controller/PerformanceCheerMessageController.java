@@ -2,6 +2,7 @@ package com.likelion.yonsei.daedongje.domain.performance.controller;
 
 import com.likelion.yonsei.daedongje.common.response.ApiResponse;
 import com.likelion.yonsei.daedongje.common.response.PageResponse;
+import com.likelion.yonsei.daedongje.common.web.ClientIpResolver;
 import com.likelion.yonsei.daedongje.domain.auth.entity.AdminRole;
 import com.likelion.yonsei.daedongje.domain.auth.support.AdminSessionUser;
 import com.likelion.yonsei.daedongje.domain.auth.support.CurrentAdmin;
@@ -14,6 +15,7 @@ import com.likelion.yonsei.daedongje.domain.performance.service.PerformanceCheer
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -44,9 +46,11 @@ public class PerformanceCheerMessageController {
     @PostMapping("/api/performances/{id}/cheer-messages")
     public ResponseEntity<ApiResponse<PerformanceCheerMessageResponse>> createCheerMessage(
             @PathVariable Long id,
-            @Valid @RequestBody PerformanceCheerMessageCreateRequest request
+            @Valid @RequestBody PerformanceCheerMessageCreateRequest request,
+            HttpServletRequest httpRequest
     ) {
-        PerformanceCheerMessageResponse response = cheerMessageService.createCheerMessage(id, request);
+        PerformanceCheerMessageResponse response =
+                cheerMessageService.createCheerMessage(id, request, ClientIpResolver.resolve(httpRequest));
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(response));
     }
 
