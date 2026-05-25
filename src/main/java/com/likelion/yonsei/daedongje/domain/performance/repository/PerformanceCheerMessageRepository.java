@@ -35,6 +35,15 @@ public interface PerformanceCheerMessageRepository extends JpaRepository<Perform
             """)
     Optional<PerformanceCheerMessage> findByIdWithRelations(@Param("id") Long id);
 
+    // 운영진(SUPER/MASTER) 전 공연 모더레이션용 — 전 상태 응원 메시지를 등록 순으로 조회한다.
+    @Query("""
+            SELECT m FROM PerformanceCheerMessage m
+            LEFT JOIN FETCH m.setlist
+            JOIN FETCH m.performance
+            ORDER BY m.createdAt ASC, m.id ASC
+            """)
+    List<PerformanceCheerMessage> findAllWithRelationsOrderByCreatedAtAscIdAsc();
+
     long countByPerformanceAndSetlistIsNotNullAndDisplayStatus(
             Performance performance,
             CheerMessageDisplayStatus displayStatus

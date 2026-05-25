@@ -89,7 +89,8 @@ public class PerformanceCheerMessageController {
             @Parameter(description = "셋리스트 ID입니다. 특정 곡 또는 무대에 대한 후기만 조회할 때 사용합니다.")
             @RequestParam(required = false) Long setlistId
     ) {
-        Pageable pageable = PageRequest.of(page, size);
+        // 잘못된 page/size(음수·0)는 PageRequest.of 에서 IllegalArgumentException → 500 이 되므로 방어한다.
+        Pageable pageable = PageRequest.of(Math.max(page, 0), Math.max(size, 1));
         return ApiResponse.success(cheerMessageService.getMyPerformanceReviews(currentAdmin, setlistId, pageable));
     }
 
@@ -105,5 +106,15 @@ public class PerformanceCheerMessageController {
     ) {
         cheerMessageService.hideMyPerformanceCheerMessage(currentAdmin, messageId);
         return ResponseEntity.noContent().build();
+    }
+
+    @Operation(
+            summary = "공연 응원 메시지 전체 조회(운영진)",
+            description = "운영진(SUPER, MASTER)이 전 공연의 응원 메시지를 전 상태(VISIBLE/HIDDEN) 기준으로 최신 등록 순으로 조회합니다. 부적절한 메시지를 공연에 관계없이 모더레이션하기 위한 운영용 조회입니다."
+    )
+    @RequireAdminRole({AdminRole.SUPER, AdminRole.MASTER})
+    @GetMapping("/api/admin/performances/cheer-messages")
+    public ApiResponse<List<PerformanceCheerMessageResponse>> getAllCheerMessages() {
+        return ApiResponse.success(cheerMessageService.getAllCheerMessages());
     }
 }

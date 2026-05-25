@@ -67,6 +67,14 @@ public class PerformanceCheerMessageService {
                 .toList();
     }
 
+    /** SUPER/MASTER 가 전 공연의 응원 메시지를 전 상태(VISIBLE/HIDDEN) 기준으로 조회한다(전 공연 모더레이션용). */
+    public List<PerformanceCheerMessageResponse> getAllCheerMessages() {
+        return cheerMessageRepository.findAllWithRelationsOrderByCreatedAtAscIdAsc()
+                .stream()
+                .map(PerformanceCheerMessageResponse::from)
+                .toList();
+    }
+
     public PerformanceReviewSummaryResponse getMyPerformanceReviewSummary(AdminSessionUser currentAdmin) {
         Performance performance = findMyPerformance(currentAdmin);
         long totalVoteCount = cheerMessageRepository.countByPerformanceAndSetlistIsNotNullAndDisplayStatus(
