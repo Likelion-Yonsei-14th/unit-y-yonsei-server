@@ -56,7 +56,9 @@ public class HomeService {
     }
 
     // 인기 부스 집계는 클릭 로그 누적에 비례해 무거워지나 랭킹은 느리게 변하므로 짧은 TTL 로 캐싱한다(CacheConfig 참고).
-    @Cacheable(CacheConfig.POPULAR_BOOTHS)
+    // sync=true: 트래픽이 몰리는 엔드포인트라 TTL 만료 직후 동시 요청이 집계를 중복 재실행(cache stampede)하지 않도록
+    // 단일 스레드만 재계산하게 한다.
+    @Cacheable(value = CacheConfig.POPULAR_BOOTHS, sync = true)
     public List<HomePopularBoothResponse> getPopularBooths() {
         LocalDate today = LocalDate.now(FESTIVAL_ZONE);
         LocalDateTime startAt = today.atStartOfDay();
