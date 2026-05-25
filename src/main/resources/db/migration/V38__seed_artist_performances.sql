@@ -18,8 +18,10 @@
 --   (login_id 는 유니크하게. WHERE NOT EXISTS 가드로 재적용 시 중복 안전.)
 -- =============================================================================
 
--- NOTE: 의도적 고정 - 로그인 불가용 더미 해시(어차피 status=INACTIVE 로 로그인 차단됨)
-SET @pw  := '$2a$10$seedLockedDummyHashForArtistAccountsNotUsable000000000000';
+-- NOTE: 의도적 고정 - 폐기된 랜덤 비밀번호의 유효 bcrypt 해시. 평문을 아무도 모르므로 로그인 불가이고,
+--       status=INACTIVE 로 한 번 더 차단된다. 유효 형식이라 BCryptPasswordEncoder.matches() 가
+--       예외 없이 false 를 반환한다(잘못된 형식이면 "does not look like BCrypt" 경고 로그가 남음).
+SET @pw  := '$2y$10$ts.Xoqm0Ypc3hQc.1B2c3uUET/y4ua47EyxkpC0wBVvDHA2bdozIS';
 SET @now := NOW(6);
 
 -- 라인업 정의(한 곳). login_id | 한글명 | 영문명 | 일차 | 무대
