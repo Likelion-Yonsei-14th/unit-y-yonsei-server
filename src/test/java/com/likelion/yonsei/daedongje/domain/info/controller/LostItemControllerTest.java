@@ -84,6 +84,26 @@ class LostItemControllerTest {
     }
 
     @Test
+    void 존재하지_않는_위치_id로_분실물을_등록하면_검증_에러를_반환한다() throws Exception {
+        String requestBody = """
+                {
+                  "name": "학생증",
+                  "location": "중앙 무대 앞",
+                  "has_image": false,
+                  "status": "STORED",
+                  "found_location_id": 999999
+                }
+                """;
+
+        mockMvc.perform(post("/api/admin/lost-items")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("I-006"));
+    }
+
+    @Test
     void 분실물을_수정할_때_기존_이미지_URL을_보존할_수_있다() throws Exception {
         String createBody = """
                 {

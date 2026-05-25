@@ -11,6 +11,8 @@ import com.likelion.yonsei.daedongje.domain.info.entity.NoticeCategory;
 import com.likelion.yonsei.daedongje.domain.info.entity.NoticeImage;
 import com.likelion.yonsei.daedongje.domain.info.exception.NoticeErrorCode;
 import com.likelion.yonsei.daedongje.domain.info.repository.NoticeRepository;
+import com.likelion.yonsei.daedongje.domain.booth.repository.BoothRepository;
+import com.likelion.yonsei.daedongje.domain.performance.repository.PerformanceRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,6 +29,8 @@ import java.util.Set;
 public class NoticeService {
 
     private final NoticeRepository noticeRepository;
+    private final PerformanceRepository performanceRepository;
+    private final BoothRepository boothRepository;
 
     public List<NoticeResponse> getNotices(NoticeCategory category) {
         List<Notice> notices = category == null
@@ -44,6 +48,7 @@ public class NoticeService {
 
     @Transactional
     public NoticeResponse createNotice(NoticeCreateRequest request) {
+        validateNoticeReferences(request.performanceId(), request.boothId());
         Notice notice = Notice.create(
                 request.title(),
                 request.content(),
@@ -60,6 +65,7 @@ public class NoticeService {
 
     @Transactional
     public NoticeResponse updateNotice(Long noticeId, NoticeUpdateRequest request) {
+        validateNoticeReferences(request.performanceId(), request.boothId());
         Notice notice = findNotice(noticeId);
         notice.update(
                 request.title(),
@@ -83,6 +89,16 @@ public class NoticeService {
     private Notice findNotice(Long noticeId) {
         return noticeRepository.findById(noticeId)
                 .orElseThrow(() -> new BusinessException(NoticeErrorCode.NOTICE_NOT_FOUND));
+    }
+
+    // 참조 무결성: 공지에 연결된 공연/부스가 실제로 존재하는지 검증한다(깨진 참조 방지).
+    private void validateNoticeReferences(Long performanceId, Long boothId) {
+        if (performanceId != null && !performanceRepository.existsById(performanceId)) {
+            throw new BusinessException(NoticeErrorCode.NOTICE_PERFORMANCE_NOT_FOUND);
+        }
+        if (boothId != null && !boothRepository.existsById(boothId)) {
+            throw new BusinessException(NoticeErrorCode.NOTICE_BOOTH_NOT_FOUND);
+        }
     }
 
     private List<NoticeImage> toCreateNoticeImages(List<NoticeImageRequest> imageRequests, String imageUrl, Boolean hasImage) {
