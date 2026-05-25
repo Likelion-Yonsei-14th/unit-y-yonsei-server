@@ -2,6 +2,7 @@ package com.likelion.yonsei.daedongje.domain.auth.service;
 
 import com.likelion.yonsei.daedongje.common.exception.BusinessException;
 import com.likelion.yonsei.daedongje.domain.auth.dto.AdminUserBulkCreateResponse;
+import com.likelion.yonsei.daedongje.domain.auth.dto.AdminUserBulkDeleteResponse;
 import com.likelion.yonsei.daedongje.domain.auth.dto.AdminUserCreateRequest;
 import com.likelion.yonsei.daedongje.domain.auth.dto.AdminUserCreateResponse;
 import com.likelion.yonsei.daedongje.domain.auth.dto.AdminUserDetailResponse;
@@ -439,27 +440,55 @@ public class AdminUserService {
         adminUserRepository.delete(adminUser);
     }
 
+    /**
+     * SUPER 계정을 제외한 전체 어드민 계정을 일괄 삭제한다(QA·개발 편의용).
+     * 삭제 규칙은 단건 삭제(deleteAdminUser)와 동일하며, 소유 부스/공연이 있어 삭제할 수 없는 계정은
+     * 트랜잭션을 오염시키지 않도록 미리 가려내 실패로 보고하고 나머지는 그대로 삭제한다.
+     */
+    @Transactional
+    public AdminUserBulkDeleteResponse bulkDeleteAdminUsers() {
+        List<AdminUser> targets = adminUserRepository.findAll().stream()
+                .filter(adminUser -> adminUser.getRole() != AdminRole.SUPER)
+                .toList();
+
+        List<AdminUserBulkDeleteResponse.FailDetail> failList = new ArrayList<>();
+        int deletedCount = 0;
+        for (AdminUser adminUser : targets) {
+            AuthErrorCode ownershipBlock = resolveOwnershipBlock(adminUser);
+            if (ownershipBlock != null) {
+                failList.add(new AdminUserBulkDeleteResponse.FailDetail(
+                        adminUser.getId(), adminUser.getLoginId(), ownershipBlock.getMessage()));
+                continue;
+            }
+            adminUserRepository.delete(adminUser);
+            deletedCount++;
+        }
+        return AdminUserBulkDeleteResponse.of(deletedCount, failList.size(), failList);
+    }
+
     private void validateDeletableAdminUser(AdminUser adminUser) {
         // 1. SUPER 계정 삭제 방지
         if (adminUser.getRole() == AdminRole.SUPER) {
             throw new BusinessException(AuthErrorCode.SUPER_ADMIN_DELETE_NOT_ALLOWED);
         }
 
-        // 2. BOOTH 어드민의 경우, 소유 부스가 있는지 확인
-        if (adminUser.getRole() == AdminRole.BOOTH) {
-            boolean hasOwnedBooths = boothRepository.existsByAdminId(adminUser.getId());
-            if (hasOwnedBooths) {
-                throw new BusinessException(AuthErrorCode.ADMIN_HAS_OWNED_BOOTHS);
-            }
+        // 2. 소유 부스/공연이 있으면 삭제 불가
+        AuthErrorCode ownershipBlock = resolveOwnershipBlock(adminUser);
+        if (ownershipBlock != null) {
+            throw new BusinessException(ownershipBlock);
         }
+    }
 
-        // 3. PERFORMER 어드민의 경우, 소유 공연이 있는지 확인
-        if (adminUser.getRole() == AdminRole.PERFORMER) {
-            boolean hasOwnedPerformances = performanceRepository.existsByAdminUser(adminUser);
-            if (hasOwnedPerformances) {
-                throw new BusinessException(AuthErrorCode.ADMIN_HAS_OWNED_PERFORMANCES);
-            }
+    // 소유 부스/공연이 있어 삭제할 수 없으면 해당 에러코드, 삭제 가능하면 null 을 반환한다.
+    // 단건 삭제(deleteAdminUser)와 일괄 삭제(bulkDeleteAdminUsers)가 동일 규칙을 공유한다.
+    private AuthErrorCode resolveOwnershipBlock(AdminUser adminUser) {
+        if (adminUser.getRole() == AdminRole.BOOTH && boothRepository.existsByAdminId(adminUser.getId())) {
+            return AuthErrorCode.ADMIN_HAS_OWNED_BOOTHS;
         }
+        if (adminUser.getRole() == AdminRole.PERFORMER && performanceRepository.existsByAdminUser(adminUser)) {
+            return AuthErrorCode.ADMIN_HAS_OWNED_PERFORMANCES;
+        }
+        return null;
     }
 
     private void validateRequiredInfoByRole(AdminUserCreateRequest request) {

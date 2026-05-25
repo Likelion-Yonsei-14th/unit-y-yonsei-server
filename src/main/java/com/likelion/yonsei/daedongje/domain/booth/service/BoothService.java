@@ -1,6 +1,7 @@
 package com.likelion.yonsei.daedongje.domain.booth.service;
 
 import com.likelion.yonsei.daedongje.common.exception.BusinessException;
+import com.likelion.yonsei.daedongje.common.exception.CommonErrorCode;
 import com.likelion.yonsei.daedongje.domain.auth.exception.AuthErrorCode;
 import com.likelion.yonsei.daedongje.domain.auth.repository.AdminUserRepository;
 import com.likelion.yonsei.daedongje.domain.auth.support.AdminSessionUser;
@@ -23,11 +24,16 @@ import com.likelion.yonsei.daedongje.domain.map.entity.MapLocation;
 import com.likelion.yonsei.daedongje.domain.map.repository.MapLocationRepository;
 import com.likelion.yonsei.daedongje.domain.reservation.entity.ReservationStatus;
 import com.likelion.yonsei.daedongje.domain.reservation.repository.ReservationRepository;
+import com.likelion.yonsei.daedongje.common.response.PageResponse;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalTime;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -114,11 +120,12 @@ public class BoothService {
     public BoothResponse getById(Long id) {
         Booth booth = boothRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(BoothErrorCode.BOOTH_NOT_FOUND));
-        return BoothResponse.of(booth, 0L, fetchThumbnail(id), fetchMapLocation(booth));
+        return BoothResponse.of(booth, countWaiting(id), fetchThumbnail(id), fetchMapLocation(booth));
     }
 
-    // 부스 전체 조회 (필터: 날짜, 구역, 음식 여부, 푸드트럭 여부 — 모든 AND 조합 지원)
-    public List<BoothResponse> getList(Integer date, BoothSector sector, Boolean isFood, Boolean isFoodTruck) {
+    // 부스 전체 조회 (필터: 날짜·구역·음식 여부·푸드트럭 여부·운영상태 AND, 페이지네이션)
+    public PageResponse<BoothResponse> getList(Integer date, BoothSector sector, Boolean isFood,
+                                               Boolean isFoodTruck, BoothStatus status, int page, int size) {
         List<Booth> booths;
 
         if (date != null && sector != null && isFood != null) {
@@ -145,33 +152,61 @@ public class BoothService {
                     .toList();
         }
 
+        if (status != null) {
+            booths = booths.stream()
+                    .filter(b -> b.getStatus() == status)
+                    .toList();
+        }
+
+        return paginate(booths, page, size);
+    }
+
+    // 부스명·단체명·메뉴명 키워드 검색 (페이지네이션)
+    public PageResponse<BoothResponse> search(String keyword, int page, int size) {
+        return paginate(boothRepository.searchByKeyword(keyword), page, size);
+    }
+
+    private static final int MAX_PAGE_SIZE = 100;
+
+    // 필터링된 부스 목록을 id 오름차순으로 정렬해 인메모리 페이지네이션한다.
+    // (부스 수가 한정적이라 인메모리 슬라이스로 충분하며, 기존 다중 필터 메서드를 그대로 재사용한다.)
+    private PageResponse<BoothResponse> paginate(List<Booth> booths, int page, int size) {
+        validatePageRequest(page, size);
+        Pageable pageable = PageRequest.of(page, size);
+
+        List<Booth> ordered = booths.stream().sorted(Comparator.comparing(Booth::getId)).toList();
+        // page * size 를 long 으로 계산해 int 오버플로우(음수 인덱스 → 500)를 방지한다.
+        int from = (int) Math.min((long) page * size, ordered.size());
+        int to = (int) Math.min((long) from + size, ordered.size());
+        List<BoothResponse> content = toBoothResponses(ordered.subList(from, to));
+
+        return PageResponse.from(new PageImpl<>(content, pageable, ordered.size()));
+    }
+
+    // 다른 페이지네이션 API(SatisfactionReviewService/MapLocationService)와 동일하게 page/size 를 검증한다.
+    private void validatePageRequest(int page, int size) {
+        if (page < 0) {
+            throw new BusinessException(CommonErrorCode.INVALID_INPUT, "page는 0 이상이어야 합니다.");
+        }
+        if (size < 1 || size > MAX_PAGE_SIZE) {
+            throw new BusinessException(
+                    CommonErrorCode.INVALID_INPUT,
+                    String.format("size는 1 이상 %d 이하이어야 합니다.", MAX_PAGE_SIZE)
+            );
+        }
+    }
+
+    // 부스 목록을 응답으로 변환 — 대기 팀 수 일괄 집계·썸네일·지도 위치를 한 번에 매핑한다.
+    private List<BoothResponse> toBoothResponses(List<Booth> booths) {
         if (booths.isEmpty()) return List.of();
 
         List<Long> boothIds = booths.stream().map(Booth::getId).toList();
-        Map<Long, Long> waitingCountMap = reservationRepository
-                .countByBoothIdsAndStatus(boothIds, ReservationStatus.PENDING)
-                .stream()
-                .collect(Collectors.toMap(
-                        row -> (Long) row[0],
-                        row -> (Long) row[1]
-                ));
+        Map<Long, Long> waitingCountMap = countWaitingByBooths(boothIds);
         Map<Long, String> thumbnailMap = fetchThumbnailMap(boothIds);
         Map<Long, MapLocationResponse> mapLocationMap = fetchMapLocationMap(booths);
 
         return booths.stream()
                 .map(booth -> BoothResponse.of(booth, waitingCountMap.getOrDefault(booth.getId(), 0L), thumbnailMap.get(booth.getId()), resolveMapLocation(booth, mapLocationMap)))
-                .toList();
-    }
-
-    // 부스명·단체명·메뉴명 키워드 검색
-    public List<BoothResponse> search(String keyword) {
-        List<Booth> booths = boothRepository.searchByKeyword(keyword);
-        if (booths.isEmpty()) return List.of();
-
-        Map<Long, String> thumbnailMap = fetchThumbnailMap(booths.stream().map(Booth::getId).toList());
-        Map<Long, MapLocationResponse> mapLocationMap = fetchMapLocationMap(booths);
-        return booths.stream()
-                .map(booth -> BoothResponse.of(booth, 0L, thumbnailMap.get(booth.getId()), resolveMapLocation(booth, mapLocationMap)))
                 .toList();
     }
 
@@ -181,13 +216,7 @@ public class BoothService {
         if (booths.isEmpty()) return List.of();
 
         List<Long> boothIds = booths.stream().map(Booth::getId).toList();
-        Map<Long, Long> waitingCountMap = reservationRepository
-                .countByBoothIdsAndStatus(boothIds, ReservationStatus.PENDING)
-                .stream()
-                .collect(Collectors.toMap(
-                        row -> (Long) row[0],
-                        row -> (Long) row[1]
-                ));
+        Map<Long, Long> waitingCountMap = countWaitingByBooths(boothIds);
         Map<Long, String> thumbnailMap = fetchThumbnailMap(boothIds);
 
         return booths.stream()
@@ -235,7 +264,7 @@ public class BoothService {
                     request.isFoodTruck(),
                     request.notice()
             );
-            return BoothResponse.of(booth, 0L, fetchThumbnail(booth.getId()), fetchMapLocation(booth));
+            return BoothResponse.of(booth, countWaiting(booth.getId()), fetchThumbnail(booth.getId()), fetchMapLocation(booth));
         } catch (DataIntegrityViolationException e) {
             throw new BusinessException(BoothErrorCode.DUPLICATE_BOOTH_NAME);
         }
@@ -252,7 +281,7 @@ public class BoothService {
         }
 
         booth.updateStatus(status);
-        return BoothResponse.of(booth, 0L, fetchThumbnail(booth.getId()), fetchMapLocation(booth));
+        return BoothResponse.of(booth, countWaiting(booth.getId()), fetchThumbnail(booth.getId()), fetchMapLocation(booth));
     }
 
     // 예약 접수 On/Off (SUPER 외 역할은 본인 담당 부스만 변경 가능)
@@ -266,7 +295,7 @@ public class BoothService {
         }
 
         booth.updateIsReservable(isReservable);
-        return BoothResponse.of(booth, 0L, fetchThumbnail(booth.getId()), fetchMapLocation(booth));
+        return BoothResponse.of(booth, countWaiting(booth.getId()), fetchThumbnail(booth.getId()), fetchMapLocation(booth));
     }
 
     // 부스 삭제 — 운영 데이터(예약·메뉴·공지) 가 남아 있으면 차단해 실수 삭제 방지 (BAC-109).
@@ -321,6 +350,23 @@ public class BoothService {
     private Map<Long, String> fetchThumbnailMap(List<Long> boothIds) {
         return boothImageRepository.findThumbnailsByBoothIds(boothIds).stream()
                 .collect(Collectors.toMap(BoothImage::getBoothId, BoothImage::getImageUrl));
+    }
+
+    // 단건 부스의 대기(PENDING 예약) 팀 수. getById/update/updateStatus/updateIsReservable 가 공유한다.
+    // 과거 0L 하드코딩으로 목록 응답과 불일치하던 버그(B-01)를 막기 위해 집계로 통일한다.
+    private long countWaiting(Long boothId) {
+        return reservationRepository.countByBoothIdAndStatus(boothId, ReservationStatus.PENDING);
+    }
+
+    // 여러 부스의 대기 팀 수 일괄 집계. 목록·검색·예약가능 목록이 공유한다.
+    private Map<Long, Long> countWaitingByBooths(List<Long> boothIds) {
+        return reservationRepository
+                .countByBoothIdsAndStatus(boothIds, ReservationStatus.PENDING)
+                .stream()
+                .collect(Collectors.toMap(
+                        row -> (Long) row[0],
+                        row -> (Long) row[1]
+                ));
     }
 
     private MapLocationResponse fetchMapLocation(Booth booth) {
