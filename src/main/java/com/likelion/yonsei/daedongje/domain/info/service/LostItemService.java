@@ -5,7 +5,6 @@ import com.likelion.yonsei.daedongje.domain.info.dto.LostItemCreateRequest;
 import com.likelion.yonsei.daedongje.domain.info.dto.LostItemResponse;
 import com.likelion.yonsei.daedongje.domain.info.dto.LostItemUpdateRequest;
 import com.likelion.yonsei.daedongje.domain.info.entity.LostItem;
-import com.likelion.yonsei.daedongje.domain.info.entity.LostItemStatus;
 import com.likelion.yonsei.daedongje.domain.info.exception.LostItemErrorCode;
 import com.likelion.yonsei.daedongje.domain.info.repository.LostItemRepository;
 import com.likelion.yonsei.daedongje.domain.map.repository.MapLocationRepository;
@@ -32,12 +31,13 @@ public class LostItemService {
     @Transactional
     public LostItemResponse createLostItem(LostItemCreateRequest request) {
         validateLocationReferences(request.foundLocationId(), request.storageLocationId());
+        // status 누락 시 STORED 기본값은 LostItem 엔티티가 일괄 처리한다(서비스 중복 제거).
         LostItem lostItem = LostItem.create(
                 request.name(),
                 request.location(),
                 request.description(),
                 resolveCreateImageUrl(request.imageUrl(), request.hasImage()),
-                resolveStatus(request.status()),
+                request.status(),
                 request.foundLocationId(),
                 request.storageLocationId()
         );
@@ -46,14 +46,15 @@ public class LostItemService {
 
     @Transactional
     public LostItemResponse updateLostItem(Long lostItemId, LostItemUpdateRequest request) {
-        validateLocationReferences(request.foundLocationId(), request.storageLocationId());
+        // 수정 대상 존재 여부를 먼저 확인한 뒤(404 우선) 참조 무결성을 검증한다.
         LostItem lostItem = findLostItem(lostItemId);
+        validateLocationReferences(request.foundLocationId(), request.storageLocationId());
         lostItem.update(
                 request.name(),
                 request.location(),
                 request.description(),
                 resolveUpdateImageUrl(lostItem, request.imageUrl(), request.hasImage()),
-                resolveStatus(request.status()),
+                request.status(),
                 request.foundLocationId(),
                 request.storageLocationId()
         );
@@ -68,11 +69,6 @@ public class LostItemService {
         if (storageLocationId != null && !mapLocationRepository.existsById(storageLocationId)) {
             throw new BusinessException(LostItemErrorCode.LOST_ITEM_LOCATION_NOT_FOUND);
         }
-    }
-
-    // status 누락 시 STORED 로 명시 처리한다(과거에는 조용히 STORED 로 저장돼 모호했음).
-    private LostItemStatus resolveStatus(LostItemStatus status) {
-        return status != null ? status : LostItemStatus.STORED;
     }
 
     @Transactional

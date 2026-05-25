@@ -65,8 +65,9 @@ public class NoticeService {
 
     @Transactional
     public NoticeResponse updateNotice(Long noticeId, NoticeUpdateRequest request) {
-        validateNoticeReferences(request.performanceId(), request.boothId());
+        // 수정 대상 존재 여부를 먼저 확인한 뒤(404 우선) 참조 무결성을 검증한다.
         Notice notice = findNotice(noticeId);
+        validateNoticeReferences(request.performanceId(), request.boothId());
         notice.update(
                 request.title(),
                 request.content(),
