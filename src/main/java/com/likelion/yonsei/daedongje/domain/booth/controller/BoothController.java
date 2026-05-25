@@ -75,7 +75,7 @@ public class BoothController {
         return ApiResponse.successEmpty();
     }
 
-    @Operation(summary = "부스 목록 조회", description = "날짜·구역·음식 여부·푸드트럭 여부를 AND 조건으로 필터링한다. 파라미터를 생략하면 전체 조회.")
+    @Operation(summary = "부스 목록 조회", description = "날짜·구역·음식 여부·푸드트럭 여부·운영상태를 AND 조건으로 필터링하며 page/size 로 페이지네이션한다. 필터를 생략해도 전체가 아니라 첫 페이지만 반환한다.")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공")
     @GetMapping
     public ApiResponse<PageResponse<BoothResponse>> getList(

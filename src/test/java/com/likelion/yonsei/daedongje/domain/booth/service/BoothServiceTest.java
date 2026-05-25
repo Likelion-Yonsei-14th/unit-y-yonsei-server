@@ -36,6 +36,7 @@ import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
 
+import com.likelion.yonsei.daedongje.common.exception.CommonErrorCode;
 import com.likelion.yonsei.daedongje.common.response.PageResponse;
 import org.springframework.dao.DataIntegrityViolationException;
 
@@ -128,6 +129,30 @@ class BoothServiceTest {
         assertThat(responses.content()).hasSize(2);
         assertThat(responses.totalElements()).isEqualTo(3L);
         assertThat(responses.hasNext()).isTrue();
+    }
+
+    @Test
+    @DisplayName("검색은 PageResponse 로 페이지네이션되고 waitingCount 를 집계한다")
+    void searchReturnsPagedResultsWithWaitingCount() {
+        when(boothRepository.searchByKeyword("멋사")).thenReturn(List.of(booth(1L, null)));
+        when(reservationRepository.countByBoothIdsAndStatus(List.of(1L), ReservationStatus.PENDING))
+                .thenReturn(List.<Object[]>of(new Object[]{1L, 4L}));
+        when(boothImageRepository.findThumbnailsByBoothIds(List.of(1L)))
+                .thenReturn(List.of());
+
+        PageResponse<BoothResponse> responses = boothService.search("멋사", 0, 20);
+
+        assertThat(responses.content()).hasSize(1);
+        assertThat(responses.content().get(0).getWaitingCount()).isEqualTo(4L);
+        assertThat(responses.totalElements()).isEqualTo(1L);
+    }
+
+    @Test
+    @DisplayName("size 가 상한(100)을 초과하면 INVALID_INPUT 으로 거절한다")
+    void getListRejectsSizeOverMax() {
+        assertThatThrownBy(() -> boothService.getList(null, null, null, null, null, 0, 101))
+                .isInstanceOfSatisfying(BusinessException.class, e ->
+                        assertThat(e.getErrorCode()).isEqualTo(CommonErrorCode.INVALID_INPUT));
     }
 
     @Test

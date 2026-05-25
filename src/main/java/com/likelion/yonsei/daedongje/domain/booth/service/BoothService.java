@@ -1,6 +1,7 @@
 package com.likelion.yonsei.daedongje.domain.booth.service;
 
 import com.likelion.yonsei.daedongje.common.exception.BusinessException;
+import com.likelion.yonsei.daedongje.common.exception.CommonErrorCode;
 import com.likelion.yonsei.daedongje.domain.auth.exception.AuthErrorCode;
 import com.likelion.yonsei.daedongje.domain.auth.repository.AdminUserRepository;
 import com.likelion.yonsei.daedongje.domain.auth.support.AdminSessionUser;
@@ -165,19 +166,34 @@ public class BoothService {
         return paginate(boothRepository.searchByKeyword(keyword), page, size);
     }
 
+    private static final int MAX_PAGE_SIZE = 100;
+
     // 필터링된 부스 목록을 id 오름차순으로 정렬해 인메모리 페이지네이션한다.
     // (부스 수가 한정적이라 인메모리 슬라이스로 충분하며, 기존 다중 필터 메서드를 그대로 재사용한다.)
     private PageResponse<BoothResponse> paginate(List<Booth> booths, int page, int size) {
-        int safePage = Math.max(page, 0);
-        int safeSize = Math.max(size, 1);
-        Pageable pageable = PageRequest.of(safePage, safeSize);
+        validatePageRequest(page, size);
+        Pageable pageable = PageRequest.of(page, size);
 
         List<Booth> ordered = booths.stream().sorted(Comparator.comparing(Booth::getId)).toList();
-        int from = Math.min(safePage * safeSize, ordered.size());
-        int to = Math.min(from + safeSize, ordered.size());
+        // page * size 를 long 으로 계산해 int 오버플로우(음수 인덱스 → 500)를 방지한다.
+        int from = (int) Math.min((long) page * size, ordered.size());
+        int to = (int) Math.min((long) from + size, ordered.size());
         List<BoothResponse> content = toBoothResponses(ordered.subList(from, to));
 
         return PageResponse.from(new PageImpl<>(content, pageable, ordered.size()));
+    }
+
+    // 다른 페이지네이션 API(SatisfactionReviewService/MapLocationService)와 동일하게 page/size 를 검증한다.
+    private void validatePageRequest(int page, int size) {
+        if (page < 0) {
+            throw new BusinessException(CommonErrorCode.INVALID_INPUT, "page는 0 이상이어야 합니다.");
+        }
+        if (size < 1 || size > MAX_PAGE_SIZE) {
+            throw new BusinessException(
+                    CommonErrorCode.INVALID_INPUT,
+                    String.format("size는 1 이상 %d 이하이어야 합니다.", MAX_PAGE_SIZE)
+            );
+        }
     }
 
     // 부스 목록을 응답으로 변환 — 대기 팀 수 일괄 집계·썸네일·지도 위치를 한 번에 매핑한다.
