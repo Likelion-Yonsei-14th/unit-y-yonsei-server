@@ -28,6 +28,12 @@ public class ImageUploadService {
     private static final String IMAGE_ROOT_PATH = "images";
     private static final long MAX_IMAGE_SIZE_BYTES = 5L * 1024 * 1024; // 5MB
 
+    // NOTE: 의도적 고정 - 객체 키가 images/<domain>/<UUID>.<ext>로 덮어쓰기 없는 불변 URL이라
+    //       immutable + 1년 캐시가 안전하다(재방문 재다운로드 제거 → egress 절감).
+    //       이 값은 Presigned URL 서명에 포함되므로(아래 .cacheControl 참고),
+    //       응답으로 내려보내 클라이언트가 PUT 헤더에 그대로 echo 하도록 한다.
+    private static final String CACHE_CONTROL = "public, max-age=31536000, immutable";
+
     private static final Map<String, Set<AdminRole>> ALLOWED_ROLES_BY_DOMAIN = Map.of(
             "banner", Set.of(AdminRole.SUPER, AdminRole.MASTER),
             "notice", Set.of(AdminRole.SUPER, AdminRole.MASTER),
@@ -80,7 +86,7 @@ public class ImageUploadService {
         String uploadUrl = createUploadUrl(objectKey, contentType, fileSize);
         String imageUrl = awsS3Properties.getNormalizedImageBaseUrl() + "/" + objectKey;
 
-        return PresignedUrlCreateResponse.of(uploadUrl, objectKey, imageUrl);
+        return PresignedUrlCreateResponse.of(uploadUrl, objectKey, imageUrl, CACHE_CONTROL);
     }
 
     private String normalizeDomain(String domain) {
@@ -131,6 +137,7 @@ public class ImageUploadService {
                 .key(objectKey)
                 .contentType(contentType)
                 .contentLength(fileSize)
+                .cacheControl(CACHE_CONTROL) // 서명에 포함됨 → 클라이언트가 동일 값을 PUT 헤더로 보내야 SignatureMatch
                 .build();
 
         PutObjectPresignRequest presignRequest = PutObjectPresignRequest.builder()
