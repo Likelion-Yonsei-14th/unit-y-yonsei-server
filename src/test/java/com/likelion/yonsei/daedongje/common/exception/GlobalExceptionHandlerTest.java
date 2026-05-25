@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -33,6 +35,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *   <li>Bean Validation 실패 → COMMON-001 (400)</li>
  *   <li>지원되지 않는 HTTP 메서드 → COMMON-005 (405)</li>
  *   <li>예상치 못한 예외 → COMMON-500 (500)</li>
+ *   <li>NoResourceFoundException(미매핑 경로/정적 리소스 없음) → COMMON-004 (404)</li>
  * </ul>
  */
 class GlobalExceptionHandlerTest {
@@ -103,6 +106,16 @@ class GlobalExceptionHandlerTest {
                 .andExpect(jsonPath("$.error.code").value("COMMON-500"));
     }
 
+    @Test
+    void NoResourceFoundException은_RESOURCE_NOT_FOUND_404_로_변환된다() throws Exception {
+        // 미매핑 경로/favicon 요청 시 Spring 이 던지는 예외를 핸들러가 404 로 변환하는지 검증.
+        // (standaloneSetup 에선 실제 미매핑 라우팅 트리거가 불안정해 예외를 직접 던지는 방식 사용 — /unexpected 와 동일 패턴)
+        mockMvc.perform(get("/_test/no-resource"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("COMMON-004"));
+    }
+
     @RestController
     @RequestMapping("/_test")
     static class TestController {
@@ -120,6 +133,12 @@ class GlobalExceptionHandlerTest {
         @GetMapping("/unexpected")
         public void throwUnexpected() {
             throw new IllegalStateException("intentional");
+        }
+
+        @GetMapping("/no-resource")
+        public void throwNoResource() throws NoResourceFoundException {
+            // 실제 미매핑 경로/favicon 요청 시 Spring 이 던지는 것과 동일한 예외를 직접 발생시킨다.
+            throw new NoResourceFoundException(HttpMethod.GET, "favicon.ico");
         }
 
         @GetMapping("/required-param")
