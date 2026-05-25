@@ -8,6 +8,7 @@ import com.likelion.yonsei.daedongje.domain.performance.dto.PerformanceCurrentRe
 import com.likelion.yonsei.daedongje.domain.performance.service.LivePerformanceService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -29,7 +30,7 @@ public class LivePerformanceAdminController {
     )
     @PutMapping("/live")
     public ApiResponse<PerformanceCurrentResponse> updateLivePerformance(
-            @RequestBody LivePerformanceUpdateRequest request
+            @Valid @RequestBody LivePerformanceUpdateRequest request
     ) {
         return ApiResponse.success(livePerformanceService.updateLivePerformance(request.performanceId()));
     }
