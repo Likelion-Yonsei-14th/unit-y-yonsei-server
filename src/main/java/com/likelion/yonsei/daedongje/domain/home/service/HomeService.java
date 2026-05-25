@@ -1,5 +1,6 @@
 package com.likelion.yonsei.daedongje.domain.home.service;
 
+import com.likelion.yonsei.daedongje.config.CacheConfig;
 import com.likelion.yonsei.daedongje.domain.booth.entity.Booth;
 import com.likelion.yonsei.daedongje.domain.booth.entity.BoothImage;
 import com.likelion.yonsei.daedongje.domain.booth.repository.BoothClickLogRepository;
@@ -12,6 +13,7 @@ import com.likelion.yonsei.daedongje.domain.performance.dto.PerformanceCurrentRe
 import com.likelion.yonsei.daedongje.domain.performance.service.PerformanceReadService;
 import com.likelion.yonsei.daedongje.domain.reservation.entity.ReservationStatus;
 import com.likelion.yonsei.daedongje.domain.reservation.repository.ReservationRepository;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -53,6 +55,8 @@ public class HomeService {
         return List.of();
     }
 
+    // 인기 부스 집계는 클릭 로그 누적에 비례해 무거워지나 랭킹은 느리게 변하므로 짧은 TTL 로 캐싱한다(CacheConfig 참고).
+    @Cacheable(CacheConfig.POPULAR_BOOTHS)
     public List<HomePopularBoothResponse> getPopularBooths() {
         LocalDate today = LocalDate.now(FESTIVAL_ZONE);
         LocalDateTime startAt = today.atStartOfDay();
