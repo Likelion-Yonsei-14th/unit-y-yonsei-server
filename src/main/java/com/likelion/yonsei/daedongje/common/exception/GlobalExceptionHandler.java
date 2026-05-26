@@ -1,8 +1,10 @@
 package com.likelion.yonsei.daedongje.common.exception;
 
 import com.likelion.yonsei.daedongje.common.response.ApiResponse;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
@@ -36,9 +38,26 @@ public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
+    // 메트릭은 인프라(actuator) 의존이라 슬라이스 테스트(@WebMvcTest)엔 빈이 없을 수 있다.
+    // ObjectProvider 로 선택 주입해, 레지스트리가 없으면 카운팅만 건너뛴다(핸들러는 항상 동작).
+    private final ObjectProvider<MeterRegistry> meterRegistryProvider;
+
+    public GlobalExceptionHandler(ObjectProvider<MeterRegistry> meterRegistryProvider) {
+        this.meterRegistryProvider = meterRegistryProvider;
+    }
+
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ApiResponse<Void>> handleBusinessException(BusinessException e) {
         ErrorCode errorCode = e.getErrorCode();
+        // 4xx 비즈니스 에러는 5xx 메트릭(outcome=SERVER_ERROR)에도 ERROR 로그 알림에도 안 잡힌다.
+        // code/status 태그 카운터로 올려, 특정 도메인 에러 급증을 알림·대시보드로 포착할 수 있게 한다.
+        MeterRegistry meterRegistry = meterRegistryProvider.getIfAvailable();
+        if (meterRegistry != null) {
+            meterRegistry.counter("business_errors_total",
+                    "code", errorCode.getCode(),
+                    "status", String.valueOf(errorCode.getStatus().value())
+            ).increment();
+        }
         log.warn("BusinessException: code={}, message={}", errorCode.getCode(), e.getMessage());
         return ResponseEntity
                 .status(errorCode.getStatus())

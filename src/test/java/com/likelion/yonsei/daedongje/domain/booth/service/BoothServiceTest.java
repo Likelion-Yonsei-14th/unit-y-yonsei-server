@@ -49,6 +49,7 @@ import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -402,6 +403,21 @@ class BoothServiceTest {
     }
 
     @Test
+    @DisplayName("수정 중 name UNIQUE 동시성 충돌(flush 시 DataIntegrityViolation)은 DUPLICATE_BOOTH_NAME 으로 매핑된다")
+    void updateMapsConstraintViolationOnFlushToDuplicateBoothName() {
+        // update() 는 dirty checking 에만 의존하면 UPDATE 가 커밋 시점(try/catch 밖)에 나가 catch 를 빠져나가
+        // 500 이 된다. 명시적 flush 로 try 안에서 UPDATE 가 실행돼야 이 catch 가 잡는다.
+        Booth booth = booth(7L, null); // adminId 1L, name "멋사 핫도그" — 이름 동일이라 선검증 단락
+        when(boothRepository.findById(7L)).thenReturn(Optional.of(booth));
+        doThrow(new DataIntegrityViolationException("unique constraint uq_booths_name"))
+                .when(boothRepository).flush();
+
+        assertThatThrownBy(() -> boothService.update(7L, updateRequest(), boothAdmin(1L)))
+                .isInstanceOfSatisfying(BusinessException.class, e ->
+                        assertThat(e.getErrorCode()).isEqualTo(BoothErrorCode.DUPLICATE_BOOTH_NAME));
+    }
+
+    @Test
     @DisplayName("존재하지 않는 adminId 로 부스를 생성하면 ADMIN_USER_NOT_FOUND 로 차단되고 저장되지 않는다")
     void createBlockedWhenAdminDoesNotExist() {
         when(adminUserRepository.existsById(1L)).thenReturn(false);
@@ -473,6 +489,39 @@ class BoothServiceTest {
                         assertThat(e.getErrorCode()).isEqualTo(BoothErrorCode.DUPLICATE_BOOTH_NAME));
     }
 
+    @Test
+    @DisplayName("대표 메뉴 콤마결합 길이가 255자를 초과하면 수정은 INVALID_INPUT 으로 거절한다 (representative_menus VARCHAR(255) 오버플로우 방지)")
+    void updateRejectsRepresentativeMenusOverColumnLimit() {
+        when(boothRepository.findById(7L)).thenReturn(Optional.of(booth(7L, null)));
+
+        BoothUpdateRequest request = updateRequestWithMenus(List.of("메".repeat(256)));
+
+        assertThatThrownBy(() -> boothService.update(7L, request, boothAdmin(1L)))
+                .isInstanceOfSatisfying(BusinessException.class, e ->
+                        assertThat(e.getErrorCode()).isEqualTo(CommonErrorCode.INVALID_INPUT));
+    }
+
+    @Test
+    @DisplayName("대표 메뉴 콤마결합 길이가 255자를 초과하면 생성은 INVALID_INPUT 으로 거절하고 저장하지 않는다")
+    void createRejectsRepresentativeMenusOverColumnLimit() {
+        when(adminUserRepository.existsById(1L)).thenReturn(true);
+        when(boothRepository.existsByAdminId(1L)).thenReturn(false);
+        when(boothRepository.existsByName("멋사 핫도그")).thenReturn(false);
+        lenient().when(boothRepository.save(any(Booth.class))).thenAnswer(invocation -> {
+            Booth saved = invocation.getArgument(0);
+            ReflectionTestUtils.setField(saved, "id", 1L);
+            return saved;
+        });
+
+        BoothCreateRequest request = createRequestWithMenus(List.of("메".repeat(256)));
+
+        assertThatThrownBy(() -> boothService.create(request))
+                .isInstanceOfSatisfying(BusinessException.class, e ->
+                        assertThat(e.getErrorCode()).isEqualTo(CommonErrorCode.INVALID_INPUT));
+
+        verify(boothRepository, never()).save(any(Booth.class));
+    }
+
     private AdminSessionUser superAdmin() {
         return new AdminSessionUser(99L, AdminRole.SUPER, "super");
     }
@@ -525,6 +574,24 @@ class BoothServiceTest {
                 null,
                 false,
                 null
+        );
+    }
+
+    private BoothUpdateRequest updateRequestWithMenus(List<String> representativeMenus) {
+        return new BoothUpdateRequest(
+                "멋사 핫도그", "멋쟁이사자처럼", "소개", 2,
+                LocalTime.of(11, 0), LocalTime.of(20, 0), BoothSector.한글탑, 3,
+                BoothStatus.OPEN, true, null, true, null, null,
+                representativeMenus, false, null
+        );
+    }
+
+    private BoothCreateRequest createRequestWithMenus(List<String> representativeMenus) {
+        return new BoothCreateRequest(
+                1L, "멋사 핫도그", "멋쟁이사자처럼", "소개", 2,
+                LocalTime.of(11, 0), LocalTime.of(20, 0), BoothSector.한글탑, 3,
+                BoothStatus.OPEN, true, null, true, null, null,
+                representativeMenus, false, null
         );
     }
 
