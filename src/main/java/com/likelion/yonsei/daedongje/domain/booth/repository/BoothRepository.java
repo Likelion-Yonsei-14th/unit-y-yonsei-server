@@ -22,6 +22,14 @@ public interface BoothRepository extends JpaRepository<Booth, Long> {
 
     boolean existsByName(String name);
 
+    // 부스 이름 유일성은 구역(sector) 범위로 한정한다 — 같은 이름이라도 구역이 다르면 허용 (BAC-144).
+    // sector 가 null 이면 파생쿼리가 `sector = null`(항상 거짓)이 되어 미검출 → DB UNIQUE(name, sector) 의
+    // NULL 허용 동작과 일치(구역 미지정 동명은 허용, 구역 지정 시점에 정합성 회복).
+    boolean existsByNameAndSector(String name, BoothSector sector);
+
+    // 수정 시 자기 자신을 제외하고 같은 (name, sector) 조합이 있는지 검사한다.
+    boolean existsByNameAndSectorAndIdNot(String name, BoothSector sector, Long id);
+
     boolean existsByAdminId(Long adminId);
 
     // 계정당 부스 1개 정책 — 어드민이 소유한 부스 단건 조회
