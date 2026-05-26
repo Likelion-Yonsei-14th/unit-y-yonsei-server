@@ -283,6 +283,11 @@ public class BoothService {
                     request.isFoodTruck(),
                     request.notice()
             );
+            // delete() 와 동일 이유로 여기서 flush — booth.update() 의 UPDATE 는 dirty checking 으로
+            // 커밋 시점(try/catch 밖)에야 나간다. BoothResponse.of() 의 조회는 booths 외 테이블만 건드려
+            // FlushMode.AUTO 가 booths UPDATE 를 끌어내지 않으므로, name UNIQUE TOCTOU 충돌이 커밋에서
+            // 터져 500 이 된다. 명시적 flush 로 UPDATE 를 try 안에서 실행해 아래 catch 가 잡게 한다.
+            boothRepository.flush();
             return BoothResponse.of(booth, countWaiting(booth.getId()), fetchThumbnail(booth.getId()), fetchMapLocation(booth));
         } catch (DataIntegrityViolationException e) {
             // 매핑 전 원본 제약 위반 메시지를 남긴다 — 모든 제약 위반을 B-004(중복 이름)로 뭉뚱그리므로

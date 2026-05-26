@@ -403,6 +403,21 @@ class BoothServiceTest {
     }
 
     @Test
+    @DisplayName("수정 중 name UNIQUE 동시성 충돌(flush 시 DataIntegrityViolation)은 DUPLICATE_BOOTH_NAME 으로 매핑된다")
+    void updateMapsConstraintViolationOnFlushToDuplicateBoothName() {
+        // update() 는 dirty checking 에만 의존하면 UPDATE 가 커밋 시점(try/catch 밖)에 나가 catch 를 빠져나가
+        // 500 이 된다. 명시적 flush 로 try 안에서 UPDATE 가 실행돼야 이 catch 가 잡는다.
+        Booth booth = booth(7L, null); // adminId 1L, name "멋사 핫도그" — 이름 동일이라 선검증 단락
+        when(boothRepository.findById(7L)).thenReturn(Optional.of(booth));
+        doThrow(new DataIntegrityViolationException("unique constraint uq_booths_name"))
+                .when(boothRepository).flush();
+
+        assertThatThrownBy(() -> boothService.update(7L, updateRequest(), boothAdmin(1L)))
+                .isInstanceOfSatisfying(BusinessException.class, e ->
+                        assertThat(e.getErrorCode()).isEqualTo(BoothErrorCode.DUPLICATE_BOOTH_NAME));
+    }
+
+    @Test
     @DisplayName("존재하지 않는 adminId 로 부스를 생성하면 ADMIN_USER_NOT_FOUND 로 차단되고 저장되지 않는다")
     void createBlockedWhenAdminDoesNotExist() {
         when(adminUserRepository.existsById(1L)).thenReturn(false);
