@@ -408,9 +408,11 @@ class BoothServiceTest {
     void updateMapsConstraintViolationOnFlushToDuplicateBoothName() {
         // update() 는 dirty checking 에만 의존하면 UPDATE 가 커밋 시점(try/catch 밖)에 나가 catch 를 빠져나가
         // 500 이 된다. 명시적 flush 로 try 안에서 UPDATE 가 실행돼야 이 catch 가 잡는다.
-        Booth booth = booth(7L, null); // adminId 1L, name "멋사 핫도그" — 이름 동일이라 선검증 단락
+        Booth booth = booth(7L, null); // adminId 1L, name "멋사 핫도그", sector 한글탑
         when(boothRepository.findById(7L)).thenReturn(Optional.of(booth));
-        doThrow(new DataIntegrityViolationException("unique constraint uq_booths_name"))
+        // 사전검증 통과(false) 후 race 로 flush 에서 (name, sector) 제약 위반 → catch 재확인 시 true (TOCTOU)
+        when(boothRepository.existsByNameAndSectorAndIdNot("멋사 핫도그", BoothSector.한글탑, 7L)).thenReturn(false, true);
+        doThrow(new DataIntegrityViolationException("unique constraint uq_booths_name_sector"))
                 .when(boothRepository).flush();
 
         assertThatThrownBy(() -> boothService.update(7L, updateRequest(), boothAdmin(1L)))
@@ -481,9 +483,10 @@ class BoothServiceTest {
         when(adminUserRepository.existsById(1L)).thenReturn(true);
         // admin_id 는 선검증·재확인 모두 중복 아님 → 이름 제약 위반으로 판정
         when(boothRepository.existsByAdminId(1L)).thenReturn(false, false);
-        when(boothRepository.existsByNameAndSector("멋사 핫도그", BoothSector.한글탑)).thenReturn(false);
+        // 사전검증은 통과(false), INSERT 와의 race 로 (name, sector) 제약 위반 → catch 재확인 시 true (TOCTOU)
+        when(boothRepository.existsByNameAndSector("멋사 핫도그", BoothSector.한글탑)).thenReturn(false, true);
         when(boothRepository.save(any(Booth.class)))
-                .thenThrow(new DataIntegrityViolationException("unique constraint uq_booths_name"));
+                .thenThrow(new DataIntegrityViolationException("unique constraint uq_booths_name_sector"));
 
         assertThatThrownBy(() -> boothService.create(createRequest()))
                 .isInstanceOfSatisfying(BusinessException.class, e ->
@@ -569,6 +572,33 @@ class BoothServiceTest {
         assertThatThrownBy(() -> boothService.update(7L, updateRequest(), boothAdmin(1L)))
                 .isInstanceOfSatisfying(BusinessException.class, e ->
                         assertThat(e.getErrorCode()).isEqualTo(BoothErrorCode.DUPLICATE_BOOTH_NAME));
+    }
+
+    @Test
+    @DisplayName("생성 catch 에서 (이름,구역)·admin 중복이 아닌 제약 위반은 B-004 로 둔갑시키지 않고 원본을 던진다")
+    void createDoesNotMaskUnrelatedConstraintViolationAsDuplicateName() {
+        when(adminUserRepository.existsById(1L)).thenReturn(true);
+        when(boothRepository.existsByAdminId(1L)).thenReturn(false, false);            // 사전검증·catch 재확인 모두 false
+        when(boothRepository.existsByNameAndSector("멋사 핫도그", BoothSector.한글탑)).thenReturn(false, false);
+        when(boothRepository.save(any(Booth.class)))
+                .thenThrow(new DataIntegrityViolationException("Data too long for column 'account'"));
+
+        // 이름·구역 중복도 admin 중복도 아니므로 B-004/B-009 가 아니라 원본 예외가 전파돼야 한다(→ 일반 핸들러 500).
+        assertThatThrownBy(() -> boothService.create(createRequest()))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    @DisplayName("수정 catch 에서 (이름,구역) 중복이 아닌 제약 위반은 B-004 로 둔갑시키지 않고 원본을 던진다")
+    void updateDoesNotMaskUnrelatedConstraintViolationAsDuplicateName() {
+        Booth booth = booth(7L, null); // sector 한글탑
+        when(boothRepository.findById(7L)).thenReturn(Optional.of(booth));
+        when(boothRepository.existsByNameAndSectorAndIdNot("멋사 핫도그", BoothSector.한글탑, 7L)).thenReturn(false, false);
+        doThrow(new DataIntegrityViolationException("Data too long for column 'account'"))
+                .when(boothRepository).flush();
+
+        assertThatThrownBy(() -> boothService.update(7L, updateRequest(), boothAdmin(1L)))
+                .isInstanceOf(DataIntegrityViolationException.class);
     }
 
     private AdminSessionUser superAdmin() {

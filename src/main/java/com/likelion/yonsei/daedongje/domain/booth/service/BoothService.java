@@ -123,7 +123,12 @@ public class BoothService {
             if (boothRepository.existsByAdminId(request.adminId())) {
                 throw new BusinessException(BoothErrorCode.DUPLICATE_BOOTH_ADMIN);
             }
-            throw new BusinessException(BoothErrorCode.DUPLICATE_BOOTH_NAME);
+            if (boothRepository.existsByNameAndSector(request.name(), request.sector())) {
+                throw new BusinessException(BoothErrorCode.DUPLICATE_BOOTH_NAME);
+            }
+            // admin_id 도 (name, sector) 도 아닌 알 수 없는 제약 위반 — "이름 중복" 으로 둔갑시키지 않고
+            // 원본을 던져 일반 핸들러(500)가 처리하게 한다.
+            throw e;
         }
     }
 
@@ -291,10 +296,13 @@ public class BoothService {
             boothRepository.flush();
             return BoothResponse.of(booth, countWaiting(booth.getId()), fetchThumbnail(booth.getId()), fetchMapLocation(booth));
         } catch (DataIntegrityViolationException e) {
-            // 매핑 전 원본 제약 위반 메시지를 남긴다 — 모든 제약 위반을 B-004(중복 이름)로 뭉뚱그리므로
-            // 컬럼 길이 등 다른 원인이 둔갑해도 로그에서 추적 가능해야 한다.
-            log.warn("부스 수정 DataIntegrityViolation (B-004 로 매핑): {}", e.getMostSpecificCause().getMessage());
-            throw new BusinessException(BoothErrorCode.DUPLICATE_BOOTH_NAME);
+            // 진짜 (name, sector) 중복일 때만 B-004 로 매핑하고, 그 외 알 수 없는 제약 위반은
+            // 원본을 던져(→ 일반 핸들러 500) "이름 중복" 오해를 막는다. 원인은 아래 로그로 추적.
+            log.warn("부스 수정 DataIntegrityViolation: {}", e.getMostSpecificCause().getMessage());
+            if (boothRepository.existsByNameAndSectorAndIdNot(request.name(), request.sector(), booth.getId())) {
+                throw new BusinessException(BoothErrorCode.DUPLICATE_BOOTH_NAME);
+            }
+            throw e;
         }
     }
 
