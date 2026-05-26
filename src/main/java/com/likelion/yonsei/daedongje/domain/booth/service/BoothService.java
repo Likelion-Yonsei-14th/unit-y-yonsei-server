@@ -25,6 +25,8 @@ import com.likelion.yonsei.daedongje.domain.map.repository.MapLocationRepository
 import com.likelion.yonsei.daedongje.domain.reservation.entity.ReservationStatus;
 import com.likelion.yonsei.daedongje.domain.reservation.repository.ReservationRepository;
 import com.likelion.yonsei.daedongje.common.response.PageResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -42,6 +44,8 @@ import java.util.stream.Collectors;
 @Service
 @Transactional(readOnly = true)
 public class BoothService {
+
+    private static final Logger log = LoggerFactory.getLogger(BoothService.class);
 
     private final BoothRepository boothRepository;
     private final BoothImageRepository boothImageRepository;
@@ -82,6 +86,8 @@ public class BoothService {
             throw new BusinessException(BoothErrorCode.DUPLICATE_BOOTH_NAME);
         }
         validateBoothTime(request.openTime(), request.closeTime());
+        String representativeMenus = toMenuString(request.representativeMenus());
+        validateRepresentativeMenusLength(representativeMenus);
 
         Booth booth = Booth.create(
                 request.adminId(),
@@ -99,7 +105,7 @@ public class BoothService {
                 request.isReservable(),
                 request.account(),
                 request.locationId(),
-                toMenuString(request.representativeMenus()),
+                representativeMenus,
                 request.isFoodTruck(),
                 request.notice()
         );
@@ -109,6 +115,10 @@ public class BoothService {
         } catch (DataIntegrityViolationException e) {
             // 선검증(existsBy…)과 INSERT 사이의 race(TOCTOU) 로 UNIQUE 제약에 걸린 경우 —
             // admin_id(계정당 부스 1개) 와 name 중 어느 제약 위반인지 재확인해 매핑한다.
+            // 매핑 전 원본 제약 위반 메시지를 남겨, 알 수 없는 제약(컬럼 길이 등)이 B-004/B-009 로
+            // 둔갑해도 운영 로그/Loki 에서 진짜 원인을 추적할 수 있게 한다.
+            log.warn("부스 생성 DataIntegrityViolation (B-004/B-009 로 매핑): {}",
+                    e.getMostSpecificCause().getMessage());
             if (boothRepository.existsByAdminId(request.adminId())) {
                 throw new BusinessException(BoothErrorCode.DUPLICATE_BOOTH_ADMIN);
             }
@@ -167,6 +177,11 @@ public class BoothService {
     }
 
     private static final int MAX_PAGE_SIZE = 100;
+
+    // booths.representative_menus 컬럼이 VARCHAR(255) — 콤마결합 결과가 이를 넘으면
+    // DB 가 "Data too long" 으로 던지고, 그게 update/create 의 catch-all 에서 B-004(중복 이름)
+    // 로 둔갑한다. 저장 전에 입력 검증으로 막아 명확한 400(INVALID_INPUT)을 돌려준다.
+    private static final int MAX_REPRESENTATIVE_MENUS_LENGTH = 255;
 
     // 필터링된 부스 목록을 id 오름차순으로 정렬해 인메모리 페이지네이션한다.
     // (부스 수가 한정적이라 인메모리 슬라이스로 충분하며, 기존 다중 필터 메서드를 그대로 재사용한다.)
@@ -245,6 +260,8 @@ public class BoothService {
             throw new BusinessException(BoothErrorCode.DUPLICATE_BOOTH_NAME);
         }
         validateBoothTime(request.openTime(), request.closeTime());
+        String representativeMenus = toMenuString(request.representativeMenus());
+        validateRepresentativeMenusLength(representativeMenus);
 
         try {
             booth.update(
@@ -262,12 +279,15 @@ public class BoothService {
                     request.isReservable(),
                     request.account(),
                     request.locationId(),
-                    toMenuString(request.representativeMenus()),
+                    representativeMenus,
                     request.isFoodTruck(),
                     request.notice()
             );
             return BoothResponse.of(booth, countWaiting(booth.getId()), fetchThumbnail(booth.getId()), fetchMapLocation(booth));
         } catch (DataIntegrityViolationException e) {
+            // 매핑 전 원본 제약 위반 메시지를 남긴다 — 모든 제약 위반을 B-004(중복 이름)로 뭉뚱그리므로
+            // 컬럼 길이 등 다른 원인이 둔갑해도 로그에서 추적 가능해야 한다.
+            log.warn("부스 수정 DataIntegrityViolation (B-004 로 매핑): {}", e.getMostSpecificCause().getMessage());
             throw new BusinessException(BoothErrorCode.DUPLICATE_BOOTH_NAME);
         }
     }
@@ -404,6 +424,16 @@ public class BoothService {
     private String toMenuString(List<String> menus) {
         if (menus == null || menus.isEmpty()) return null;
         return String.join(",", menus);
+    }
+
+    // 대표 메뉴 콤마결합 문자열이 DB 컬럼 한도(VARCHAR(255))를 넘지 않는지 검증한다.
+    private void validateRepresentativeMenusLength(String representativeMenus) {
+        if (representativeMenus != null && representativeMenus.length() > MAX_REPRESENTATIVE_MENUS_LENGTH) {
+            throw new BusinessException(
+                    CommonErrorCode.INVALID_INPUT,
+                    String.format("대표 메뉴는 콤마 포함 %d자를 넘을 수 없습니다.", MAX_REPRESENTATIVE_MENUS_LENGTH)
+            );
+        }
     }
 
     /**
