@@ -1,5 +1,8 @@
 package com.likelion.yonsei.daedongje.common.exception;
 
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import org.springframework.beans.factory.ObjectProvider;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import org.junit.jupiter.api.BeforeEach;
@@ -16,7 +19,10 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -41,12 +47,17 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class GlobalExceptionHandlerTest {
 
     private MockMvc mockMvc;
+    private MeterRegistry meterRegistry;
 
     @BeforeEach
     void setUp() {
+        meterRegistry = new SimpleMeterRegistry();
+        @SuppressWarnings("unchecked")
+        ObjectProvider<MeterRegistry> meterRegistryProvider = mock(ObjectProvider.class);
+        when(meterRegistryProvider.getIfAvailable()).thenReturn(meterRegistry);
         mockMvc = MockMvcBuilders
                 .standaloneSetup(new TestController())
-                .setControllerAdvice(new GlobalExceptionHandler())
+                .setControllerAdvice(new GlobalExceptionHandler(meterRegistryProvider))
                 .build();
     }
 
@@ -57,6 +68,21 @@ class GlobalExceptionHandlerTest {
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.error.code").value("COMMON-004"))
                 .andExpect(jsonPath("$.error.message").value("요청한 리소스를 찾을 수 없습니다."));
+    }
+
+    @Test
+    void businessException_은_code별_business_errors_total_카운터를_증가시킨다() throws Exception {
+        // 4xx 비즈니스 에러는 5xx 알림에도 ERROR 로그 알림에도 안 잡힌다.
+        // 모든 BusinessException 을 code/status 태그 메트릭으로 올려 알림·대시보드 1급 신호로 만든다.
+        mockMvc.perform(get("/_test/business-error"))
+                .andExpect(status().isNotFound());
+
+        double count = meterRegistry.get("business_errors_total")
+                .tag("code", "COMMON-004")
+                .tag("status", "404")
+                .counter()
+                .count();
+        assertThat(count).isEqualTo(1.0);
     }
 
     @Test
