@@ -45,6 +45,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
@@ -523,11 +524,11 @@ class BoothServiceTest {
     }
 
     @Test
-    @DisplayName("같은 이름이라도 구역이 다르면 부스를 생성할 수 있다 (UNIQUE(name, sector) 범위 한정)")
-    void createAllowsSameNameInDifferentSector() {
+    @DisplayName("생성 시 이름 검증을 전역이 아니라 (이름, 구역) 범위로 수행한다 — 다른 구역 동명은 영향 없음")
+    void createChecksNameUniquenessScopedToSector() {
         when(adminUserRepository.existsById(1L)).thenReturn(true);
         when(boothRepository.existsByAdminId(1L)).thenReturn(false);
-        // 같은 이름이 '다른 구역'엔 있어도, 이 부스의 구역(한글탑)엔 없으므로 허용돼야 한다.
+        // 요청 구역(한글탑)엔 같은 이름이 없음 → 허용. 다른 구역에 동명이 있어도 이 조회로는 안 잡힌다.
         when(boothRepository.existsByNameAndSector("멋사 핫도그", BoothSector.한글탑)).thenReturn(false);
         when(boothRepository.save(any(Booth.class))).thenAnswer(invocation -> {
             Booth saved = invocation.getArgument(0);
@@ -535,9 +536,13 @@ class BoothServiceTest {
             return saved;
         });
 
-        BoothResponse response = boothService.create(createRequest());
+        BoothResponse response = boothService.create(createRequest()); // name "멋사 핫도그", sector 한글탑
 
         assertThat(response.getName()).isEqualTo("멋사 핫도그");
+        // 전역 existsByName 이 아니라 구역 범위 existsByNameAndSector 로 검증해야 함을 못박는다.
+        // (이게 깨지면 = 전역 유일로 회귀 = 다른 구역 동명을 잘못 거절)
+        verify(boothRepository).existsByNameAndSector("멋사 핫도그", BoothSector.한글탑);
+        verify(boothRepository, never()).existsByName(anyString());
     }
 
     @Test
