@@ -8,6 +8,7 @@ import com.likelion.yonsei.daedongje.domain.auth.support.AdminSessionUser;
 import com.likelion.yonsei.daedongje.domain.booth.dto.BoothCreateRequest;
 import com.likelion.yonsei.daedongje.domain.booth.dto.BoothResponse;
 import com.likelion.yonsei.daedongje.domain.booth.dto.BoothUpdateRequest;
+import com.likelion.yonsei.daedongje.domain.booth.dto.ReservableBoothResponse;
 import com.likelion.yonsei.daedongje.domain.booth.entity.Booth;
 import com.likelion.yonsei.daedongje.domain.booth.entity.BoothSector;
 import com.likelion.yonsei.daedongje.domain.booth.entity.BoothStatus;
@@ -43,6 +44,9 @@ import org.springframework.dao.DataIntegrityViolationException;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
@@ -170,6 +174,28 @@ class BoothServiceTest {
         PageResponse<BoothResponse> responses = boothService.getList(null, null, null, null, BoothStatus.OPEN, 0, 100);
 
         assertThat(responses.content()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("예약 가능 목록은 OPEN·PREPARING 상태를 모두 조회한다 — 축제 전 PREPARING 부스 누락 방지 (R-01)")
+    void getReservableListIncludesPreparingBooths() {
+        Booth preparing = booth(1L, null);
+        ReflectionTestUtils.setField(preparing, "status", BoothStatus.PREPARING);
+        when(boothRepository.findAllByIsReservableAndStatusIn(eq(true), anyCollection()))
+                .thenReturn(List.of(preparing));
+        when(reservationRepository.countByBoothIdsAndStatus(List.of(1L), ReservationStatus.PENDING))
+                .thenReturn(List.<Object[]>of(new Object[]{1L, 3L}));
+        when(boothImageRepository.findThumbnailsByBoothIds(List.of(1L))).thenReturn(List.of());
+
+        List<ReservableBoothResponse> result = boothService.getReservableList();
+
+        // status=OPEN 단독 필터로 회귀하면(= PREPARING 누락 버그 재발) 이 검증이 실패한다.
+        verify(boothRepository).findAllByIsReservableAndStatusIn(
+                eq(true),
+                argThat(statuses -> statuses.contains(BoothStatus.OPEN) && statuses.contains(BoothStatus.PREPARING)));
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getStatus()).isEqualTo(BoothStatus.PREPARING);
+        assertThat(result.get(0).getWaitingCount()).isEqualTo(3L);
     }
 
     @Test
