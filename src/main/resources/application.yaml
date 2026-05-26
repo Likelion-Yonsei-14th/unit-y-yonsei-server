@@ -98,6 +98,12 @@ management:
     metrics:
       export:
         enabled: true
+  metrics:
+    distribution:
+      # 대시보드 p95/p99 패널과 런북 알림이 쓰는 http_server_requests_seconds_bucket 시리즈를 생성한다.
+      # 기본 타이머는 _count/_sum/_max 만 내보내 histogram_quantile 이 빈 결과(No data)가 된다.
+      percentiles-histogram:
+        http.server.requests: true
 
 monitoring:
   webhook:
