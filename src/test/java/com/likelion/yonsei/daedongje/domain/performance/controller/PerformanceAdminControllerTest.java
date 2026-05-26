@@ -758,6 +758,58 @@ class PerformanceAdminControllerTest {
     }
 
     @Test
+    void getAdminPerformanceDetail_with_super_admin_returns_hidden_performance() throws Exception {
+        AdminUser superAdmin = adminUserRepository.save(adminUser("super-detail", AdminRole.SUPER));
+        Mockito.when(adminAuthContextService.getCurrentAdmin(any(HttpServletRequest.class)))
+                .thenReturn(AdminSessionUser.from(superAdmin));
+
+        MapLocation location = mapLocationRepository.save(mapLocation("Hidden Stage Loc"));
+        Performance performance = Performance.create(performerAdmin, "Hidden Stage");
+        performance.updateBasicInfo(
+                location,
+                "Hidden Stage",
+                "Hidden description",
+                3,
+                LocalTime.of(19, 0),
+                LocalTime.of(20, 0),
+                PerformanceCategory.ARTIST,
+                "Lineup H",
+                PerformanceStatus.HIDDEN
+        );
+        performanceRepository.save(performance);
+
+        // 공개 상세(GET /api/performances/{id})는 HIDDEN 을 404로 숨기지만, 운영진 상세는 HIDDEN 도 200으로 반환한다.
+        mockMvc.perform(get("/api/admin/performances/" + performance.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.id").value(performance.getId()))
+                .andExpect(jsonPath("$.data.performanceName").value("Hidden Stage"))
+                .andExpect(jsonPath("$.data.performanceDescription").value("Hidden description"))
+                .andExpect(jsonPath("$.data.performanceStatus").value("HIDDEN"))
+                .andExpect(jsonPath("$.data.locationName").value("Hidden Stage Loc"));
+    }
+
+    @Test
+    void getAdminPerformanceDetail_with_performer_admin_returns_forbidden() throws Exception {
+        // BeforeEach 의 performerAdmin(PERFORMER)으로 mock — 메서드 @RequireAdminRole({SUPER, MASTER}) 가 차단해야 한다.
+        Performance performance = performanceRepository.save(Performance.create(performerAdmin, "Stage"));
+
+        mockMvc.perform(get("/api/admin/performances/" + performance.getId()))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void getAdminPerformanceDetail_returns_not_found_when_id_does_not_exist() throws Exception {
+        AdminUser superAdmin = adminUserRepository.save(adminUser("super-detail-missing", AdminRole.SUPER));
+        Mockito.when(adminAuthContextService.getCurrentAdmin(any(HttpServletRequest.class)))
+                .thenReturn(AdminSessionUser.from(superAdmin));
+
+        mockMvc.perform(get("/api/admin/performances/999999"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error.code").value("P-006"));
+    }
+
+    @Test
     void openApi_exposes_performance_admin_apis_only_for_current_admin_resource() throws Exception {
         MvcResult result = mockMvc.perform(get("/v3/api-docs"))
                 .andExpect(status().isOk())
@@ -776,13 +828,14 @@ class PerformanceAdminControllerTest {
         assertThat(myPerformancePath.path("patch").path("tags").toString()).contains("공연 어드민");
         assertThat(myPerformancePath.path("delete").path("tags").toString()).contains("공연 어드민");
 
-        // 운영진(SUPER·MASTER) 의 공연 정보 수정·삭제 — PATCH·DELETE /{id} 노출 (BAC-106 + BAC-110)
+        // 운영진(SUPER·MASTER) 의 공연 상세 조회·수정·삭제 — GET·PATCH·DELETE /{id} 노출 (BAC-106 + BAC-110 + BAC-143)
         JsonNode adminUpdatePath = apiDocs.path("paths").path("/api/admin/performances/{id}");
         assertThat(adminUpdatePath.isMissingNode()).isFalse();
+        assertThat(adminUpdatePath.has("get")).isTrue();
         assertThat(adminUpdatePath.has("patch")).isTrue();
         assertThat(adminUpdatePath.has("delete")).isTrue();
-        assertThat(adminUpdatePath.has("get")).isFalse();
         assertThat(adminUpdatePath.has("post")).isFalse();
+        assertThat(adminUpdatePath.path("get").path("tags").toString()).contains("공연 어드민");
         assertThat(adminUpdatePath.path("patch").path("tags").toString()).contains("공연 어드민");
         assertThat(adminUpdatePath.path("delete").path("tags").toString()).contains("공연 어드민");
     }
