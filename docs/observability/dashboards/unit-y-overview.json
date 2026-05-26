@@ -580,12 +580,12 @@
       "type": "timeseries"
     },
     {
-      "datasource": { "type": "loki", "uid": "${DS_LOKI}" },
-      "description": "GlobalExceptionHandler가 남기는 'BusinessException: code=X-NNN' 로그를 코드별로 집계. B-004 같은 도메인 에러가 평소보다 튀는지 추적. (Tier 2 메트릭 도입 전 임시 가시화)",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "description": "GlobalExceptionHandler 의 business_errors_total{code,status} 카운터를 code별로 집계. 4xx 도메인 에러(B-004 등)는 5xx 메트릭(outcome=SERVER_ERROR)에도 ERROR 로그 알림에도 안 잡히므로 이 패널이 사실상 유일한 신호다.",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
-          "unit": "short",
+          "unit": "reqps",
           "min": 0,
           "custom": { "drawStyle": "bars", "fillOpacity": 60, "lineWidth": 1, "showPoints": "never", "stacking": { "mode": "normal", "group": "A" } }
         },
@@ -594,20 +594,19 @@
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 37 },
       "id": 15,
       "options": {
-        "legend": { "calcs": ["sum"], "displayMode": "table", "placement": "bottom", "showLegend": true },
+        "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true },
         "tooltip": { "mode": "multi", "sort": "desc" }
       },
       "pluginVersion": "11.0.0",
       "targets": [
         {
-          "datasource": { "type": "loki", "uid": "${DS_LOKI}" },
-          "expr": "sum by (code) (count_over_time({service=\"daedongje\"} |= \"BusinessException: code=\" | regexp \"code=(?P<code>[A-Z]+-[0-9]+)\" [5m]))",
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "expr": "sum by (code) (rate(business_errors_total[5m]))",
           "legendFormat": "{{code}}",
-          "queryType": "range",
           "refId": "A"
         }
       ],
-      "title": "비즈니스 에러 발생량 (code별, 5m)",
+      "title": "비즈니스 에러 발생률 (code별, rate 5m)",
       "type": "timeseries"
     }
   ],
