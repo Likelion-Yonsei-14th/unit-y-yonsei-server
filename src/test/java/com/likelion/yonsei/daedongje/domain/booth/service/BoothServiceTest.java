@@ -447,7 +447,7 @@ class BoothServiceTest {
     void createSucceedsWhenAdminExistsAndUnassigned() {
         when(adminUserRepository.existsById(1L)).thenReturn(true);
         when(boothRepository.existsByAdminId(1L)).thenReturn(false);
-        when(boothRepository.existsByName("멋사 핫도그")).thenReturn(false);
+        when(boothRepository.existsByNameAndSector("멋사 핫도그", BoothSector.한글탑)).thenReturn(false);
         when(boothRepository.save(any(Booth.class))).thenAnswer(invocation -> {
             Booth saved = invocation.getArgument(0);
             ReflectionTestUtils.setField(saved, "id", 1L);
@@ -465,7 +465,7 @@ class BoothServiceTest {
         when(adminUserRepository.existsById(1L)).thenReturn(true);
         // 선검증 시점엔 없음(false) → 동시 트랜잭션이 먼저 커밋 → 재확인 시 존재(true)
         when(boothRepository.existsByAdminId(1L)).thenReturn(false, true);
-        when(boothRepository.existsByName("멋사 핫도그")).thenReturn(false);
+        when(boothRepository.existsByNameAndSector("멋사 핫도그", BoothSector.한글탑)).thenReturn(false);
         when(boothRepository.save(any(Booth.class)))
                 .thenThrow(new DataIntegrityViolationException("unique constraint uq_booths_admin_id"));
 
@@ -480,7 +480,7 @@ class BoothServiceTest {
         when(adminUserRepository.existsById(1L)).thenReturn(true);
         // admin_id 는 선검증·재확인 모두 중복 아님 → 이름 제약 위반으로 판정
         when(boothRepository.existsByAdminId(1L)).thenReturn(false, false);
-        when(boothRepository.existsByName("멋사 핫도그")).thenReturn(false);
+        when(boothRepository.existsByNameAndSector("멋사 핫도그", BoothSector.한글탑)).thenReturn(false);
         when(boothRepository.save(any(Booth.class)))
                 .thenThrow(new DataIntegrityViolationException("unique constraint uq_booths_name"));
 
@@ -506,7 +506,7 @@ class BoothServiceTest {
     void createRejectsRepresentativeMenusOverColumnLimit() {
         when(adminUserRepository.existsById(1L)).thenReturn(true);
         when(boothRepository.existsByAdminId(1L)).thenReturn(false);
-        when(boothRepository.existsByName("멋사 핫도그")).thenReturn(false);
+        when(boothRepository.existsByNameAndSector("멋사 핫도그", BoothSector.한글탑)).thenReturn(false);
         lenient().when(boothRepository.save(any(Booth.class))).thenAnswer(invocation -> {
             Booth saved = invocation.getArgument(0);
             ReflectionTestUtils.setField(saved, "id", 1L);
@@ -520,6 +520,50 @@ class BoothServiceTest {
                         assertThat(e.getErrorCode()).isEqualTo(CommonErrorCode.INVALID_INPUT));
 
         verify(boothRepository, never()).save(any(Booth.class));
+    }
+
+    @Test
+    @DisplayName("같은 이름이라도 구역이 다르면 부스를 생성할 수 있다 (UNIQUE(name, sector) 범위 한정)")
+    void createAllowsSameNameInDifferentSector() {
+        when(adminUserRepository.existsById(1L)).thenReturn(true);
+        when(boothRepository.existsByAdminId(1L)).thenReturn(false);
+        // 같은 이름이 '다른 구역'엔 있어도, 이 부스의 구역(한글탑)엔 없으므로 허용돼야 한다.
+        when(boothRepository.existsByNameAndSector("멋사 핫도그", BoothSector.한글탑)).thenReturn(false);
+        when(boothRepository.save(any(Booth.class))).thenAnswer(invocation -> {
+            Booth saved = invocation.getArgument(0);
+            ReflectionTestUtils.setField(saved, "id", 1L);
+            return saved;
+        });
+
+        BoothResponse response = boothService.create(createRequest());
+
+        assertThat(response.getName()).isEqualTo("멋사 핫도그");
+    }
+
+    @Test
+    @DisplayName("같은 구역에 같은 이름 부스가 있으면 생성이 DUPLICATE_BOOTH_NAME 으로 거절된다")
+    void createRejectsSameNameInSameSector() {
+        when(adminUserRepository.existsById(1L)).thenReturn(true);
+        when(boothRepository.existsByAdminId(1L)).thenReturn(false);
+        when(boothRepository.existsByNameAndSector("멋사 핫도그", BoothSector.한글탑)).thenReturn(true);
+
+        assertThatThrownBy(() -> boothService.create(createRequest()))
+                .isInstanceOfSatisfying(BusinessException.class, e ->
+                        assertThat(e.getErrorCode()).isEqualTo(BoothErrorCode.DUPLICATE_BOOTH_NAME));
+
+        verify(boothRepository, never()).save(any(Booth.class));
+    }
+
+    @Test
+    @DisplayName("수정 시 같은 구역에 같은 이름 부스가 있으면 DUPLICATE_BOOTH_NAME 으로 거절된다 (본인 제외)")
+    void updateRejectsSameNameInSameSector() {
+        Booth booth = booth(7L, null); // adminId 1L, name "멋사 핫도그", sector 한글탑
+        when(boothRepository.findById(7L)).thenReturn(Optional.of(booth));
+        when(boothRepository.existsByNameAndSectorAndIdNot("멋사 핫도그", BoothSector.한글탑, 7L)).thenReturn(true);
+
+        assertThatThrownBy(() -> boothService.update(7L, updateRequest(), boothAdmin(1L)))
+                .isInstanceOfSatisfying(BusinessException.class, e ->
+                        assertThat(e.getErrorCode()).isEqualTo(BoothErrorCode.DUPLICATE_BOOTH_NAME));
     }
 
     private AdminSessionUser superAdmin() {

@@ -82,7 +82,8 @@ public class BoothService {
         if (boothRepository.existsByAdminId(request.adminId())) {
             throw new BusinessException(BoothErrorCode.DUPLICATE_BOOTH_ADMIN);
         }
-        if (boothRepository.existsByName(request.name())) {
+        // 이름 유일성은 구역(sector) 범위로 한정 — 같은 이름이라도 구역이 다르면 허용 (BAC-144)
+        if (boothRepository.existsByNameAndSector(request.name(), request.sector())) {
             throw new BusinessException(BoothErrorCode.DUPLICATE_BOOTH_NAME);
         }
         validateBoothTime(request.openTime(), request.closeTime());
@@ -255,8 +256,8 @@ public class BoothService {
             throw new BusinessException(AuthErrorCode.FORBIDDEN);
         }
 
-        if (!booth.getName().equals(request.name()) &&
-                boothRepository.existsByName(request.name())) {
+        // 같은 (name, sector) 가 본인 외 부스에 있으면 거절 — 이름·구역 중 하나만 달라도 통과 (BAC-144)
+        if (boothRepository.existsByNameAndSectorAndIdNot(request.name(), request.sector(), booth.getId())) {
             throw new BusinessException(BoothErrorCode.DUPLICATE_BOOTH_NAME);
         }
         validateBoothTime(request.openTime(), request.closeTime());
