@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -50,6 +51,6 @@ public interface BoothRepository extends JpaRepository<Booth, Long> {
     List<Booth> searchByKeyword(@Param("keyword") String keyword);
     List<Booth> findAllByIsReservable(Boolean isReservable);
 
-    List<Booth> findAllByIsReservableAndStatus(Boolean isReservable, BoothStatus status);
+    List<Booth> findAllByIsReservableAndStatusIn(Boolean isReservable, Collection<BoothStatus> statuses);
 
 }

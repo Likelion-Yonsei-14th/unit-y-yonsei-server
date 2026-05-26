@@ -210,9 +210,11 @@ public class BoothService {
                 .toList();
     }
 
-    // 예약 가능 부스 목록 조회 (isReservable=true AND status=OPEN, 대기 팀 수 포함)
+    // 예약 가능 부스 목록 조회 (isReservable=true AND status IN (OPEN, PREPARING), 대기 팀 수 포함)
+    // 축제 시작 전 예약을 미리 받는 PREPARING 부스도 노출한다 — CLOSED 만 제외 (R-01, BAC-141).
     public List<ReservableBoothResponse> getReservableList() {
-        List<Booth> booths = boothRepository.findAllByIsReservableAndStatus(true, BoothStatus.OPEN);
+        List<Booth> booths = boothRepository.findAllByIsReservableAndStatusIn(
+                true, List.of(BoothStatus.OPEN, BoothStatus.PREPARING));
         if (booths.isEmpty()) return List.of();
 
         List<Long> boothIds = booths.stream().map(Booth::getId).toList();
