@@ -48,6 +48,14 @@ public class PerformanceReadService {
         return PerformanceDetailResponse.from(performance);
     }
 
+    // 운영진(SUPER/MASTER) 전용 상세. 공개 getPerformanceDetail 과 달리 HIDDEN 도 포함한다 —
+    // 미발행(HIDDEN) 공연도 운영진은 상세/수정폼에서 봐야 하므로 status 필터 없이 findById 로 조회한다.
+    public PerformanceDetailResponse getAdminPerformanceDetail(Long id) {
+        Performance performance = performanceRepository.findById(id)
+                .orElseThrow(() -> new BusinessException(PerformanceErrorCode.PERFORMANCE_NOT_FOUND));
+        return PerformanceDetailResponse.from(performance);
+    }
+
     /**
      * 현재 진행 중(ONGOING) 인 공연 중 가장 이른 1건을 반환한다.
      * 진행 중 공연이 없으면 null 을 반환 — "지금 공연 없음" 은 정상 상태로 표현 (LivePerformanceService.getLivePerformance 와 동일 패턴).

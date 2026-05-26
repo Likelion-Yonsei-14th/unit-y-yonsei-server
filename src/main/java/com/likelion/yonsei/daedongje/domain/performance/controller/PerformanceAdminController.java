@@ -5,6 +5,7 @@ import com.likelion.yonsei.daedongje.domain.auth.entity.AdminRole;
 import com.likelion.yonsei.daedongje.domain.auth.support.AdminSessionUser;
 import com.likelion.yonsei.daedongje.domain.auth.support.CurrentAdmin;
 import com.likelion.yonsei.daedongje.domain.auth.support.RequireAdminRole;
+import com.likelion.yonsei.daedongje.domain.performance.dto.PerformanceDetailResponse;
 import com.likelion.yonsei.daedongje.domain.performance.dto.PerformanceListResponse;
 import com.likelion.yonsei.daedongje.domain.performance.dto.PerformanceMyResponse;
 import com.likelion.yonsei.daedongje.domain.performance.dto.PerformanceUpdateRequest;
@@ -42,6 +43,21 @@ public class PerformanceAdminController {
     @GetMapping
     public ApiResponse<List<PerformanceListResponse>> getAdminPerformances() {
         return ApiResponse.success(performanceReadService.getAdminPerformances());
+    }
+
+    @Operation(
+            summary = "공연 상세 운영진 조회",
+            description = "SUPER·MASTER 운영진이 임의 공연 ID 의 상세 정보를 조회합니다. 공개 상세(GET /api/performances/{id})와 달리 HIDDEN 상태 공연도 포함됩니다."
+    )
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공 (HIDDEN 포함)")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "권한 없음 (PERFORMER 차단)")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "존재하지 않는 공연 (P-006)")
+    @RequireAdminRole({AdminRole.SUPER, AdminRole.MASTER})
+    @GetMapping("/{id}")
+    public ApiResponse<PerformanceDetailResponse> getAdminPerformanceDetail(
+            @PathVariable Long id
+    ) {
+        return ApiResponse.success(performanceReadService.getAdminPerformanceDetail(id));
     }
 
     @Operation(summary = "내 공연 정보 조회", description = "로그인한 공연 어드민 계정에 연결된 공연 정보를 조회합니다.")
